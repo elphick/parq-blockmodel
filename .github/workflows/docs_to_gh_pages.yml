@@ -1,0 +1,46 @@
+name: "Publish Docs"
+on:
+  push:
+    paths:
+      - 'docs/**'
+      - 'examples/*.py'
+      - 'README.md'
+  pull_request:
+    paths:
+      - 'docs/**'
+      - 'examples/*.py'
+      - 'README.md'
+  workflow_dispatch:
+
+
+permissions:
+    contents: write
+jobs:
+  docs:
+    if: github.ref_protected == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v3
+      - name: Install dependencies
+        run: |
+          pip install sphinx sphinx_rtd_theme
+          pip install sphinx-gallery
+          pip install sphinx-autodoc-typehints
+          pip install myst-parser
+          pip install plotly
+          pip install matplotlib
+          pip install kaleido
+          pip install pytest
+      - name: Sphinx build
+        run: |
+          sphinx-build docs/source _build
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        if: ${{ github.ref == 'refs/heads/main' }}
+        with:
+          publish_branch: gh-pages
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: _build/
+          force_orphan: true
+

@@ -1,0 +1,28 @@
+name: "Build Docs"
+on:
+   push:
+     paths:
+       - 'examples/*.py'
+       - 'docs/**'
+   workflow_dispatch:
+
+jobs:
+  check_docs:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v3
+    - uses: actions/setup-python@v3
+    - name: Install dependencies
+      run: |
+        pip install sphinx sphinx_rtd_theme
+        pip install sphinx-gallery
+        pip install sphinx-autodoc-typehints
+        pip install myst-parser
+        pip install plotly
+        pip install matplotlib
+        pip install kaleido
+        pip install pytest
+    - name: Sphinx build
+      run: |
+        sphinx-build docs/source _build
+        
