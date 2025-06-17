@@ -1,26 +1,39 @@
 [tool.poetry]
-name = "elphick-template"
+name = "parq-blockmodel"
 version = "0.1.0"
-description = ""
+description = "A Python package for efficient storage, manipulation, and analysis of mining block models using Parquet files."
 authors = ["Greg <11791585+elphick@users.noreply.github.com>"]
 readme = "README.md"
-packages = [{include = "elphick/template"}]
+packages = [{ include = "parq_blockmodel" }]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.12"
-
+python = ">=3.10,<3.13"
+pyarrow = ">=16.0"
+lark = "^1.2.2"
+tqdm = { version = "^4.67.1", optional = true }
+ydata-profiling = { version = "^4.16.1", optional = true }
+setuptools = { version = "*", optional = true }
+pyvista = { version = "^0.45.2", optional = true }
+numpy = ">=1.25.2"
+parq-tools = { git = "https://github.com/elphick/parq-tools.git", branch = "12-column-descriptions-in-profile-report" }
+[tool.poetry.extras]
+profiling = ["ydata-profiling", "setuptools"]
+progress = ["tqdm"]
+blockmodel = ["pyvista"]
 
 [tool.poetry.group.dev.dependencies]
-pytest = "^7.1.3"
-sphinx = "^5.0.2"
-sphinx-rtd-theme = "^1.0.0"
-sphinx-gallery = "^0.11.1"
-sphinx-autodoc-typehints = "^1.18.3"
-myst-parser = "^0.18.0"
+pytest = "^8.2.1"
+sphinx = "^7.3.7"
+sphinx-gallery = "^0.14.0"
+sphinx-rtd-theme = "^2.0.0"
+myst-parser = "^3.0.1"
+sphinx-autodoc-typehints = "^2.1.1"
 matplotlib = "^3.7.2"
+coverage = "^7.8.0"
 # packages below here are for plotly and plotly thumbnails
-plotly = "^5.15.0"
-kaleido = "0.2.1"
+plotly = "5.18.0"
+kaleido = { version = "0.1.0post1", markers = "sys_platform == 'win32'" }
+#kaleido = { version = "0.2.1", markers = "sys_platform != 'win32'" }
 
 [build-system]
 requires = ["poetry-core"]

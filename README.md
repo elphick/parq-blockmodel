@@ -1,29 +1,16 @@
-# elphick-template
+# parq-blockmodel
 
-This is a template for a python package including:
+[![Run Tests](https://github.com/Elphick/parq-blockmodel/actions/workflows/build_and_test.yml/badge.svg?branch=main)](https://github.com/Elphick/parq-blockmodel/actions/workflows/build_and_test.yml)
+[![PyPI](https://img.shields.io/pypi/v/parq-blockmodel.svg?logo=python&logoColor=white)](https://pypi.org/project/parq-blockmodel/)
+![Coverage](https://raw.githubusercontent.com/elphick/parq-blockmodel/main/docs/source/_static/badges/coverage.svg)
+[![Python Versions](https://img.shields.io/pypi/pyversions/parq-blockmodel.svg)](https://pypi.org/project/parq-blockmodel/)
+[![License](https://img.shields.io/github/license/Elphick/parq-blockmodel.svg?logo=apache&logoColor=white)](https://pypi.org/project/parq-blockmodel/)
+[![Publish Docs](https://github.com/Elphick/parq-blockmodel/actions/workflows/docs_to_gh_pages.yml/badge.svg?branch=main)](https://github.com/Elphick/parq-blockmodel/actions/workflows/docs_to_gh_pages.yml)
+[![Open Issues](https://img.shields.io/github/issues/Elphick/parq-blockmodel.svg)](https://github.com/Elphick/parq-blockmodel/issues)
+[![Open PRs](https://img.shields.io/github/issues-pr/Elphick/parq-blockmodel.svg)](https://github.com/Elphick/parq-blockmodel/pulls)
 
-- a namespace directory (called namespace)
-- a package directory (called package)
-- tests
-- docs
-- github actions
 
-Actions to perform once you have created your repo from this template:
-
-1. Change references to elphick-template, including in the pyproject.toml file
-2. Change the namespace and package folder names and module.py filename
-3. Modify the content of the following rst pages:
-    - api/modules
-    - installation
-    - quickstart
-    - glossary
-4. Confirm the licence file and modify accordingly
-5. Consider moving matplotlib and plotly from dev dependencies to your package dependencies if you use them.
-
-One of the advantages of the template is the doc publishing onto a gh-pages branch is already configured.
-To leverage this be sure to check the "include all branches" checkbox when creating a new repository from the template.
-
-[![screenshot](https://elphick.github.io/elphick-template/_static/new_repo_from_template.png)](https://elphick.github.io/elphick-template/_static/new_repo_from_template.png)
-
-Oh, you'll likely need to set-up a github token for the docs_to_gh_pages.yml action to work.
-TODO: Confirm and add better instruction here.
+## Overview
+A Python package for efficient storage, manipulation, and analysis of mining block models using Parquet files. 
+parq-blockmodel provides tools for reading, writing, indexing, and transforming large-scale block model datasets, 
+leveraging the performance of Apache Arrow and Parquet for scalable geoscience data workflows.

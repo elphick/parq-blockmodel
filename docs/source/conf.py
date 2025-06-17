@@ -7,18 +7,22 @@ from plotly.io._sg_scraper import plotly_sg_scraper
 image_scrapers = ('matplotlib', plotly_sg_scraper,)
 
 from plotly.io._sg_scraper import plotly_sg_scraper
-# import plotly.io as pio
-#
-# pio.renderers.default = 'sphinx_gallery_png'  # 'sphinx_gallery'
+import plotly.io as pio
+
+pio.renderers.default = 'sphinx_gallery_png'  # 'sphinx_gallery'
 
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../..'))
 
+import parq_blockmodel
+
 # -- Project information -----------------------------------------------------
 
-project = 'elphick-template'
-copyright = '2023, Greg Elphick'
+project = 'parq-blockmodel'
+copyright = '2025, Greg Elphick'
 author = 'Greg Elphick'
+version = parq_blockmodel.__version__
+
 
 # -- General configuration ---------------------------------------------------
 
