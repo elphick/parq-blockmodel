@@ -12,22 +12,30 @@ Main API:
 
 import json
 import logging
+import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from functools import cached_property
 from pathlib import Path
-from typing import Union, Optional
+from typing import Union, Optional, TYPE_CHECKING
+
+from numpy.typing import NDArray
 
 import numpy as np
 import pandas as pd
 from scipy.cluster.hierarchy import centroid
 
-from parq_tools.block_models.utils.spatial_encoding import multiindex_to_encoded_index
+from parq_blockmodel.utils.geometry_utils import validate_axes_orthonormal
+from parq_blockmodel.utils.spatial_encoding import multiindex_to_encoded_index
 
-FloatArray = Union[np.ndarray, list[float], np.ndarray[float]]
+FloatArray = Union[np.ndarray, list[float], NDArray[np.floating]]
 Vector = Union[tuple[float, float, float], list[float, float, float]]
 Point = Union[tuple[float, float, float], list[float, float, float]]
 Triple = Union[tuple[float, float, float], list[float, float, float]]
 MinMax = Union[tuple[float, float], list[float, float]]
+
+if TYPE_CHECKING:
+    import pyvista as pv
 
 
 class Geometry(ABC):
@@ -39,7 +47,7 @@ class Geometry(ABC):
     Additionally, other properties of the geometry are defined here, such as the shape of the geometry.
 
     Attributes (in omf and pyvista) are stored in Fortran 'F' order, meaning that the last index changes the fastest.
-    Hence the MultiIndex levels need to be sorted by 'z', 'y', 'x', to align with the Fortran order.
+    Hence, the MultiIndex levels need to be sorted by 'z', 'y', 'x', to align with the Fortran order.
     This has x changing fastest, z changing slowest.
 
     """
@@ -50,9 +58,6 @@ class Geometry(ABC):
     axis_w: Vector = (0, 0, 1)
     srs: Optional[str] = None  # Spatial Reference System, e.g. EPSG code
 
-    _centroid_u: Optional[FloatArray] = None
-    _centroid_v: Optional[FloatArray] = None
-    _centroid_w: Optional[FloatArray] = None
     _shape: Optional[Point] = None
     _is_regular: Optional[bool] = None
     _logger: logging.Logger = logging.getLogger(__name__)
@@ -92,17 +97,44 @@ class Geometry(ABC):
 
     @property
     @abstractmethod
-    def centroid_u(self) -> np.ndarray[float]:
+    def _centroids(self) -> np.ndarray:
+        """Return the centroids as a (3, N) array."""
         pass
 
     @property
     @abstractmethod
-    def centroid_v(self) -> np.ndarray[float]:
+    def centroid_u(self) -> NDArray[np.floating]:
+        """Return the unique u coordinates of the centroids."""
         pass
 
     @property
     @abstractmethod
-    def centroid_w(self) -> np.ndarray[float]:
+    def centroid_v(self) -> NDArray[np.floating]:
+        """Return the unique v coordinates of the centroids."""
+        pass
+
+    @property
+    @abstractmethod
+    def centroid_w(self) -> NDArray[np.floating]:
+        """Return the unique w coordinates of the centroids."""
+        pass
+
+    @property
+    @abstractmethod
+    def centroid_x(self) -> NDArray[np.floating]:
+        """Return the x coordinates of the centroids."""
+        pass
+
+    @property
+    @abstractmethod
+    def centroid_y(self) -> NDArray[np.floating]:
+        """Return the y coordinates of the centroids."""
+        pass
+
+    @property
+    @abstractmethod
+    def centroid_z(self) -> NDArray[np.floating]:
+        """Return the z coordinates of the centroids."""
         pass
 
     @property
@@ -113,11 +145,17 @@ class Geometry(ABC):
     def shape(self) -> Triple:
         if self._shape is None:
             self._shape = (
-                len(self.centroid_u),
-                len(self.centroid_v),
-                len(self.centroid_w),
+                len(self.centroid_x),
+                len(self.centroid_y),
+                len(self.centroid_z),
             )
         return self._shape
+
+    @property
+    def rotated(self) -> bool:
+        """Return True if the geometry axes are not aligned with the world axes."""
+        axes = np.array([self.axis_u, self.axis_v, self.axis_w])
+        return not np.allclose(axes, np.eye(3), atol=1e-8)
 
     @property
     @abstractmethod
@@ -161,6 +199,10 @@ class RegularGeometry(Geometry):
     axis_w: Vector = (0, 0, 1)
     srs: Optional[str] = None  # Spatial Reference System, e.g. EPSG code
 
+    def __post_init__(self):
+        if not validate_axes_orthonormal(self.axis_u, self.axis_v, self.axis_w):
+            raise ValueError("Axis vectors must be orthogonal and normalized.")
+
     def __repr__(self):
         return f"RegularGeometry: {self.summary}"
 
@@ -172,34 +214,54 @@ class RegularGeometry(Geometry):
         return True
 
     @property
-    def centroid_u(self) -> np.ndarray[float]:
-        if self._centroid_u is None:
-            self._centroid_u = np.arange(
-                self.corner[0] + self.block_size[0] / 2,
-                self.corner[0] + self.block_size[0] * self.shape[0],
-                self.block_size[0],
-            )
-        return self._centroid_u
+    def is_rotated(self) -> bool:
+        """Check if the geometry is rotated."""
+        return not np.allclose(self.axis_u, (1, 0, 0)) or \
+            not np.allclose(self.axis_v, (0, 1, 0)) or \
+            not np.allclose(self.axis_w, (0, 0, 1))
+
+    @cached_property
+    def _centroids(self) -> np.ndarray:
+        # Compute axis-aligned centroids
+        x = np.arange(self.corner[0] + self.block_size[0] / 2,
+                      self.corner[0] + self.block_size[0] * self.shape[0],
+                      self.block_size[0])
+        y = np.arange(self.corner[1] + self.block_size[1] / 2,
+                      self.corner[1] + self.block_size[1] * self.shape[1],
+                      self.block_size[1])
+        z = np.arange(self.corner[2] + self.block_size[2] / 2,
+                      self.corner[2] + self.block_size[2] * self.shape[2],
+                      self.block_size[2])
+        xx, yy, zz = np.meshgrid(x, y, z, indexing="ij")
+        centroids = np.vstack([xx.ravel(), yy.ravel(), zz.ravel()])
+        # Apply rotation
+        rotation_matrix = np.array([self.axis_u, self.axis_v, self.axis_w]).T
+        rotated = rotation_matrix @ centroids
+        return rotated  # shape: (3, N)
 
     @property
-    def centroid_v(self) -> np.ndarray[float]:
-        if self._centroid_v is None:
-            self._centroid_v = np.arange(
-                self.corner[1] + self.block_size[1] / 2,
-                self.corner[1] + self.block_size[1] * self.shape[1],
-                self.block_size[1],
-            )
-        return self._centroid_v
+    def centroid_u(self) -> np.ndarray:
+        return np.unique(self._centroids[0])
 
     @property
-    def centroid_w(self) -> np.ndarray[float]:
-        if self._centroid_w is None:
-            self._centroid_w = np.arange(
-                self.corner[2] + self.block_size[2] / 2,
-                self.corner[2] + self.block_size[2] * self.shape[2],
-                self.block_size[2],
-            )
-        return self._centroid_w
+    def centroid_v(self) -> np.ndarray:
+        return np.unique(self._centroids[1])
+
+    @property
+    def centroid_w(self) -> np.ndarray:
+        return np.unique(self._centroids[2])
+
+    @property
+    def centroid_x(self) -> np.ndarray:
+        return self._centroids[0]
+
+    @property
+    def centroid_y(self) -> np.ndarray:
+        return self._centroids[1]
+
+    @property
+    def centroid_z(self) -> np.ndarray:
+        return self._centroids[2]
 
     @property
     def shape(self) -> Triple:
@@ -213,16 +275,16 @@ class RegularGeometry(Geometry):
     def extents(self) -> tuple[MinMax, MinMax, MinMax]:
         return (
             (
-                float(self.centroid_u[0] - self.block_size[0] / 2),
-                float(self.centroid_u[-1] + self.block_size[0] / 2),
+                float(self.centroid_x[0] - self.block_size[0] / 2),
+                float(self.centroid_x[-1] + self.block_size[0] / 2),
             ),
             (
-                float(self.centroid_v[0] - self.block_size[1] / 2),
-                float(self.centroid_v[-1] + self.block_size[1] / 2),
+                float(self.centroid_y[0] - self.block_size[1] / 2),
+                float(self.centroid_y[-1] + self.block_size[1] / 2),
             ),
             (
-                float(self.centroid_w[0] - self.block_size[2] / 2),
-                float(self.centroid_w[-1] + self.block_size[2] / 2),
+                float(self.centroid_z[0] - self.block_size[2] / 2),
+                float(self.centroid_z[-1] + self.block_size[2] / 2),
             ),
         )
 
@@ -291,14 +353,12 @@ class RegularGeometry(Geometry):
                  int((max(y) - min(y)) / block_size[1]) + 1,
                  int((max(z) - min(z)) / block_size[2]) + 1)
 
-        return cls(
-            corner=(corner_x, corner_y, corner_z),
-            axis_u=axis_u,
-            axis_v=axis_v,
-            axis_w=axis_w,
-            block_size=block_size,
-            shape=shape,
-        )
+        return cls(corner=(corner_x, corner_y, corner_z),
+                   axis_u=axis_u,
+                   axis_v=axis_v,
+                   axis_w=axis_w,
+                   block_size=block_size,
+                   shape=shape)
 
     @classmethod
     def from_extents(
@@ -314,18 +374,19 @@ class RegularGeometry(Geometry):
         min_y, max_y = extents[1]
         min_z, max_z = extents[2]
 
-        corner = (
-            min_x - block_size[0] / 2,
-            min_y - block_size[1] / 2,
-            min_z - block_size[2] / 2,
-        )
+        corner = (min_x, min_y, min_z)
         shape = (
-            int((max_x - min_x) / block_size[0]),
-            int((max_y - min_y) / block_size[1]),
-            int((max_z - min_z) / block_size[2]),
+            int(math.ceil((max_x - min_x) / block_size[0])),
+            int(math.ceil((max_y - min_y) / block_size[1])),
+            int(math.ceil((max_z - min_z) / block_size[2])),
         )
 
-        return cls(corner, axis_u, axis_v, axis_w, block_size, shape)
+        return cls(corner=corner,
+                   block_size=block_size,
+                   shape=shape,
+                   axis_u=axis_u,
+                   axis_v=axis_v,
+                   axis_w=axis_w)
 
     def to_json(self) -> str:
         """Convert the full geometry to a JSON string."""
@@ -359,12 +420,6 @@ class RegularGeometry(Geometry):
         - x: The x coordinates of the cell centres
         - y: The y coordinates of the cell centres
         - z: The z coordinates of the cell centres
-        """
-
-        """Returns a pd.MultiIndex for the regular blockmodel element, accounting for rotation.
-
-        Args:
-            blockmodel (BaseBlockModel): The regular BlockModel to get the index from.
 
         Returns:
             pd.MultiIndex: The MultiIndex representing the blockmodel element geometry.
@@ -402,6 +457,22 @@ class RegularGeometry(Geometry):
         # Sort the MultiIndex by x, y, z levels
         return index.sortlevel(level=["x", "y", "z"])[0]
 
+    def to_dataframe(self) -> pd.DataFrame:
+        """
+        Convert a RegularGeometry to a DataFrame using the cached centroids.
+
+        Returns:
+            pd.DataFrame: The DataFrame representing the blockmodel element geometry.
+        """
+        centroids = self._centroids  # shape: (3, N)
+        df = pd.DataFrame({
+            "x": centroids[0],
+            "y": centroids[1],
+            "z": centroids[2],
+        })
+        df.attrs["geometry"] = self.summary
+        return df
+
     def to_spatial_index(self) -> pd.Index:
         """Convert a RegularGeometry to an encoded integer index
 
@@ -413,6 +484,24 @@ class RegularGeometry(Geometry):
 
         """
         return multiindex_to_encoded_index(self.to_multi_index())
+
+    def to_pyvista(self) -> 'pv.ImageData':
+        import pyvista as pv
+
+        # PyVista expects dimensions as (nx, ny, nz) + 1
+        nx, ny, nz = self.shape
+        dims = (nx, ny, nz)
+        origin = self.corner
+        spacing = self.block_size
+
+        # ImageData expects dimensions as number of points, so add 1 to each
+        dims = tuple(d + 1 for d in dims)
+
+        grid = pv.ImageData(dimensions=dims,
+                            spacing=spacing,
+                            origin=origin)
+        grid.direction_matrix = np.array([self.axis_u, self.axis_v, self.axis_w]).T
+        return grid
 
     def nearest_centroid_lookup(self, x: float, y: float, z: float) -> Point:
         """Find the nearest centroid for provided x, y, z points.
@@ -427,9 +516,9 @@ class RegularGeometry(Geometry):
         """
 
         reference_centroid: Point = (
-            self.centroid_u[0],
-            self.centroid_v[0],
-            self.centroid_w[0],
+            self.centroid_x[0],
+            self.centroid_y[0],
+            self.centroid_z[0],
         )
         dx, dy, dz = self.block_size
         ref_x, ref_y, ref_z = reference_centroid
@@ -451,6 +540,9 @@ class RegularGeometry(Geometry):
 
         """
 
+        if self.srs != other.srs:
+            self._logger.warning(f"SRS {self.srs} != {other.srs}.")
+            return False
         if self.block_size != other.block_size:
             self._logger.warning(f"Block size {self.block_size} != {other.block_size}.")
             return False
@@ -479,4 +571,3 @@ class RegularGeometry(Geometry):
             self._logger.warning(f"Incompatibility in z dimension: {z_offset} != {int(z_offset)}.")
             return False
         return True
-

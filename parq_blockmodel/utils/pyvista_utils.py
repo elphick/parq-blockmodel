@@ -1,8 +1,31 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
 import pandas as pd
 import numpy as np
 
+if TYPE_CHECKING:
+    import pyvista as pv
 
-def df_to_pv_structured_grid(df: pd.DataFrame) -> 'pv.StructuredGrid':
+
+def df_to_pv_structured_grid(df: pd.DataFrame, validate_block_size: bool = True) -> 'pv.StructuredGrid':
+    """Convert a DataFrame into a PyVista StructuredGrid.
+
+    This function is for the full grid dense block model.
+
+    The DataFrame should have a MultiIndex of coordinates (x, y, z) and data columns.
+    The grid is created assuming uniform block sizes in the x, y, z directions.
+    The grid points are calculated based on the centroids of the blocks, and the data is added to the cell
+    data of the grid.
+
+    Args:
+        df: pd.DataFrame with a MultiIndex of coordinates (x, y, z) and data columns.
+        validate_block_size: bool, optional
+
+    Returns:
+        pv.StructuredGrid: A PyVista StructuredGrid object.
+    """
     import pyvista as pv
 
     # ensure the dataframe is sorted by z, y, x, since Pyvista uses 'F' order.
@@ -17,6 +40,14 @@ def df_to_pv_structured_grid(df: pd.DataFrame) -> 'pv.StructuredGrid':
     dx = np.diff(x_centroids)[0]
     dy = np.diff(y_centroids)[0]
     dz = np.diff(z_centroids)[0]
+
+    if validate_block_size:
+        # Check all diffs are the same (within tolerance)
+        tol = 1e-8
+        if (np.any(np.abs(np.diff(x_centroids) - dx) > tol) or
+                np.any(np.abs(np.diff(y_centroids) - dy) > tol) or
+                np.any(np.abs(np.diff(z_centroids) - dz) > tol)):
+            raise ValueError("Block sizes are not uniform in the structured grid.")
 
     # Calculate the grid points
     x_points = np.concatenate([x_centroids - dx / 2, x_centroids[-1:] + dx / 2])
@@ -36,10 +67,26 @@ def df_to_pv_structured_grid(df: pd.DataFrame) -> 'pv.StructuredGrid':
     return grid
 
 
-def df_to_pv_unstructured_grid(df: pd.DataFrame, block_size) -> 'pv.UnstructuredGrid':
-    """
-    Requires the index to be a pd.MultiIndex with names ['x', 'y', 'z', 'dx', 'dy', 'dz'].
-    :return:
+def df_to_pv_unstructured_grid(df: pd.DataFrame, block_size: tuple[float, float, float],
+                               validate_block_size: bool = True) -> 'pv.UnstructuredGrid':
+    """Convert a DataFrame into a PyVista UnstructuredGrid.
+
+    This function is for the unstructured grid block model, which is typically used for sparse or
+    irregular block models.
+
+    The DataFrame should have a MultiIndex of coordinates (x, y, z) and block sizes (dx, dy, dz).
+    The grid is created based on the centroids of the blocks, and the data is added to the cell
+    data of the grid.
+    The block sizes (dx, dy, dz) can be provided or estimated from the DataFrame.
+
+
+    Args:
+        df: pd.DataFrame with a MultiIndex of coordinates (x, y, z) and block sizes (dx, dy, dz).
+        block_size: tuple of floats, optional
+        validate_block_size: bool, optional
+
+    Returns:
+        pv.UnstructuredGrid: A PyVista UnstructuredGrid object.
     """
 
     import pyvista as pv
@@ -54,6 +101,11 @@ def df_to_pv_unstructured_grid(df: pd.DataFrame, block_size) -> 'pv.Unstructured
         blocks['dx'] = dx
         blocks['dy'] = dy
         blocks['dz'] = dz
+
+    if validate_block_size:
+        tol = 1e-8
+        if blocks[['dx', 'dy', 'dz']].std().max() > tol:
+            raise ValueError("Block sizes are not uniform in the unstructured grid.")
 
     x, y, z, dx, dy, dz = (blocks[col].values for col in blocks.columns if col in ['x', 'y', 'z', 'dx', 'dy', 'dz'])
     blocks.set_index(['x', 'y', 'z', 'dx', 'dy', 'dz'], inplace=True)

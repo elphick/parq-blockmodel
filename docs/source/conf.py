@@ -1,20 +1,14 @@
 import os
 import sys
 
-import plotly
-from plotly.io._sg_scraper import plotly_sg_scraper
-
-image_scrapers = ('matplotlib', plotly_sg_scraper,)
-
-from plotly.io._sg_scraper import plotly_sg_scraper
-import plotly.io as pio
-
-pio.renderers.default = 'sphinx_gallery_png'  # 'sphinx_gallery'
+import numpy as np
+from sphinx_gallery.sorting import FileNameSortKey
 
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../..'))
 
 import parq_blockmodel
+import pyvista
 
 # -- Project information -----------------------------------------------------
 
@@ -22,6 +16,20 @@ project = 'parq-blockmodel'
 copyright = '2025, Greg Elphick'
 author = 'Greg Elphick'
 version = parq_blockmodel.__version__
+
+
+# -- pyvista configuration ---------------------------------------------------
+
+# Manage errors
+pyvista.set_error_output_file("errors.txt")
+# Ensure that offscreen rendering is used for docs generation
+pyvista.OFF_SCREEN = True  # Not necessary - simply an insurance policy
+pyvista.BUILDING_GALLERY = True  # necessary when building the sphinx gallery
+# Preferred plotting style for documentation
+pyvista.set_plot_theme("document")
+pyvista.global_theme.window_size = np.array([1024, 768]) * 2
+
+image_scrapers = ("pyvista", "matplotlib")
 
 
 # -- General configuration ---------------------------------------------------
@@ -44,7 +52,7 @@ sphinx_gallery_conf = {
     'ignore_pattern': r'(__init__)\.py',
     'examples_dirs': '../../examples',  # path to your example scripts
     'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
-    # 'within_subsection_order': FileNameSortKey,
+    'within_subsection_order': FileNameSortKey,
     'capture_repr': ('_repr_html_', '__repr__'),
     'image_scrapers': image_scrapers
 }

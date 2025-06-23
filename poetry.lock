@@ -1205,28 +1205,24 @@ xml = ["lxml (>=4.9.2)"]
 
 [[package]]
 name = "parq-tools"
-version = "0.3.0"
+version = "0.3.1"
 description = "A collection of utilities for efficiently working with **large-scale** Parquet datasets."
 optional = false
-python-versions = ">=3.10,<3.13"
+python-versions = "<3.13,>=3.10"
 groups = ["main"]
-files = []
-develop = false
+files = [
+    {file = "parq_tools-0.3.1-py3-none-any.whl", hash = "sha256:7fb1b529c9a7244455f1d8c64e2d6aa9087332c280ebc15dd4a1a7dd585e3689"},
+    {file = "parq_tools-0.3.1.tar.gz", hash = "sha256:3d8bb11744f9b0dc32284f7549cb6f304583076c7b5050886acdc076b9ad4218"},
+]
 
 [package.dependencies]
-lark = "^1.2.2"
+lark = ">=1.2.2,<2.0.0"
 pyarrow = ">=16.0"
 
 [package.extras]
 blockmodel = ["pyvista (>=0.45.2,<0.46.0)"]
 profiling = ["setuptools", "ydata-profiling (>=4.16.1,<5.0.0)"]
 progress = ["tqdm (>=4.67.1,<5.0.0)"]
-
-[package.source]
-type = "git"
-url = "https://github.com/elphick/parq-tools.git"
-reference = "12-column-descriptions-in-profile-report"
-resolved_reference = "56d2105751927f2a41ea88c010e6d22836279447"
 
 [[package]]
 name = "patsy"
@@ -2710,4 +2706,4 @@ progress = ["tqdm"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "7d3b2115e904d476f8fd36e47fa3cf025f3fff0f75ef2805b4cfbd2f45b24452"
+content-hash = "c05230a23b8cb8e76971065a86ada54b794f634771a8bddabd799e3d7d328661"
