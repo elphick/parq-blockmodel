@@ -1,13 +1,15 @@
 API Reference
 =============
 
-.. automodule:: namespace.package
+.. automodule:: parq_blockmodel
    :members:
 
 .. autosummary::
    :toctree: _autosummary
    :recursive:
 
-    module
+    blockmodel
+    geometry
+    utils
 
 
