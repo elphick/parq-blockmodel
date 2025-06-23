@@ -10,22 +10,22 @@ The package is pip installable.
 
 ..  code-block::
 
-    pip install mass-composition
+    pip install parq-blockmodel
 
 If you want the extras (for visualisation and networks of objects) you'll install like this with pip.
 
 .. code-block::
 
-    pip install mass-composition -e .[viz,network]
+    pip install parq-blockmodel -e .[profiling,progress,viz]
 
 Or, if poetry is more your flavour.
 
 ..  code-block::
 
-    poetry add mass-composition
+    poetry add parq-blockmodel
 
 or with extras...
 
 ..  code-block::
 
-    poetry add "mass-composition[viz,network]"
+    poetry add "parq-blockmodel[profiling,progress,viz]"

@@ -8,20 +8,20 @@ packages = [{ include = "parq_blockmodel" }]
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
+numpy = ">=1.25.2"
 pyarrow = ">=16.0"
-lark = "^1.2.2"
 tqdm = { version = "^4.67.1", optional = true }
 ydata-profiling = { version = "^4.16.1", optional = true }
 setuptools = { version = "*", optional = true }
 pyvista = { version = "^0.45.2", optional = true }
-numpy = ">=1.25.2"
 #parq-tools = { git = "https://github.com/elphick/parq-tools.git", branch = "12-column-descriptions-in-profile-report" }
 parq-tools = "0.3.1"
 
 [tool.poetry.extras]
 profiling = ["ydata-profiling", "setuptools"]
 progress = ["tqdm"]
-blockmodel = ["pyvista"]
+viz = ["pyvista"]
+all = ["ydata-profiling", "setuptools", "tqdm", "pyvista"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.1"
