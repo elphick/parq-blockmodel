@@ -14,7 +14,9 @@ Welcome to parq-blockmodel's documentation!
 
    usage/installation
    usage/quickstart
+   user_guide
    auto_examples/index
+   todo
    glossary/*
    api/modules
    license/*

@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "parq-blockmodel"
-version = "0.1.1"
+version = "0.1.2"
 description = "A Python package for efficient storage, manipulation, and analysis of mining block models using Parquet files."
 authors = ["Greg <11791585+elphick@users.noreply.github.com>"]
 readme = "README.md"

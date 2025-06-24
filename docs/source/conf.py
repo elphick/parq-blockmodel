@@ -44,9 +44,12 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary',  # to document the
               'sphinx_gallery.gen_gallery',  # to generate a gallery of examples
               'sphinx_autodoc_typehints',
               'myst_parser',  # for parsing md files
+              'sphinx.ext.todo'
               ]
 
+todo_include_todos = True
 autosummary_generate = True
+
 sphinx_gallery_conf = {
     'filename_pattern': r'\.py',
     'ignore_pattern': r'(__init__)\.py',
