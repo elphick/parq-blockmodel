@@ -515,11 +515,10 @@ class RegularGeometry(Geometry):
             Point3: The coordinates of the nearest centroid.
         """
 
-        reference_centroid: Point = (
-            self.centroid_x[0],
-            self.centroid_y[0],
-            self.centroid_z[0],
-        )
+        reference_centroid: Point = (float(self.centroid_x[0]),
+                                     float(self.centroid_y[0]),
+                                     float(self.centroid_z[0]),
+                                     )
         dx, dy, dz = self.block_size
         ref_x, ref_y, ref_z = reference_centroid
 

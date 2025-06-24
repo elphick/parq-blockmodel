@@ -11,6 +11,7 @@ Main API:
 import logging
 import math
 import shutil
+import typing
 import warnings
 from pathlib import Path
 from typing import Union, Optional
@@ -34,6 +35,8 @@ from parq_blockmodel.geometry import RegularGeometry
 Point = Union[tuple[float, float, float], list[float, float, float]]
 Triple = Union[tuple[float, float, float], list[float, float, float]]
 
+if typing.TYPE_CHECKING:
+    import pyvista as pv  # type: ignore[import]
 
 class ParquetBlockModel:
     """
@@ -146,12 +149,16 @@ class ParquetBlockModel:
         return self.centroid_index.isin(dense_index).all()
 
     @classmethod
-    def from_parquet(cls, parquet_path: Path, overwrite: bool = False) -> "ParquetBlockModel":
+    def from_parquet(cls, parquet_path: Path, overwrite: bool = False,
+                     azimuth: float = 0.0, dip: float = 0.0, plunge: float = 0.0) -> "ParquetBlockModel":
         """ Create a ParquetBlockModel instance from a Parquet file.
 
         Args:
             parquet_path (Path): The path to the Parquet file.
             overwrite (bool): If True, allows overwriting an existing ParquetBlockModel file. Defaults to False.
+            azimuth (float): The azimuth angle in degrees for rotation. Defaults to 0.0.
+            dip (float): The dip angle in degrees for rotation. Defaults to 0.0.
+            plunge (float): The plunge angle in degrees for rotation. Defaults to 0.0.
 
         """
         if parquet_path.suffixes[-2:] == [".pbm", ".parquet"]:
@@ -161,11 +168,19 @@ class ParquetBlockModel:
                     f"Use the constructor directly, or pass overwrite=True to allow mutation."
                 )
 
+        geometry: Optional[RegularGeometry] = None
+        if azimuth != 0.0 or dip != 0.0 or plunge != 0.0:
+            # If rotation angles are provided, create a geometry with the specified orientation
+            axis_u, axis_v, axis_w = rotation_to_axis_orientation(azimuth=azimuth, dip=dip, plunge=plunge)
+            geometry = RegularGeometry.from_parquet(filepath=parquet_path)
+            geometry.axis_u = axis_u
+            geometry.axis_v = axis_v
+            geometry.axis_w = axis_w
 
         cls._validate_geometry(parquet_path)
 
         new_filepath = shutil.copy(parquet_path, parquet_path.resolve().with_suffix(".pbm.parquet"))
-        return cls(blockmodel_path=new_filepath)
+        return cls(blockmodel_path=new_filepath, geometry=geometry)
 
     @classmethod
     def create_demo_block_model(cls, filename: Path,
@@ -239,7 +254,21 @@ class ParquetBlockModel:
         return self.report_path
 
     def plot(self, scalar: str, threshold: bool = True, show_edges: bool = True,
-             show_axes: bool = True) -> 'pv.Plotter':
+             show_axes: bool = True, enable_picking: bool = False, picked_attributes: Optional[list[str]] = None) -> 'pv.Plotter':
+        """Plot the block model using PyVista.
+
+        Args:
+            scalar: The name of the scalar attribute to visualize.
+            threshold: The thresholding option for the mesh. If True, applies a threshold to the scalar values.
+            show_edges: Show edges of the mesh.
+            show_axes: Show the axes in the plot.
+            enable_picking: If True, enables picking mode to interactively select cells in the plot.
+            picked_attributes: A list of attributes that will be returned in picking mode. If None, all attributes are returned.
+
+        Returns:
+
+        """
+
         import pyvista as pv
         if scalar not in self.attributes:
             raise ValueError(f"Column '{scalar}' not found in the ParquetBlockModel.")
@@ -247,7 +276,15 @@ class ParquetBlockModel:
         # Create a PyVista plotter
         plotter = pv.Plotter()
 
-        mesh = self.to_pyvista(attributes=[scalar])
+        attributes = [scalar]
+        if enable_picking:
+            if picked_attributes is None:
+                attributes = self.attributes
+            else:
+                attributes = picked_attributes
+            if scalar not in attributes:
+                attributes.append(scalar)
+        mesh = self.to_pyvista(attributes=attributes)
 
         # Add a thresholded mesh to the plotter
         if threshold:
@@ -258,6 +295,27 @@ class ParquetBlockModel:
         plotter.title = self.name
         if show_axes:
             plotter.show_axes()
+
+        text_name = "cell_info_text"
+        plotter.add_text("", position="lower_left", font_size=12, name=text_name)
+
+        if enable_picking:
+            def cell_callback(picked_cell):
+                if text_name in plotter.actors:
+                    plotter.remove_actor(text_name)
+                if hasattr(picked_cell, "n_cells") and picked_cell.n_cells == 1:
+                    if "vtkOriginalCellIds" in picked_cell.cell_data:
+                        cell_id = int(picked_cell.cell_data["vtkOriginalCellIds"][0])
+                        values = {attr: mesh.cell_data[attr][cell_id] for attr in attributes}
+                        msg = f"Cell ID: {cell_id}, " + ", ".join(f"{k}: {v}" for k, v in values.items())
+                    else:
+                        value = picked_cell.cell_data[scalar][0]
+                        msg = f"Picked cell value: {scalar}: {value}"
+                    plotter.add_text(msg, position="lower_left", font_size=12, name=text_name)
+                else:
+                    plotter.add_text("No valid cell picked.", position="lower_left", font_size=12, name=text_name)
+
+            plotter.enable_cell_picking(callback=cell_callback, show_message=True, through=False)
 
         return plotter
 

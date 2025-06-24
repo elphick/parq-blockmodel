@@ -45,5 +45,5 @@ print("Block Model Attributes:", pbm.attributes)
 # %%
 # Visualise
 
-p: pv.Plotter = pbm.plot(scalar='depth')
+p: pv.Plotter = pbm.plot(scalar='depth', threshold=False, enable_picking=True)
 p.show()
