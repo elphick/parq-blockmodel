@@ -19,7 +19,7 @@ description = "Reusable constraint types to use with typing.Annotated"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "annotated_types-0.7.0-py3-none-any.whl", hash = "sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53"},
     {file = "annotated_types-0.7.0.tar.gz", hash = "sha256:aff07c09a53a08bc8cfccb9c85b05f1aa9a2a6f23728d790723543408344ce89"},
@@ -32,7 +32,7 @@ description = "Classes Without Boilerplate"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "attrs-25.3.0-py3-none-any.whl", hash = "sha256:427318ce031701fea540783410126f03899a97ffc6f61596ad581ac2e40e3bc3"},
     {file = "attrs-25.3.0.tar.gz", hash = "sha256:75d7cefc7fb576747b2c81b4442d4d4a1ce0900973527c011d1030fd3bf4af1b"},
@@ -72,7 +72,7 @@ files = [
     {file = "certifi-2025.6.15-py3-none-any.whl", hash = "sha256:2e0c7ce7cb5d8f8634ca55d2ba7e6ec2689a2fd6537d8dec1296a477a4910057"},
     {file = "certifi-2025.6.15.tar.gz", hash = "sha256:d747aa5a8b9bbbb1bb8c22bb13e22bd1f18e9796defa16bab421f7f7a317323b"},
 ]
-markers = {main = "extra == \"profiling\" or extra == \"blockmodel\""}
+markers = {main = "extra == \"profiling\" or extra == \"all\" or extra == \"viz\""}
 
 [[package]]
 name = "charset-normalizer"
@@ -175,7 +175,7 @@ files = [
     {file = "charset_normalizer-3.4.2-py3-none-any.whl", hash = "sha256:7f56930ab0abd1c45cd15be65cc741c28b1c9a34876ce8c17a2fa107810c0af0"},
     {file = "charset_normalizer-3.4.2.tar.gz", hash = "sha256:5baececa9ecba31eff645232d59845c07aa030f0c81ee70184a90d35099a0e63"},
 ]
-markers = {main = "extra == \"profiling\" or extra == \"blockmodel\""}
+markers = {main = "extra == \"profiling\" or extra == \"all\" or extra == \"viz\""}
 
 [[package]]
 name = "colorama"
@@ -188,7 +188,7 @@ files = [
     {file = "colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6"},
     {file = "colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44"},
 ]
-markers = {main = "(extra == \"progress\" or extra == \"profiling\") and platform_system == \"Windows\"", dev = "sys_platform == \"win32\""}
+markers = {main = "(extra == \"progress\" or extra == \"all\" or extra == \"profiling\") and platform_system == \"Windows\"", dev = "sys_platform == \"win32\""}
 
 [[package]]
 name = "contourpy"
@@ -370,7 +370,7 @@ description = "Simple creation of data classes from dictionaries."
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "dacite-1.9.2-py3-none-any.whl", hash = "sha256:053f7c3f5128ca2e9aceb66892b1a3c8936d02c686e707bee96e19deef4bc4a0"},
     {file = "dacite-1.9.2.tar.gz", hash = "sha256:6ccc3b299727c7aa17582f0021f6ae14d5de47c7227932c47fec4cdfefd26f09"},
@@ -483,7 +483,7 @@ description = "An HTML Minifier"
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "htmlmin-0.1.12.tar.gz", hash = "sha256:50c1ef4630374a5d723900096a961cff426dff46b48f34d194a81bbe14eca178"},
 ]
@@ -499,7 +499,7 @@ files = [
     {file = "idna-3.10-py3-none-any.whl", hash = "sha256:946d195a0d259cbba61165e88e65941f16e9b36ea6ddb97f00452bae8b1287d3"},
     {file = "idna-3.10.tar.gz", hash = "sha256:12f65c9b470abda6dc35cf8e63cc574b1c52b11df2c86030af0ac09b01b13ea9"},
 ]
-markers = {main = "extra == \"profiling\" or extra == \"blockmodel\""}
+markers = {main = "extra == \"profiling\" or extra == \"all\" or extra == \"viz\""}
 
 [package.extras]
 all = ["flake8 (>=7.1.1)", "mypy (>=1.11.2)", "pytest (>=8.3.2)", "ruff (>=0.6.2)"]
@@ -511,7 +511,7 @@ description = "Image Hashing library"
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "ImageHash-4.3.1-py2.py3-none-any.whl", hash = "sha256:5ad9a5cde14fe255745a8245677293ac0d67f09c330986a351f34b614ba62fb5"},
     {file = "ImageHash-4.3.1.tar.gz", hash = "sha256:7038d1b7f9e0585beb3dd8c0a956f02b95a346c0b5f24a9e8cc03ebadaf0aa70"},
@@ -558,7 +558,7 @@ files = [
     {file = "jinja2-3.1.6-py3-none-any.whl", hash = "sha256:85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67"},
     {file = "jinja2-3.1.6.tar.gz", hash = "sha256:0137fb05990d35f1275a587e9aee6d56da821fc83491a0fb838183be43f66d6d"},
 ]
-markers = {main = "extra == \"profiling\""}
+markers = {main = "extra == \"profiling\" or extra == \"all\""}
 
 [package.dependencies]
 MarkupSafe = ">=2.0"
@@ -573,7 +573,7 @@ description = "Lightweight pipelining with Python functions"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "joblib-1.5.1-py3-none-any.whl", hash = "sha256:4719a31f054c7d766948dcd83e9613686b27114f190f717cec7eaa2084f8a74a"},
     {file = "joblib-1.5.1.tar.gz", hash = "sha256:f4f86e351f39fe3d0d32a9f2c3d8af1ee4cec285aafcb27003dda5205576b444"},
@@ -707,7 +707,7 @@ description = "lightweight wrapper around basic LLVM functionality"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "llvmlite-0.44.0-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:9fbadbfba8422123bab5535b293da1cf72f9f478a65645ecd73e781f962ca614"},
     {file = "llvmlite-0.44.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:cccf8eb28f24840f2689fb1a45f9c0f7e582dd24e088dcf96e424834af11f791"},
@@ -827,7 +827,7 @@ files = [
     {file = "MarkupSafe-3.0.2-cp39-cp39-win_amd64.whl", hash = "sha256:6e296a513ca3d94054c2c881cc913116e90fd030ad1c656b3869762b754f5f8a"},
     {file = "markupsafe-3.0.2.tar.gz", hash = "sha256:ee55d3edf80167e48ea11a923c7386f4669df67d7994554387f84e7d8b0a2bf0"},
 ]
-markers = {main = "extra == \"profiling\""}
+markers = {main = "extra == \"profiling\" or extra == \"all\""}
 
 [[package]]
 name = "matplotlib"
@@ -926,7 +926,7 @@ description = "Multiple argument dispatching."
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "multimethod-1.12-py3-none-any.whl", hash = "sha256:fd0c473c43558908d97cc06e4d68e8f69202f167db46f7b4e4058893e7dbdf60"},
     {file = "multimethod-1.12.tar.gz", hash = "sha256:8db8ef2a8d2a247e3570cc23317680892fdf903d84c8c1053667c8e8f7671a67"},
@@ -966,7 +966,7 @@ description = "Python package for creating and manipulating graphs and networks"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "python_version == \"3.10\" and extra == \"profiling\""
+markers = "python_version == \"3.10\" and (extra == \"profiling\" or extra == \"all\")"
 files = [
     {file = "networkx-3.4.2-py3-none-any.whl", hash = "sha256:df5d4365b724cf81b8c6a7312509d0c22386097011ad1abe274afd5e9d3bbc5f"},
     {file = "networkx-3.4.2.tar.gz", hash = "sha256:307c3669428c5362aab27c8a1260aa8f47c4e91d3891f48be0141738d8d053e1"},
@@ -987,7 +987,7 @@ description = "Python package for creating and manipulating graphs and networks"
 optional = true
 python-versions = ">=3.11"
 groups = ["main"]
-markers = "python_version >= \"3.11\" and extra == \"profiling\""
+markers = "python_version >= \"3.11\" and (extra == \"profiling\" or extra == \"all\")"
 files = [
     {file = "networkx-3.5-py3-none-any.whl", hash = "sha256:0030d386a9a06dee3565298b4a734b68589749a544acbb6c412dc9e2489ec6ec"},
     {file = "networkx-3.5.tar.gz", hash = "sha256:d4c6f9cf81f52d69230866796b82afbccdec3db7ae4fbd1b65ea750feed50037"},
@@ -1009,7 +1009,7 @@ description = "compiling Python code using LLVM"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "numba-0.61.0-cp310-cp310-macosx_10_14_x86_64.whl", hash = "sha256:9cab9783a700fa428b1a54d65295122bc03b3de1d01fb819a6b9dbbddfdb8c43"},
     {file = "numba-0.61.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:46c5ae094fb3706f5adf9021bfb7fc11e44818d61afee695cdee4eadfed45e98"},
@@ -1122,7 +1122,7 @@ description = "Powerful data structures for data analysis, time series, and stat
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "pandas-2.3.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:625466edd01d43b75b1883a64d859168e4556261a5035b32f9d743b67ef44634"},
     {file = "pandas-2.3.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:a6872d695c896f00df46b71648eea332279ef4077a409e2fe94220208b6bb675"},
@@ -1231,7 +1231,7 @@ description = "A Python package for describing statistical models and for buildi
 optional = true
 python-versions = ">=3.6"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "patsy-1.0.1-py2.py3-none-any.whl", hash = "sha256:751fb38f9e97e62312e921a1954b81e1bb2bcda4f5eeabaf94db251ee791509c"},
     {file = "patsy-1.0.1.tar.gz", hash = "sha256:e786a9391eec818c054e359b737bbce692f051aee4c661f4141cc88fb459c0c4"},
@@ -1250,7 +1250,7 @@ description = "Phi_K correlation analyzer library"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "phik-0.12.4-cp310-cp310-macosx_10_13_x86_64.whl", hash = "sha256:778d00e33762c1e85681f65ef011933faabdc80ab53262f221cccf75eea535d5"},
     {file = "phik-0.12.4-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:d92cc961ee60b317896589bab087901440b2bc749dbd5e266bc3dfe25dbff19a"},
@@ -1392,7 +1392,7 @@ description = "A small Python package for determining appropriate platform-speci
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"blockmodel\""
+markers = "extra == \"viz\" or extra == \"all\""
 files = [
     {file = "platformdirs-4.3.8-py3-none-any.whl", hash = "sha256:ff7059bb7eb1179e2685604f4aaf157cfd9535242bd23742eadc3c13542139b4"},
     {file = "platformdirs-4.3.8.tar.gz", hash = "sha256:3d512d96e16bcb959a814c9f348431070822a6496326a4be0911c40b5a74c2bc"},
@@ -1442,7 +1442,7 @@ description = "A friend to fetch your data files"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"blockmodel\""
+markers = "extra == \"viz\" or extra == \"all\""
 files = [
     {file = "pooch-1.8.2-py3-none-any.whl", hash = "sha256:3529a57096f7198778a5ceefd5ac3ef0e4d06a6ddaf9fc2d609b806f25302c47"},
     {file = "pooch-1.8.2.tar.gz", hash = "sha256:76561f0de68a01da4df6af38e9955c4c9d1a5c90da73f7e40276a5728ec83d10"},
@@ -1465,7 +1465,7 @@ description = "Pure python implementation of magic file detection"
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "puremagic-1.29-py3-none-any.whl", hash = "sha256:2c3cfcde77f0b1560f1898f627bd388421d2bd64ec94d8d25f400f7742a4f109"},
     {file = "puremagic-1.29.tar.gz", hash = "sha256:67c115db3f63d43b13433860917b11e2b767e5eaec696a491be2fb544f224f7a"},
@@ -1546,7 +1546,7 @@ description = "Data validation using Python type hints"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "pydantic-2.11.7-py3-none-any.whl", hash = "sha256:dde5df002701f6de26248661f6835bbe296a47bf73990135c7d07ce741b9623b"},
     {file = "pydantic-2.11.7.tar.gz", hash = "sha256:d989c3c6cb79469287b1569f7447a17848c998458d49ebe294e975b9baf0f0db"},
@@ -1569,7 +1569,7 @@ description = "Core functionality for Pydantic validation and serialization"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "pydantic_core-2.33.2-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:2b3d326aaef0c0399d9afffeb6367d5e26ddc24d351dbc9c636840ac355dc5d8"},
     {file = "pydantic_core-2.33.2-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:0e5b2671f05ba48b94cb90ce55d8bdcaaedb8ba00cc5359f6810fc918713983d"},
@@ -1751,7 +1751,7 @@ description = "World timezone definitions, modern and historical"
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "pytz-2025.2-py2.py3-none-any.whl", hash = "sha256:5ddf76296dd8c44c26eb8f4b6f35488f3ccbf6fbbd7adee0b7262d43f0ec2f00"},
     {file = "pytz-2025.2.tar.gz", hash = "sha256:360b9e3dbb49a209c21ad61809c7fb453643e048b38924c765813546746e81c3"},
@@ -1764,7 +1764,7 @@ description = "Easier Pythonic interface to VTK"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"blockmodel\""
+markers = "extra == \"viz\" or extra == \"all\""
 files = [
     {file = "pyvista-0.45.2-py3-none-any.whl", hash = "sha256:123fd795883b804734b49dd1f5b85a1d38c67bfba514719a5d689d17ff4901f3"},
     {file = "pyvista-0.45.2.tar.gz", hash = "sha256:74c6b48a7366307a7e94d0ba768df652f1035321144674a677e9916ccf358f9f"},
@@ -1792,7 +1792,7 @@ description = "PyWavelets, wavelet transform module"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "pywavelets-1.8.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:f5c86fcb203c8e61d1f3d4afbfc08d626c64e4e3708207315577264c724632bf"},
     {file = "pywavelets-1.8.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:fafb5fa126277e1690c3d6329287122fc08e4d25a262ce126e3d81b1f5709308"},
@@ -1902,7 +1902,7 @@ files = [
     {file = "PyYAML-6.0.2-cp39-cp39-win_amd64.whl", hash = "sha256:39693e1f8320ae4f43943590b49779ffb98acb81f788220ea932a6b6c51004d8"},
     {file = "pyyaml-6.0.2.tar.gz", hash = "sha256:d584d9ec91ad65861cc08d42e834324ef890a082e591037abe114850ff7bbc3e"},
 ]
-markers = {main = "extra == \"profiling\""}
+markers = {main = "extra == \"profiling\" or extra == \"all\""}
 
 [[package]]
 name = "requests"
@@ -1915,7 +1915,7 @@ files = [
     {file = "requests-2.32.4-py3-none-any.whl", hash = "sha256:27babd3cda2a6d50b30443204ee89830707d396671944c998b5975b031ac2b2c"},
     {file = "requests-2.32.4.tar.gz", hash = "sha256:27d0316682c8a29834d3264820024b62a36942083d52caf2f14c0591336d3422"},
 ]
-markers = {main = "extra == \"profiling\" or extra == \"blockmodel\""}
+markers = {main = "extra == \"profiling\" or extra == \"all\" or extra == \"viz\""}
 
 [package.dependencies]
 certifi = ">=2017.4.17"
@@ -1934,7 +1934,7 @@ description = "Fundamental algorithms for scientific computing in Python"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "scipy-1.15.3-cp310-cp310-macosx_10_13_x86_64.whl", hash = "sha256:a345928c86d535060c9c2b25e71e87c39ab2f22fc96e9636bd74d1dbf9de448c"},
     {file = "scipy-1.15.3-cp310-cp310-macosx_12_0_arm64.whl", hash = "sha256:ad3432cb0f9ed87477a8d97f03b763fd1d57709f1bbde3c9369b1dff5503b253"},
@@ -1999,7 +1999,7 @@ description = "A Great Dane turned Python environment detective"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"blockmodel\""
+markers = "extra == \"viz\" or extra == \"all\""
 files = [
     {file = "scooby-0.10.1-py3-none-any.whl", hash = "sha256:c099a0b4b013f949436bdd4e2a6e9b4f8aba8211e2a65dc1d2d3b9317ef8d4c1"},
     {file = "scooby-0.10.1.tar.gz", hash = "sha256:2ea147670cbf7cad42600c9990f2289f7b3c02c0769b0cc02a73e59d11c8f885"},
@@ -2015,7 +2015,7 @@ description = "Statistical data visualization"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "seaborn-0.13.2-py3-none-any.whl", hash = "sha256:636f8336facf092165e27924f223d3c62ca560b1f2bb5dff7ab7fad265361987"},
     {file = "seaborn-0.13.2.tar.gz", hash = "sha256:93e60a40988f4d65e9f4885df477e2fdaff6b73a9ded434c1ab356dd57eefff7"},
@@ -2038,7 +2038,7 @@ description = "Easily download, build, install, upgrade, and uninstall Python pa
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "setuptools-80.9.0-py3-none-any.whl", hash = "sha256:062d34222ad13e0cc312a4c02d73f059e86a4acbfbdea8f8f76b28c99f306922"},
     {file = "setuptools-80.9.0.tar.gz", hash = "sha256:f36b47402ecde768dbfafc46e8e4207b4360c654f1f3bb84475f0a28628fb19c"},
@@ -2290,7 +2290,7 @@ description = "Statistical computations and models for Python"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "statsmodels-0.14.4-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:7a62f1fc9086e4b7ee789a6f66b3c0fc82dd8de1edda1522d30901a0aa45e42b"},
     {file = "statsmodels-0.14.4-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:46ac7ddefac0c9b7b607eed1d47d11e26fe92a1bc1f4d9af48aeed4e21e87981"},
@@ -2402,7 +2402,7 @@ description = "Fast, Extensible Progress Meter"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"progress\" or extra == \"profiling\""
+markers = "extra == \"progress\" or extra == \"all\" or extra == \"profiling\""
 files = [
     {file = "tqdm-4.67.1-py3-none-any.whl", hash = "sha256:26445eca388f82e72884e0d580d5464cd801a3ea01e63e5601bdff9ba6a48de2"},
     {file = "tqdm-4.67.1.tar.gz", hash = "sha256:f8aef9c52c08c13a65f30ea34f4e5aac3fd1a34959879d7e59e63027286627f2"},
@@ -2425,7 +2425,7 @@ description = "Run-time type checker for Python"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "typeguard-4.4.3-py3-none-any.whl", hash = "sha256:7d8b4a3d280257fd1aa29023f22de64e29334bda0b172ff1040f05682223795e"},
     {file = "typeguard-4.4.3.tar.gz", hash = "sha256:be72b9c85f322c20459b29060c5c099cd733d5886c4ee14297795e62b0c0d59b"},
@@ -2445,7 +2445,7 @@ files = [
     {file = "typing_extensions-4.14.0-py3-none-any.whl", hash = "sha256:a1514509136dd0b477638fc68d6a91497af5076466ad0fa6c338e44e359944af"},
     {file = "typing_extensions-4.14.0.tar.gz", hash = "sha256:8676b788e32f02ab42d9e7c61324048ae4c6d844a399eebace3d4979d75ceef4"},
 ]
-markers = {main = "extra == \"profiling\" or extra == \"blockmodel\"", dev = "python_version == \"3.10\""}
+markers = {main = "extra == \"profiling\" or extra == \"all\" or extra == \"viz\"", dev = "python_version == \"3.10\""}
 
 [[package]]
 name = "typing-inspection"
@@ -2454,7 +2454,7 @@ description = "Runtime typing introspection tools"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "typing_inspection-0.4.1-py3-none-any.whl", hash = "sha256:389055682238f53b04f7badcb49b989835495a96700ced5dab2d8feae4b26f51"},
     {file = "typing_inspection-0.4.1.tar.gz", hash = "sha256:6ae134cc0203c33377d43188d4064e9b357dba58cff3185f22924610e70a9d28"},
@@ -2470,7 +2470,7 @@ description = "Provider of IANA time zone data"
 optional = true
 python-versions = ">=2"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "tzdata-2025.2-py2.py3-none-any.whl", hash = "sha256:1a403fada01ff9221ca8044d701868fa132215d84beb92242d9acd2147f667a8"},
     {file = "tzdata-2025.2.tar.gz", hash = "sha256:b60a638fcc0daffadf82fe0f57e53d06bdec2f36c4df66280ae79bce6bd6f2b9"},
@@ -2487,7 +2487,7 @@ files = [
     {file = "urllib3-2.4.0-py3-none-any.whl", hash = "sha256:4e16665048960a0900c702d4a66415956a584919c03361cac9f1df5c5dd7e813"},
     {file = "urllib3-2.4.0.tar.gz", hash = "sha256:414bc6535b787febd7567804cc015fee39daab8ad86268f1310a9250697de466"},
 ]
-markers = {main = "extra == \"profiling\" or extra == \"blockmodel\""}
+markers = {main = "extra == \"profiling\" or extra == \"all\" or extra == \"viz\""}
 
 [package.extras]
 brotli = ["brotli (>=1.0.9) ; platform_python_implementation == \"CPython\"", "brotlicffi (>=0.8.0) ; platform_python_implementation != \"CPython\""]
@@ -2502,7 +2502,7 @@ description = "Visions"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "visions-0.8.1-py3-none-any.whl", hash = "sha256:aca16b66c93acf6c39d3b6b952429947605203e02c0678a42ea06257fcbb1211"},
     {file = "visions-0.8.1.tar.gz", hash = "sha256:37f55c37d7bcf124054e612850b28a4f0bab9b200733cedd8f1781c3ac5cc3f0"},
@@ -2533,7 +2533,7 @@ description = "VTK is an open-source toolkit for 3D computer graphics, image pro
 optional = true
 python-versions = "*"
 groups = ["main"]
-markers = "extra == \"blockmodel\""
+markers = "extra == \"viz\" or extra == \"all\""
 files = [
     {file = "vtk-9.4.2-cp310-cp310-macosx_10_10_x86_64.whl", hash = "sha256:97788af1881d115d90d118e6b6db4e673d4250473df074015edaf633e134945f"},
     {file = "vtk-9.4.2-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:c5b2db2ffb52394cf3a72fb9d74ec980d944b9fecd626bdcd223ac896fa8b975"},
@@ -2574,7 +2574,7 @@ description = "A little word cloud generator"
 optional = true
 python-versions = ">=3.7"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "wordcloud-1.9.4-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:61a84e7311fce8415943edcb7b2ba65b4bfec1dc6dff8fe5a8ea76e278447fb2"},
     {file = "wordcloud-1.9.4-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:8e8752750726f31385f364823d3ef1d9c8ec829e5c07706c36beb40679945c71"},
@@ -2662,7 +2662,7 @@ description = "Generate profile report for pandas DataFrame"
 optional = true
 python-versions = "<3.13,>=3.7"
 groups = ["main"]
-markers = "extra == \"profiling\""
+markers = "extra == \"profiling\" or extra == \"all\""
 files = [
     {file = "ydata-profiling-4.16.1.tar.gz", hash = "sha256:4aa0d6412a140194396e34f5ffd348223f0319d877b0243e765f30ae633ed51e"},
     {file = "ydata_profiling-4.16.1-py2.py3-none-any.whl", hash = "sha256:c4655c47f826490c77ea7ca5e9cb613e274db8686ebc095fa01f9735c6466f1f"},
@@ -2699,11 +2699,12 @@ test = ["codecov", "coverage (>=6.5,<8)", "kaggle", "nbval", "pyarrow", "pytest"
 unicode = ["tangled-up-in-unicode (==0.2.0)"]
 
 [extras]
-blockmodel = ["pyvista"]
+all = ["pyvista", "setuptools", "tqdm", "ydata-profiling"]
 profiling = ["setuptools", "ydata-profiling"]
 progress = ["tqdm"]
+viz = ["pyvista"]
 
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "c05230a23b8cb8e76971065a86ada54b794f634771a8bddabd799e3d7d328661"
+content-hash = "7e539dff248ff29fda78fa7726f9b847bde214d5443f1555ac1d96c5c3c9e695"

@@ -45,27 +45,16 @@ class ParquetBlockModel:
         blockmodel_path (Path): The file path to the blockmodel Parquet file.  This file is the source of the 
             block model data.  Consider a .pbm.parquet extension to imply a ParquetBlockModel file.
         name (str): The name of the block model, derived from the file name.
-        block_path (Path): The original file path from which the block model will be created.
         geometry (RegularGeometry): The geometry of the block model, derived from the Parquet file.
     """
 
-    def __init__(self, blockmodel_path: Optional[Path] = None, name: Optional[str] = None,
-                 block_path: Optional[Path] = None,
-                 geometry: Optional[RegularGeometry] = None):
-        if blockmodel_path is None and block_path is not None:
-            # Derive the .pbm.parquet path from block_path
-            blockmodel_path = block_path.with_suffix('.pbm.parquet')
-            shutil.copy(block_path, blockmodel_path)
-        elif blockmodel_path is None:
-            raise ValueError("Either 'path' or 'block_path' must be provided.")
+    def __init__(self, blockmodel_path: Path, name: Optional[str] = None, geometry: Optional[RegularGeometry] = None):
+        if blockmodel_path.suffixes[-2:] != [".pbm", ".parquet"]:
+            raise ValueError("The provided file must have a '.pbm.parquet' extension.")
         self.blockmodel_path = blockmodel_path
         self.name = name or blockmodel_path.stem.strip('.pbm')
-        self.block_path = block_path or blockmodel_path
+        self.geometry = geometry or RegularGeometry.from_parquet(self.blockmodel_path)
         self.pf: ParquetFile = ParquetFile(blockmodel_path)
-        self.report_path: Optional[Path] = None
-        self.geometry: Optional[RegularGeometry] = geometry
-        if self.geometry is None and blockmodel_path.exists():
-            self.geometry = RegularGeometry.from_parquet(self.blockmodel_path)
         self.data: LazyParquetDataFrame = LazyParquetDataFrame(self.blockmodel_path)
         self.columns: list[str] = pq.read_schema(self.blockmodel_path).names
         self._centroid_index: Optional[pd.MultiIndex] = None
@@ -171,8 +160,12 @@ class ParquetBlockModel:
                     f"File {parquet_path} appears to be a compliant ParquetBlockModel file. "
                     f"Use the constructor directly, or pass overwrite=True to allow mutation."
                 )
+
+
+        cls._validate_geometry(parquet_path)
+
         new_filepath = shutil.copy(parquet_path, parquet_path.resolve().with_suffix(".pbm.parquet"))
-        return cls(name=parquet_path.stem, blockmodel_path=new_filepath, block_path=parquet_path)
+        return cls(blockmodel_path=new_filepath)
 
     @classmethod
     def create_demo_block_model(cls, filename: Path,
@@ -206,7 +199,12 @@ class ParquetBlockModel:
         geometry = RegularGeometry(block_size=block_size, corner=corner, shape=shape,
                                    axis_u=axis_u, axis_v=axis_v, axis_w=axis_w)
 
-        return cls(geometry=geometry, block_path=filename)
+        if not geometry.is_rotated:
+            cls._validate_geometry(filename)
+
+        new_filepath = shutil.copy(filename, filename.resolve().with_suffix(".pbm.parquet"))
+
+        return cls(blockmodel_path=new_filepath, geometry=geometry)
 
     @classmethod
     def from_geometry(cls, geometry: RegularGeometry, path: Path, name: Optional[str] = None) -> "ParquetBlockModel":
@@ -308,7 +306,7 @@ class ParquetBlockModel:
     def _validate_geometry(filepath: Path, geometry: Optional[RegularGeometry] = None) -> None:
         """
         Validates the geometry of a Parquet file by checking if the index (centroid) columns are present
-        and have valid values.
+        and have valid values. For sparse models, ensures centroids are a subset of the dense grid.
 
         Args:
             filepath (Path): Path to the Parquet file.
@@ -316,9 +314,8 @@ class ParquetBlockModel:
              the Parquet file.
 
         Raises:
-            ValueError: If any index column is missing or contains invalid values.
+            ValueError: If any index column is missing, contains invalid values, or centroids are not valid.
         """
-
         index_columns = ['x', 'y', 'z']
         columns = pq.read_schema(filepath).names
         if not all(col in columns for col in index_columns):
@@ -329,24 +326,29 @@ class ParquetBlockModel:
             if table[col].null_count > 0:
                 raise ValueError(f"Column '{col}' contains NaN values, which is not allowed in the index columns.")
 
-        x_values = np.sort(table['x'].to_pandas().unique())
-        y_values = np.sort(table['y'].to_pandas().unique())
-        z_values = np.sort(table['z'].to_pandas().unique())
-        if len(x_values) < 2 or len(y_values) < 2 or len(z_values) < 2:
-            raise ValueError(
-                "The geometry is not regular. At least two unique values are required in each index column.")
+        # Ensure arrays are of the same length
+        centroids = table.to_pandas()
+        if isinstance(centroids.index, pd.MultiIndex) and centroids.index.names == ['x', 'y', 'z']:
+            x_values = centroids.index.get_level_values('x').values
+            y_values = centroids.index.get_level_values('y').values
+            z_values = centroids.index.get_level_values('z').values
+        else:
+            x_values = centroids['x'].values
+            y_values = centroids['y'].values
+            z_values = centroids['z'].values
 
-        # Only check regular spacing if not rotated
+        if len(x_values) != len(y_values) or len(y_values) != len(z_values):
+            raise ValueError("Centroid arrays (x, y, z) must have the same length.")
+
         if geometry is None:
             geometry = RegularGeometry.from_parquet(filepath)
-        if not geometry.is_rotated:
-            def is_regular_spacing(values, tol=1e-8):
-                diffs = np.diff(values)
-                return np.all(np.abs(diffs - diffs[0]) < tol)
 
-            if not (is_regular_spacing(x_values) and is_regular_spacing(y_values) and is_regular_spacing(z_values)):
-                raise ValueError(
-                    "The geometry is not regular. The index columns must be evenly spaced (regular grid) in x, y, and z.")
+        dense_index = geometry.to_multi_index()
+        sparse_index = pd.MultiIndex.from_arrays([x_values, y_values, z_values])
+
+        # For sparse models, ensure centroids are a subset of the dense grid
+        if not sparse_index.isin(dense_index).all():
+            raise ValueError("Sparse centroids must be a subset of the dense grid.")
 
         logging.info(f"Geometry validation completed successfully for {filepath}.")
 
