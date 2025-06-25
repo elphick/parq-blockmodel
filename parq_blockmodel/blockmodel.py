@@ -298,6 +298,7 @@ class ParquetBlockModel:
 
         text_name = "cell_info_text"
         plotter.add_text("", position="lower_left", font_size=12, name=text_name)
+        cell_centers = mesh.cell_centers().points  # shape: (n_cells, 3)
 
         if enable_picking:
             def cell_callback(picked_cell):
@@ -306,8 +307,10 @@ class ParquetBlockModel:
                 if hasattr(picked_cell, "n_cells") and picked_cell.n_cells == 1:
                     if "vtkOriginalCellIds" in picked_cell.cell_data:
                         cell_id = int(picked_cell.cell_data["vtkOriginalCellIds"][0])
+                        centroid = cell_centers[cell_id]  # numpy array of (x, y, z)
+                        centroid_str = f"({centroid[0]:.1f}, {centroid[1]:.1f}, {centroid[2]:.1f})"
                         values = {attr: mesh.cell_data[attr][cell_id] for attr in attributes}
-                        msg = f"Cell ID: {cell_id}, " + ", ".join(f"{k}: {v}" for k, v in values.items())
+                        msg = f"Cell ID: {cell_id}, {centroid_str}, " + ", ".join(f"{k}: {v}" for k, v in values.items())
                     else:
                         value = picked_cell.cell_data[scalar][0]
                         msg = f"Picked cell value: {scalar}: {value}"
