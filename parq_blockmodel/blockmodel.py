@@ -22,7 +22,6 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from parq_blockmodel.utils import create_demo_blockmodel, rotation_to_axis_orientation
-from parq_blockmodel.utils.pyvista_utils import df_to_pv_structured_grid, df_to_pv_unstructured_grid
 from parq_tools.lazy_parquet import LazyParquetDataFrame
 from pyarrow.parquet import ParquetFile
 from tqdm import tqdm
@@ -37,6 +36,7 @@ Triple = Union[tuple[float, float, float], list[float, float, float]]
 
 if typing.TYPE_CHECKING:
     import pyvista as pv  # type: ignore[import]
+
 
 class ParquetBlockModel:
     """
@@ -262,12 +262,16 @@ class ParquetBlockModel:
             self.report_path = self.blockmodel_path.with_suffix('.html')
         return self.report_path
 
-    def plot(self, scalar: str, threshold: bool = True, show_edges: bool = True,
-             show_axes: bool = True, enable_picking: bool = False, picked_attributes: Optional[list[str]] = None) -> 'pv.Plotter':
+    def plot(self, scalar: str,
+             grid_type: typing.Literal["image", "structured", "unstructured"] = "image",
+             threshold: bool = True, show_edges: bool = True,
+             show_axes: bool = True, enable_picking: bool = False,
+             picked_attributes: Optional[list[str]] = None) -> 'pv.Plotter':
         """Plot the block model using PyVista.
 
         Args:
             scalar: The name of the scalar attribute to visualize.
+            grid_type: The type of grid to use for plotting. Options are "image", "structured", or "unstructured".
             threshold: The thresholding option for the mesh. If True, applies a threshold to the scalar values.
             show_edges: Show edges of the mesh.
             show_axes: Show the axes in the plot.
@@ -319,7 +323,8 @@ class ParquetBlockModel:
                         centroid = cell_centers[cell_id]  # numpy array of (x, y, z)
                         centroid_str = f"({centroid[0]:.1f}, {centroid[1]:.1f}, {centroid[2]:.1f})"
                         values = {attr: mesh.cell_data[attr][cell_id] for attr in attributes}
-                        msg = f"Cell ID: {cell_id}, {centroid_str}, " + ", ".join(f"{k}: {v}" for k, v in values.items())
+                        msg = f"Cell ID: {cell_id}, {centroid_str}, " + ", ".join(
+                            f"{k}: {v}" for k, v in values.items())
                     else:
                         value = picked_cell.cell_data[scalar][0]
                         msg = f"Picked cell value: {scalar}: {value}"
@@ -356,19 +361,29 @@ class ParquetBlockModel:
                 df = df.reindex(dense_index)
         return df
 
-    def to_pyvista(self, attributes: Optional[list[str]] = None) -> 'pv.ImageData':
+    def to_pyvista(self, grid_type: typing.Literal["image", "structured", "unstructured"] = "structured",
+                   attributes: Optional[list[str]] = None
+                   ) -> Union['pv.ImageData', 'pv.StructuredGrid', 'pv.UnstructuredGrid']:
 
         if attributes is None:
             attributes = self.attributes
 
-        grid = self.geometry.to_pyvista()
-        df = self.read(columns=attributes, with_index=False, dense=True)
-        df['f_order'] = self.index_f
-        df = df.sort_values('f_order')
-        df = df.drop(columns='f_order')
-
-        for col in attributes:
-            grid.cell_data[col] = df[col].values
+        if grid_type == "image":
+            from parq_blockmodel.utils.pyvista_utils import df_to_pv_image_data
+            grid = df_to_pv_image_data(df=self.read(columns=attributes, with_index=True, dense=False),
+                                       geometry=self.geometry)
+        elif grid_type == "structured":
+            from parq_blockmodel.utils.pyvista_utils import df_to_pv_structured_grid
+            grid = df_to_pv_structured_grid(df=self.read(columns=attributes, with_index=True, dense=False),
+                                            validate_block_size=True)
+        elif grid_type == "unstructured":
+            from parq_blockmodel.utils.pyvista_utils import df_to_pv_unstructured_grid
+            grid = df_to_pv_unstructured_grid(df=self.read(columns=attributes, with_index=True, dense=False),
+                                              block_size=self.geometry.block_size,
+                                              validate_block_size=True)
+        else:
+            raise ValueError(f"Invalid grid type: {grid_type}. "
+                             "Choose from 'image', 'structured', or 'unstructured'.")
 
         return grid
 
