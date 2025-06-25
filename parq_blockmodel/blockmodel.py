@@ -21,7 +21,9 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from parq_blockmodel.utils import create_demo_blockmodel, rotation_to_axis_orientation
+from parq_blockmodel.types import Shape3D, Point, BlockSize
+from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel
+from parq_blockmodel.utils.geometry_utils import rotation_to_axis_orientation
 from parq_tools.lazy_parquet import LazyParquetDataFrame
 from pyarrow.parquet import ParquetFile
 from tqdm import tqdm
@@ -30,9 +32,6 @@ from parq_tools import ParquetProfileReport, filter_parquet_file
 from parq_tools.utils import atomic_output_file
 
 from parq_blockmodel.geometry import RegularGeometry
-
-Point = Union[tuple[float, float, float], list[float, float, float]]
-Triple = Union[tuple[float, float, float], list[float, float, float]]
 
 if typing.TYPE_CHECKING:
     import pyvista as pv  # type: ignore[import]
@@ -152,16 +151,19 @@ class ParquetBlockModel:
     def from_parquet(cls, parquet_path: Path,
                      columns: Optional[list[str]] = None,
                      overwrite: bool = False,
-                     azimuth: float = 0.0, dip: float = 0.0, plunge: float = 0.0) -> "ParquetBlockModel":
+                     axis_azimuth: float = 0.0,
+                     axis_dip: float = 0.0,
+                     axis_plunge: float = 0.0
+                     ) -> "ParquetBlockModel":
         """ Create a ParquetBlockModel instance from a Parquet file.
 
         Args:
             parquet_path (Path): The path to the Parquet file.
             columns (Optional[list[str]]): The list of columns to extract from the Parquet file.
             overwrite (bool): If True, allows overwriting an existing ParquetBlockModel file. Defaults to False.
-            azimuth (float): The azimuth angle in degrees for rotation. Defaults to 0.0.
-            dip (float): The dip angle in degrees for rotation. Defaults to 0.0.
-            plunge (float): The plunge angle in degrees for rotation. Defaults to 0.0.
+            axis_azimuth (float): The azimuth angle in degrees for rotation. Defaults to 0.0.
+            axis_dip (float): The dip angle in degrees for rotation. Defaults to 0.0.
+            axis_plunge (float): The plunge angle in degrees for rotation. Defaults to 0.0.
 
         """
         if parquet_path.suffixes[-2:] == [".pbm", ".parquet"]:
@@ -171,14 +173,8 @@ class ParquetBlockModel:
                     f"Use the constructor directly, or pass overwrite=True to allow mutation."
                 )
 
-        geometry: Optional[RegularGeometry] = None
-        if azimuth != 0.0 or dip != 0.0 or plunge != 0.0:
-            # If rotation angles are provided, create a geometry with the specified orientation
-            axis_u, axis_v, axis_w = rotation_to_axis_orientation(azimuth=azimuth, dip=dip, plunge=plunge)
-            geometry = RegularGeometry.from_parquet(filepath=parquet_path)
-            geometry.axis_u = axis_u
-            geometry.axis_v = axis_v
-            geometry.axis_w = axis_w
+        geometry = RegularGeometry.from_parquet(filepath=parquet_path, axis_azimuth=axis_azimuth, axis_dip=axis_dip,
+                                                axis_plunge=axis_plunge)
 
         cls._validate_geometry(parquet_path)
 
@@ -193,12 +189,13 @@ class ParquetBlockModel:
 
     @classmethod
     def create_demo_block_model(cls, filename: Path,
-                                shape=(3, 3, 3),
-                                block_size=(1, 1, 1),
-                                corner=(-0.5, -0.5, -0.5),
-                                azimuth: float = 0.0,
-                                dip: float = 0.0,
-                                plunge: float = 0.0) -> "ParquetBlockModel":
+                                shape: Shape3D = (3, 3, 3),
+                                block_size: BlockSize = (1, 1, 1),
+                                corner: Point = (-0.5, -0.5, -0.5),
+                                axis_azimuth: float = 0.0,
+                                axis_dip: float = 0.0,
+                                axis_plunge: float = 0.0
+                                ) -> "ParquetBlockModel":
         """
         Create a demo block model with specified parameters.
 
@@ -207,18 +204,20 @@ class ParquetBlockModel:
             shape (tuple): The shape of the block model.
             block_size (tuple): The size of each block.
             corner (tuple): The coordinates of the corner of the block model.
-            azimuth (float): The azimuth angle in degrees for rotation.
-            dip (float): The dip angle in degrees for rotation.
-            plunge (float): The plunge angle in degrees for rotation.
+            axis_azimuth (float): The azimuth angle in degrees for rotation.
+            axis_dip (float): The dip angle in degrees for rotation.
+            axis_plunge (float): The plunge angle in degrees for rotation.
 
         Returns:
             ParquetBlockModel: An instance of ParquetBlockModel with demo data.
         """
         create_demo_blockmodel(shape=shape, block_size=block_size, corner=corner,
-                               azimuth=azimuth, dip=dip, plunge=plunge,
+                               azimuth=axis_azimuth, dip=axis_dip, plunge=axis_plunge,
                                parquet_filepath=filename)
+
         # get the orientation of the axes
-        axis_u, axis_v, axis_w = rotation_to_axis_orientation(azimuth=azimuth, dip=dip, plunge=plunge)
+        axis_u, axis_v, axis_w = rotation_to_axis_orientation(axis_azimuth=axis_azimuth, axis_dip=axis_dip,
+                                                              axis_plunge=axis_plunge)
         # create geometry that aligns with the demo block model
         geometry = RegularGeometry(block_size=block_size, corner=corner, shape=shape,
                                    axis_u=axis_u, axis_v=axis_v, axis_w=axis_w)
@@ -231,14 +230,30 @@ class ParquetBlockModel:
         return cls(blockmodel_path=new_filepath, geometry=geometry)
 
     @classmethod
-    def from_geometry(cls, geometry: RegularGeometry, path: Path, name: Optional[str] = None) -> "ParquetBlockModel":
+    def from_geometry(cls, geometry: RegularGeometry,
+                      path: Path,
+                      name: Optional[str] = None
+                      ) -> "ParquetBlockModel":
+        """Create a ParquetBlockModel from a RegularGeometry object.
+
+        The model will have no attributes.
+
+        Args:
+            geometry (RegularGeometry): The geometry of the block model.
+            path (Path): The file path where the Parquet file will be saved.
+            name (Optional[str]): The name of the block model. If None, the name will be derived from the path.
+        Returns:
+            ParquetBlockModel: An instance of ParquetBlockModel with the specified geometry.
+        """
         centroids_df = geometry.to_dataframe()
         centroids_df.to_parquet(path, index=False)
         return cls(blockmodel_path=path, name=name, geometry=geometry)
 
     def create_report(self, columns: Optional[list[str]] = None,
                       column_batch_size: int = 10,
-                      show_progress: bool = True, open_in_browser: bool = False) -> Path:
+                      show_progress: bool = True,
+                      open_in_browser: bool = False
+                      ) -> Path:
         """
         Create a ydata-profiling report for the block model.
         The report will be of the same name as the block model, with a '.html' extension.
@@ -297,7 +312,7 @@ class ParquetBlockModel:
                 attributes = picked_attributes
             if scalar not in attributes:
                 attributes.append(scalar)
-        mesh = self.to_pyvista(attributes=attributes)
+        mesh = self.to_pyvista(grid_type=grid_type, attributes=attributes)
 
         # Add a thresholded mesh to the plotter
         if threshold:
@@ -332,7 +347,8 @@ class ParquetBlockModel:
                 else:
                     plotter.add_text("No valid cell picked.", position="lower_left", font_size=12, name=text_name)
 
-            plotter.enable_cell_picking(callback=cell_callback, show_message=True, through=False)
+            plotter.enable_cell_picking(callback=cell_callback, show_message=False, through=False)
+            plotter.title = f"{self.name} - Press R and select a cell for attribute data"
 
         return plotter
 

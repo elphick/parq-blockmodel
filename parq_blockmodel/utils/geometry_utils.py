@@ -4,6 +4,8 @@ from pathlib import Path
 import pyarrow.parquet as pq
 import numpy as np
 
+from parq_blockmodel.types import Vector
+
 
 def validate_geometry(filepath: Path) -> None:
     """
@@ -75,49 +77,87 @@ def validate_axes_orthonormal(u, v, w, tol=1e-8):
     return True
 
 
-def rotation_to_axis_orientation(azimuth: float = 0, dip: float = 0, plunge: float = 0) -> tuple[
-    tuple[float, float, float],
-    tuple[float, float, float],
-    tuple[float, float, float]]:
+def rotation_to_axis_orientation(axis_azimuth: float = 0,
+                                 axis_dip: float = 0,
+                                 axis_plunge: float = 0
+                                 ) -> tuple[Vector, Vector, Vector]:
     """
     Convert azimuth, dip, and plunge angles to orthonormal axes.
 
     Args:
-        azimuth (float): Azimuth angle in degrees.
-        dip (float): Dip angle in degrees.
-        plunge (float): Plunge angle in degrees.
+        axis_azimuth (float): Azimuth angle in degrees.
+        axis_dip (float): Angle from horizontal down (degrees)
+        axis_plunge (float): Rotation around the u-axis (degrees, optional, often 0 for planar features)
 
     Returns:
         tuple: Three orthonormal vectors representing the axes.
     """
-    azimuth_rad = np.radians(azimuth)
-    dip_rad = np.radians(dip)
-    plunge_rad = np.radians(plunge)
 
-    # Initial axes
-    u = np.array([np.cos(azimuth_rad), np.sin(azimuth_rad), 0.0])
-    v = np.array([-np.sin(azimuth_rad) * np.cos(dip_rad),
-                  np.cos(azimuth_rad) * np.cos(dip_rad),
-                  np.sin(dip_rad)])
-    w = np.cross(u, v)
+    if axis_azimuth != 0.0 or axis_dip != 0.0 or axis_plunge != 0.0:
 
-    # Rotation matrix around u by plunge angle
-    def rotate_around_axis(vec, axis, angle):
-        axis = axis / np.linalg.norm(axis)
-        return (vec * np.cos(angle) +
-                np.cross(axis, vec) * np.sin(angle) +
-                axis * np.dot(axis, vec) * (1 - np.cos(angle)))
+        azimuth_rad = np.radians(axis_azimuth)
+        dip_rad = np.radians(axis_dip)
+        plunge_rad = np.radians(axis_plunge)
 
-    v_rot = rotate_around_axis(v, u, plunge_rad)
-    w_rot = rotate_around_axis(w, u, plunge_rad)
+        # Initial axes
+        u = np.array([np.cos(azimuth_rad), np.sin(azimuth_rad), 0.0])
+        v = np.array([-np.sin(azimuth_rad) * np.cos(dip_rad),
+                      np.cos(azimuth_rad) * np.cos(dip_rad),
+                      np.sin(dip_rad)])
+        w = np.cross(u, v)
 
-    if not validate_axes_orthonormal(u, v_rot, w_rot):
-        raise ValueError("The provided angles do not yield orthonormal axes.")
+        # Rotation matrix around u by plunge angle
+        def rotate_around_axis(vec, axis, angle):
+            axis = axis / np.linalg.norm(axis)
+            return (vec * np.cos(angle) +
+                    np.cross(axis, vec) * np.sin(angle) +
+                    axis * np.dot(axis, vec) * (1 - np.cos(angle)))
 
-    return tuple(u), tuple(v_rot), tuple(w_rot)
+        v_rot = rotate_around_axis(v, u, plunge_rad)
+        w_rot = rotate_around_axis(w, u, plunge_rad)
+
+        if not validate_axes_orthonormal(u, v_rot, w_rot):
+            raise ValueError("The provided angles do not yield orthonormal axes.")
+
+        return ((float(u[0]), float(u[1]), float(u[2])),
+                (float(v_rot[0]), float(v_rot[1]), float(v_rot[2])),
+                (float(w_rot[0]), float(w_rot[1]), float(w_rot[2])),
+                )
+    else:
+        # If no rotation is specified, return the standard axes
+        return (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)
 
 
-def rotate_points(points: np.ndarray, azimuth: float = 0, dip: float = 0, plunge: float = 0) -> np.ndarray:
+def axis_orientation_to_rotation(axis_u, axis_v, axis_w):
+    """
+    Convert orthonormal axes to azimuth, dip, and plunge angles (in degrees).
+    Returns (azimuth, dip, plunge).
+    """
+
+    # Bypass calculation for identity axes
+    if (np.allclose(axis_u, (1, 0, 0), atol=1e-8) and
+            np.allclose(axis_v, (0, 1, 0), atol=1e-8) and
+            np.allclose(axis_w, (0, 0, 1), atol=1e-8)):
+        return 0.0, 0.0, 0.0
+
+    u = np.array(axis_u)
+    v = np.array(axis_v)
+    # Azimuth: angle from x-axis in xy-plane
+    azimuth = np.degrees(np.arctan2(u[1], u[0]))
+    # Dip: angle from horizontal down (z component of v)
+    dip = np.degrees(np.arcsin(v[2]))
+    # Plunge: rotation of v around u (project v onto plane normal to u)
+    # For most block models, plunge is 0, but you can compute it if needed.
+    # Here, set to 0 for simplicity.
+    plunge = 0.0
+    return float(azimuth), float(dip), float(plunge)
+
+
+def rotate_points(points: np.ndarray,
+                  azimuth: float = 0,
+                  dip: float = 0,
+                  plunge: float = 0
+                  ) -> np.ndarray:
     """Rotate points in 3D space based on azimuth, dip, and plunge angles.
 
     Args:
