@@ -27,7 +27,7 @@ from parq_tools.lazy_parquet import LazyParquetDataFrame
 from pyarrow.parquet import ParquetFile
 from tqdm import tqdm
 
-from parq_tools import ParquetProfileReport
+from parq_tools import ParquetProfileReport, filter_parquet_file
 from parq_tools.utils import atomic_output_file
 
 from parq_blockmodel.geometry import RegularGeometry
@@ -149,12 +149,15 @@ class ParquetBlockModel:
         return self.centroid_index.isin(dense_index).all()
 
     @classmethod
-    def from_parquet(cls, parquet_path: Path, overwrite: bool = False,
+    def from_parquet(cls, parquet_path: Path,
+                     columns: Optional[list[str]] = None,
+                     overwrite: bool = False,
                      azimuth: float = 0.0, dip: float = 0.0, plunge: float = 0.0) -> "ParquetBlockModel":
         """ Create a ParquetBlockModel instance from a Parquet file.
 
         Args:
             parquet_path (Path): The path to the Parquet file.
+            columns (Optional[list[str]]): The list of columns to extract from the Parquet file.
             overwrite (bool): If True, allows overwriting an existing ParquetBlockModel file. Defaults to False.
             azimuth (float): The azimuth angle in degrees for rotation. Defaults to 0.0.
             dip (float): The dip angle in degrees for rotation. Defaults to 0.0.
@@ -179,7 +182,13 @@ class ParquetBlockModel:
 
         cls._validate_geometry(parquet_path)
 
-        new_filepath = shutil.copy(parquet_path, parquet_path.resolve().with_suffix(".pbm.parquet"))
+        new_filepath: Path = parquet_path.resolve().with_suffix(".pbm.parquet")
+        if columns is None:
+            new_filepath = shutil.copy(parquet_path, new_filepath)
+        else:
+            filter_parquet_file(input_path=parquet_path,
+                                output_path=new_filepath,
+                                columns=columns)
         return cls(blockmodel_path=new_filepath, geometry=geometry)
 
     @classmethod
