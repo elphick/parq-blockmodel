@@ -28,7 +28,7 @@ temp_dir.mkdir(parents=True, exist_ok=True)
 
 pbm: ParquetBlockModel = ParquetBlockModel.create_demo_block_model(filename=temp_dir / "demo_block_model.parquet",
                                                                    block_size=block_size, corner=corner, shape=shape,
-                                                                   azimuth=30, dip=0, plunge=0,
+                                                                   axis_azimuth=30, axis_dip=0, axis_plunge=0,
                                                                    )
 
 pbm
@@ -37,13 +37,14 @@ pbm
 # Check the block model
 # ---------------------
 print("Block Model Path:", pbm.blockmodel_path)
-print("Block Model Name:", pbm.name)
-print("Block Model Data Shape:", pbm.data.shape)
-print("Block Model Data Head:\n", pbm.data.head())
-print("Block Model Attributes:", pbm.attributes)
+print("Name:", pbm.name)
+print("Axis Angles:", pbm.geometry.axis_angles)
+print("Data Shape:", pbm.data.shape)
+print("Data Head:\n", pbm.data.head())
+print("Model Attributes:", pbm.attributes)
 
 # %%
 # Visualise
 
-p: pv.Plotter = pbm.plot(scalar='depth')
+p: pv.Plotter = pbm.plot(scalar='depth', grid_type="image")
 p.show()

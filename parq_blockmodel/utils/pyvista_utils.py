@@ -1,15 +1,54 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 import pandas as pd
 import numpy as np
+
+from parq_blockmodel import RegularGeometry
 
 if TYPE_CHECKING:
     import pyvista as pv
 
 
-def df_to_pv_structured_grid(df: pd.DataFrame, validate_block_size: bool = True) -> 'pv.StructuredGrid':
+def df_to_pv_image_data(df: pd.DataFrame,
+                        geometry: RegularGeometry,
+                        fill_value=np.nan) -> 'pv.ImageData':
+    """
+    Convert a DataFrame to a PyVista ImageData object for a dense regular grid.
+
+    Args:
+        df: DataFrame with MultiIndex (x, y, z) or columns x, y, z.
+        geometry: RegularGeometry instance (provides shape, spacing, origin).
+        fill_value: Value to use for missing cells.
+
+    Returns:
+        pv.ImageData: PyVista ImageData object with cell data.
+    """
+
+    # Ensure index is MultiIndex (x, y, z)
+    if not isinstance(df.index, pd.MultiIndex):
+        df = df.set_index(['x', 'y', 'z'])
+
+    # Create dense index and reindex
+    dense_index = geometry.to_multi_index()
+    dense_df = df.reindex(dense_index)
+    shape = geometry.shape
+
+    grid: pv.ImageData = geometry.to_pyvista()
+
+    for attr in df.columns:
+        arr = dense_df[attr].to_numpy().reshape(shape, order='C').ravel(order='F')
+        arr = np.where(np.isnan(arr), fill_value, arr)
+        grid.cell_data[attr] = arr
+
+    return grid
+
+
+def df_to_pv_structured_grid(df: pd.DataFrame,
+                             block_size: Optional[tuple[float, float, float]] = None,
+                             validate_block_size: bool = True
+                             ) -> 'pv.StructuredGrid':
     """Convert a DataFrame into a PyVista StructuredGrid.
 
     This function is for the full grid dense block model.
@@ -21,7 +60,8 @@ def df_to_pv_structured_grid(df: pd.DataFrame, validate_block_size: bool = True)
 
     Args:
         df: pd.DataFrame with a MultiIndex of coordinates (x, y, z) and data columns.
-        validate_block_size: bool, optional
+        block_size: tuple of floats (dx, dy, dz), optional.  Not used if geometry is provided.
+        validate_block_size: bool, optional.  Not needed if geometry is provided.
 
     Returns:
         pv.StructuredGrid: A PyVista StructuredGrid object.
@@ -36,10 +76,13 @@ def df_to_pv_structured_grid(df: pd.DataFrame, validate_block_size: bool = True)
     y_centroids = df.index.get_level_values('y').unique()
     z_centroids = df.index.get_level_values('z').unique()
 
-    # Calculate the cell size (assuming all cells are of equal size)
-    dx = np.diff(x_centroids)[0]
-    dy = np.diff(y_centroids)[0]
-    dz = np.diff(z_centroids)[0]
+    if block_size is None:
+        # Calculate the cell size (assuming all cells are of equal size)
+        dx = np.diff(x_centroids)[0]
+        dy = np.diff(y_centroids)[0]
+        dz = np.diff(z_centroids)[0]
+    else:
+        dx, dy, dz = block_size[0], block_size[1], block_size[2]
 
     if validate_block_size:
         # Check all diffs are the same (within tolerance)

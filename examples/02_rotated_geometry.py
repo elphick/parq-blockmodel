@@ -19,7 +19,7 @@ from parq_blockmodel.utils import rotation_to_axis_orientation
 # -------------------------
 # Create a geometry with 30 degrees azimuth.
 
-axis_u, axis_v, axis_w = rotation_to_axis_orientation(azimuth=30, dip=0, plunge=0)
+axis_u, axis_v, axis_w = rotation_to_axis_orientation(axis_azimuth=30, axis_dip=0, axis_plunge=0)
 
 geom = RegularGeometry(corner=(0.0, 0.0, 0.0),
                        block_size=(1.0, 1.0, 1.0),

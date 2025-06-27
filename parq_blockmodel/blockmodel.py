@@ -11,6 +11,7 @@ Main API:
 import logging
 import math
 import shutil
+import typing
 import warnings
 from pathlib import Path
 from typing import Union, Optional
@@ -20,19 +21,20 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from parq_blockmodel.utils import create_demo_blockmodel, rotation_to_axis_orientation
-from parq_blockmodel.utils.pyvista_utils import df_to_pv_structured_grid, df_to_pv_unstructured_grid
+from parq_blockmodel.types import Shape3D, Point, BlockSize
+from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel
+from parq_blockmodel.utils.geometry_utils import rotation_to_axis_orientation
 from parq_tools.lazy_parquet import LazyParquetDataFrame
 from pyarrow.parquet import ParquetFile
 from tqdm import tqdm
 
-from parq_tools import ParquetProfileReport
+from parq_tools import ParquetProfileReport, filter_parquet_file
 from parq_tools.utils import atomic_output_file
 
 from parq_blockmodel.geometry import RegularGeometry
 
-Point = Union[tuple[float, float, float], list[float, float, float]]
-Triple = Union[tuple[float, float, float], list[float, float, float]]
+if typing.TYPE_CHECKING:
+    import pyvista as pv  # type: ignore[import]
 
 
 class ParquetBlockModel:
@@ -146,12 +148,22 @@ class ParquetBlockModel:
         return self.centroid_index.isin(dense_index).all()
 
     @classmethod
-    def from_parquet(cls, parquet_path: Path, overwrite: bool = False) -> "ParquetBlockModel":
+    def from_parquet(cls, parquet_path: Path,
+                     columns: Optional[list[str]] = None,
+                     overwrite: bool = False,
+                     axis_azimuth: float = 0.0,
+                     axis_dip: float = 0.0,
+                     axis_plunge: float = 0.0
+                     ) -> "ParquetBlockModel":
         """ Create a ParquetBlockModel instance from a Parquet file.
 
         Args:
             parquet_path (Path): The path to the Parquet file.
+            columns (Optional[list[str]]): The list of columns to extract from the Parquet file.
             overwrite (bool): If True, allows overwriting an existing ParquetBlockModel file. Defaults to False.
+            axis_azimuth (float): The azimuth angle in degrees for rotation. Defaults to 0.0.
+            axis_dip (float): The dip angle in degrees for rotation. Defaults to 0.0.
+            axis_plunge (float): The plunge angle in degrees for rotation. Defaults to 0.0.
 
         """
         if parquet_path.suffixes[-2:] == [".pbm", ".parquet"]:
@@ -161,20 +173,29 @@ class ParquetBlockModel:
                     f"Use the constructor directly, or pass overwrite=True to allow mutation."
                 )
 
+        geometry = RegularGeometry.from_parquet(filepath=parquet_path, axis_azimuth=axis_azimuth, axis_dip=axis_dip,
+                                                axis_plunge=axis_plunge)
 
         cls._validate_geometry(parquet_path)
 
-        new_filepath = shutil.copy(parquet_path, parquet_path.resolve().with_suffix(".pbm.parquet"))
-        return cls(blockmodel_path=new_filepath)
+        new_filepath: Path = parquet_path.resolve().with_suffix(".pbm.parquet")
+        if columns is None:
+            new_filepath = shutil.copy(parquet_path, new_filepath)
+        else:
+            filter_parquet_file(input_path=parquet_path,
+                                output_path=new_filepath,
+                                columns=columns)
+        return cls(blockmodel_path=new_filepath, geometry=geometry)
 
     @classmethod
     def create_demo_block_model(cls, filename: Path,
-                                shape=(3, 3, 3),
-                                block_size=(1, 1, 1),
-                                corner=(-0.5, -0.5, -0.5),
-                                azimuth: float = 0.0,
-                                dip: float = 0.0,
-                                plunge: float = 0.0) -> "ParquetBlockModel":
+                                shape: Shape3D = (3, 3, 3),
+                                block_size: BlockSize = (1, 1, 1),
+                                corner: Point = (-0.5, -0.5, -0.5),
+                                axis_azimuth: float = 0.0,
+                                axis_dip: float = 0.0,
+                                axis_plunge: float = 0.0
+                                ) -> "ParquetBlockModel":
         """
         Create a demo block model with specified parameters.
 
@@ -183,18 +204,20 @@ class ParquetBlockModel:
             shape (tuple): The shape of the block model.
             block_size (tuple): The size of each block.
             corner (tuple): The coordinates of the corner of the block model.
-            azimuth (float): The azimuth angle in degrees for rotation.
-            dip (float): The dip angle in degrees for rotation.
-            plunge (float): The plunge angle in degrees for rotation.
+            axis_azimuth (float): The azimuth angle in degrees for rotation.
+            axis_dip (float): The dip angle in degrees for rotation.
+            axis_plunge (float): The plunge angle in degrees for rotation.
 
         Returns:
             ParquetBlockModel: An instance of ParquetBlockModel with demo data.
         """
         create_demo_blockmodel(shape=shape, block_size=block_size, corner=corner,
-                               azimuth=azimuth, dip=dip, plunge=plunge,
+                               azimuth=axis_azimuth, dip=axis_dip, plunge=axis_plunge,
                                parquet_filepath=filename)
+
         # get the orientation of the axes
-        axis_u, axis_v, axis_w = rotation_to_axis_orientation(azimuth=azimuth, dip=dip, plunge=plunge)
+        axis_u, axis_v, axis_w = rotation_to_axis_orientation(axis_azimuth=axis_azimuth, axis_dip=axis_dip,
+                                                              axis_plunge=axis_plunge)
         # create geometry that aligns with the demo block model
         geometry = RegularGeometry(block_size=block_size, corner=corner, shape=shape,
                                    axis_u=axis_u, axis_v=axis_v, axis_w=axis_w)
@@ -207,14 +230,30 @@ class ParquetBlockModel:
         return cls(blockmodel_path=new_filepath, geometry=geometry)
 
     @classmethod
-    def from_geometry(cls, geometry: RegularGeometry, path: Path, name: Optional[str] = None) -> "ParquetBlockModel":
+    def from_geometry(cls, geometry: RegularGeometry,
+                      path: Path,
+                      name: Optional[str] = None
+                      ) -> "ParquetBlockModel":
+        """Create a ParquetBlockModel from a RegularGeometry object.
+
+        The model will have no attributes.
+
+        Args:
+            geometry (RegularGeometry): The geometry of the block model.
+            path (Path): The file path where the Parquet file will be saved.
+            name (Optional[str]): The name of the block model. If None, the name will be derived from the path.
+        Returns:
+            ParquetBlockModel: An instance of ParquetBlockModel with the specified geometry.
+        """
         centroids_df = geometry.to_dataframe()
         centroids_df.to_parquet(path, index=False)
         return cls(blockmodel_path=path, name=name, geometry=geometry)
 
     def create_report(self, columns: Optional[list[str]] = None,
                       column_batch_size: int = 10,
-                      show_progress: bool = True, open_in_browser: bool = False) -> Path:
+                      show_progress: bool = True,
+                      open_in_browser: bool = False
+                      ) -> Path:
         """
         Create a ydata-profiling report for the block model.
         The report will be of the same name as the block model, with a '.html' extension.
@@ -238,8 +277,26 @@ class ParquetBlockModel:
             self.report_path = self.blockmodel_path.with_suffix('.html')
         return self.report_path
 
-    def plot(self, scalar: str, threshold: bool = True, show_edges: bool = True,
-             show_axes: bool = True) -> 'pv.Plotter':
+    def plot(self, scalar: str,
+             grid_type: typing.Literal["image", "structured", "unstructured"] = "image",
+             threshold: bool = True, show_edges: bool = True,
+             show_axes: bool = True, enable_picking: bool = False,
+             picked_attributes: Optional[list[str]] = None) -> 'pv.Plotter':
+        """Plot the block model using PyVista.
+
+        Args:
+            scalar: The name of the scalar attribute to visualize.
+            grid_type: The type of grid to use for plotting. Options are "image", "structured", or "unstructured".
+            threshold: The thresholding option for the mesh. If True, applies a threshold to the scalar values.
+            show_edges: Show edges of the mesh.
+            show_axes: Show the axes in the plot.
+            enable_picking: If True, enables picking mode to interactively select cells in the plot.
+            picked_attributes: A list of attributes that will be returned in picking mode. If None, all attributes are returned.
+
+        Returns:
+
+        """
+
         import pyvista as pv
         if scalar not in self.attributes:
             raise ValueError(f"Column '{scalar}' not found in the ParquetBlockModel.")
@@ -247,7 +304,15 @@ class ParquetBlockModel:
         # Create a PyVista plotter
         plotter = pv.Plotter()
 
-        mesh = self.to_pyvista(attributes=[scalar])
+        attributes = [scalar]
+        if enable_picking:
+            if picked_attributes is None:
+                attributes = self.attributes
+            else:
+                attributes = picked_attributes
+            if scalar not in attributes:
+                attributes.append(scalar)
+        mesh = self.to_pyvista(grid_type=grid_type, attributes=attributes)
 
         # Add a thresholded mesh to the plotter
         if threshold:
@@ -258,6 +323,32 @@ class ParquetBlockModel:
         plotter.title = self.name
         if show_axes:
             plotter.show_axes()
+
+        text_name = "cell_info_text"
+        plotter.add_text("", position="upper_left", font_size=12, name=text_name)
+        cell_centers = mesh.cell_centers().points  # shape: (n_cells, 3)
+
+        if enable_picking:
+            def cell_callback(picked_cell):
+                if text_name in plotter.actors:
+                    plotter.remove_actor(text_name)
+                if hasattr(picked_cell, "n_cells") and picked_cell.n_cells == 1:
+                    if "vtkOriginalCellIds" in picked_cell.cell_data:
+                        cell_id = int(picked_cell.cell_data["vtkOriginalCellIds"][0])
+                        centroid = cell_centers[cell_id]  # numpy array of (x, y, z)
+                        centroid_str = f"({centroid[0]:.1f}, {centroid[1]:.1f}, {centroid[2]:.1f})"
+                        values = {attr: mesh.cell_data[attr][cell_id] for attr in attributes}
+                        msg = f"Cell ID: {cell_id}, {centroid_str}, " + ", ".join(
+                            f"{k}: {v}" for k, v in values.items())
+                    else:
+                        value = picked_cell.cell_data[scalar][0]
+                        msg = f"Picked cell value: {scalar}: {value}"
+                    plotter.add_text(msg, position="upper_left", font_size=12, name=text_name)
+                else:
+                    plotter.add_text("No valid cell picked.", position="upper_left", font_size=12, name=text_name)
+
+            plotter.enable_cell_picking(callback=cell_callback, show_message=False, through=False)
+            plotter.title = f"{self.name} - Press R and select a cell for attribute data"
 
         return plotter
 
@@ -286,19 +377,29 @@ class ParquetBlockModel:
                 df = df.reindex(dense_index)
         return df
 
-    def to_pyvista(self, attributes: Optional[list[str]] = None) -> 'pv.ImageData':
+    def to_pyvista(self, grid_type: typing.Literal["image", "structured", "unstructured"] = "structured",
+                   attributes: Optional[list[str]] = None
+                   ) -> Union['pv.ImageData', 'pv.StructuredGrid', 'pv.UnstructuredGrid']:
 
         if attributes is None:
             attributes = self.attributes
 
-        grid = self.geometry.to_pyvista()
-        df = self.read(columns=attributes, with_index=False, dense=True)
-        df['f_order'] = self.index_f
-        df = df.sort_values('f_order')
-        df = df.drop(columns='f_order')
-
-        for col in attributes:
-            grid.cell_data[col] = df[col].values
+        if grid_type == "image":
+            from parq_blockmodel.utils.pyvista_utils import df_to_pv_image_data
+            grid = df_to_pv_image_data(df=self.read(columns=attributes, with_index=True, dense=False),
+                                       geometry=self.geometry)
+        elif grid_type == "structured":
+            from parq_blockmodel.utils.pyvista_utils import df_to_pv_structured_grid
+            grid = df_to_pv_structured_grid(df=self.read(columns=attributes, with_index=True, dense=False),
+                                            validate_block_size=True)
+        elif grid_type == "unstructured":
+            from parq_blockmodel.utils.pyvista_utils import df_to_pv_unstructured_grid
+            grid = df_to_pv_unstructured_grid(df=self.read(columns=attributes, with_index=True, dense=False),
+                                              block_size=self.geometry.block_size,
+                                              validate_block_size=True)
+        else:
+            raise ValueError(f"Invalid grid type: {grid_type}. "
+                             "Choose from 'image', 'structured', or 'unstructured'.")
 
         return grid
 

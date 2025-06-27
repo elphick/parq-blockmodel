@@ -36,5 +36,5 @@ pbm.create_report(open_in_browser=True, show_progress=True)
 # Visualise the Model
 # -------------------
 
-p = pbm.plot(scalar='depth', threshold=True)
+p = pbm.plot(scalar='depth', threshold=False, enable_picking=True)
 p.show()

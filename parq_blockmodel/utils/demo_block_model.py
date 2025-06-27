@@ -5,17 +5,21 @@ import pandas as pd
 from parq_blockmodel.utils.geometry_utils import rotate_points
 
 
-def create_demo_blockmodel(
-        shape: tuple[int, int, int] = (3, 3, 3),
-        block_size: tuple[float, float, float] = (1.0, 1.0, 1.0),
-        corner: tuple[float, float, float] = (0.0, 0.0, 0.0),
-        azimuth: float = 0.0,
-        dip: float = 0.0,
-        plunge: float = 0.0,
-        parquet_filepath: Path = None
-) -> pd.DataFrame | Path:
-    """
-    Create a demo blockmodel DataFrame or Parquet file.
+def create_demo_blockmodel(shape: tuple[int, int, int] = (3, 3, 3),
+                           block_size: tuple[float, float, float] = (1.0, 1.0, 1.0),
+                           corner: tuple[float, float, float] = (0.0, 0.0, 0.0),
+                           azimuth: float = 0.0,
+                           dip: float = 0.0,
+                           plunge: float = 0.0,
+                           parquet_filepath: Path = None
+                           ) -> pd.DataFrame | Path:
+    """Create a demo blockmodel DataFrame or Parquet file.
+
+    The model contains block coordinates, indices, and depth information.
+
+    - c_index: A zero based index in C-style order (row-major). The order returned when sorting by x, y, z.
+    - f_index: A zero based index in Fortran-style order (column-major). The order returned when sorting by z, y, x.
+    - depth: The depth of each block, calculated as the distance from the surface (maximum z coordinate).
 
     Args:
         shape: Shape of the block model (nx, ny, nz).
@@ -40,8 +44,8 @@ def create_demo_blockmodel(
     xx, yy, zz = np.meshgrid(x_coords, y_coords, z_coords, indexing='ij')
     coords = np.stack([xx.ravel(order='C'), yy.ravel(order='C'), zz.ravel(order='C')], axis=-1)
 
-    c_order_xyz = np.arange(num_blocks)
-    f_order_zyx = np.arange(num_blocks).reshape(shape, order='C').ravel(order='F')
+    c_index = np.arange(num_blocks)
+    f_index = np.arange(num_blocks).reshape(shape, order='C').ravel(order='F')
 
     if any(angle != 0.0 for angle in (azimuth, dip, plunge)):
         rotated = rotate_points(points=coords, azimuth=azimuth, dip=dip, plunge=plunge)
@@ -55,11 +59,11 @@ def create_demo_blockmodel(
         'x': xx_flat_c,
         'y': yy_flat_c,
         'z': zz_flat_c,
-        'c_order_xyz': c_order_xyz
+        'c_index': c_index
     })
 
     df.set_index(keys=['x', 'y', 'z'], inplace=True)
-    df['f_order_zyx'] = f_order_zyx
+    df['f_index'] = f_index
     df['depth'] = surface_rl - zz_flat_c
 
     if parquet_filepath is not None:

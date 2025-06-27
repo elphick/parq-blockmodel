@@ -25,14 +25,9 @@ import numpy as np
 import pandas as pd
 from scipy.cluster.hierarchy import centroid
 
-from parq_blockmodel.utils.geometry_utils import validate_axes_orthonormal
+from parq_blockmodel.types import Point, Vector, Shape3D, MinMax, BlockSize
+from parq_blockmodel.utils.geometry_utils import validate_axes_orthonormal, rotation_to_axis_orientation, rotate_points
 from parq_blockmodel.utils.spatial_encoding import multiindex_to_encoded_index
-
-FloatArray = Union[np.ndarray, list[float], NDArray[np.floating]]
-Vector = Union[tuple[float, float, float], list[float, float, float]]
-Point = Union[tuple[float, float, float], list[float, float, float]]
-Triple = Union[tuple[float, float, float], list[float, float, float]]
-MinMax = Union[tuple[float, float], list[float, float]]
 
 if TYPE_CHECKING:
     import pyvista as pv
@@ -58,7 +53,7 @@ class Geometry(ABC):
     axis_w: Vector = (0, 0, 1)
     srs: Optional[str] = None  # Spatial Reference System, e.g. EPSG code
 
-    _shape: Optional[Point] = None
+    _shape: Optional[Shape3D] = None
     _is_regular: Optional[bool] = None
     _logger: logging.Logger = logging.getLogger(__name__)
 
@@ -94,6 +89,12 @@ class Geometry(ABC):
     @abstractmethod
     def is_regular(self) -> bool:
         pass
+
+    @property
+    def is_rotated(self) -> bool:
+        """Check if the geometry is rotated."""
+        axes = np.array([self.axis_u, self.axis_v, self.axis_w])
+        return not np.allclose(axes, np.eye(3), atol=1e-8)
 
     @property
     @abstractmethod
@@ -138,11 +139,11 @@ class Geometry(ABC):
         pass
 
     @property
-    def num_cells(self) -> int:
+    def num_blocks(self) -> int:
         return int(np.prod(self.shape))
 
     @property
-    def shape(self) -> Triple:
+    def shape(self) -> Shape3D:
         if self._shape is None:
             self._shape = (
                 len(self.centroid_x),
@@ -150,12 +151,6 @@ class Geometry(ABC):
                 len(self.centroid_z),
             )
         return self._shape
-
-    @property
-    def rotated(self) -> bool:
-        """Return True if the geometry axes are not aligned with the world axes."""
-        axes = np.array([self.axis_u, self.axis_v, self.axis_w])
-        return not np.allclose(axes, np.eye(3), atol=1e-8)
 
     @property
     @abstractmethod
@@ -192,8 +187,8 @@ class RegularGeometry(Geometry):
     """
 
     corner: Point
-    block_size: Triple
-    shape: Triple
+    block_size: BlockSize
+    shape: Shape3D
     axis_u: Vector = (1, 0, 0)
     axis_v: Vector = (0, 1, 0)
     axis_w: Vector = (0, 0, 1)
@@ -213,13 +208,6 @@ class RegularGeometry(Geometry):
     def is_regular(self) -> bool:
         return True
 
-    @property
-    def is_rotated(self) -> bool:
-        """Check if the geometry is rotated."""
-        return not np.allclose(self.axis_u, (1, 0, 0)) or \
-            not np.allclose(self.axis_v, (0, 1, 0)) or \
-            not np.allclose(self.axis_w, (0, 0, 1))
-
     @cached_property
     def _centroids(self) -> np.ndarray:
         # Compute axis-aligned centroids
@@ -233,7 +221,7 @@ class RegularGeometry(Geometry):
                       self.corner[2] + self.block_size[2] * self.shape[2],
                       self.block_size[2])
         xx, yy, zz = np.meshgrid(x, y, z, indexing="ij")
-        centroids = np.vstack([xx.ravel(), yy.ravel(), zz.ravel()])
+        centroids = np.vstack([xx.ravel(order='C'), yy.ravel(order='C'), zz.ravel(order='C')])
         # Apply rotation
         rotation_matrix = np.array([self.axis_u, self.axis_v, self.axis_w]).T
         rotated = rotation_matrix @ centroids
@@ -264,11 +252,11 @@ class RegularGeometry(Geometry):
         return self._centroids[2]
 
     @property
-    def shape(self) -> Triple:
+    def shape(self) -> Shape3D:
         return self._shape
 
     @shape.setter
-    def shape(self, value: Triple):
+    def shape(self, value: Shape3D) -> None:
         self._shape = value
 
     @property
@@ -289,13 +277,18 @@ class RegularGeometry(Geometry):
         )
 
     @property
+    def axis_angles(self):
+        """Return (azimuth, dip, plunge) corresponding to axis_u, axis_v, axis_w."""
+        from parq_blockmodel.utils.geometry_utils import axis_orientation_to_rotation
+        return axis_orientation_to_rotation(self.axis_u, self.axis_v, self.axis_w)
+
+    @property
     def summary(self) -> dict:
         return {
             "corner": tuple(self.corner),
-            "axis_u": tuple(self.axis_u),
-            "axis_v": tuple(self.axis_v),
-            "axis_w": tuple(self.axis_w),
+            "axis_angles": tuple(self.axis_angles),
             "block_size": self.block_size,
+            "block_count": self.num_blocks,
             "shape": self.shape,
             "is_regular": self.is_regular,
             "extents": self.extents,
@@ -303,7 +296,11 @@ class RegularGeometry(Geometry):
         }
 
     @classmethod
-    def from_parquet(cls, filepath: Path) -> "RegularGeometry":
+    def from_parquet(cls, filepath: Path,
+                     axis_azimuth: float = 0.0,
+                     axis_dip: float = 0.0,
+                     axis_plunge: float = 0.0
+                     ) -> "RegularGeometry":
         import pyarrow.parquet as pq
         columns = pq.ParquetFile(filepath).schema.names
         if not {"x", "y", "z"}.issubset(columns):
@@ -320,18 +317,18 @@ class RegularGeometry(Geometry):
                 raise ValueError("Parquet file is empty or does not contain valid centroid data.")
             index = centroids.set_index(["x", "y", "z"]).index
         # Create a RegularGeometry from the MultiIndex
-        return cls.from_multi_index(index)
+        return cls.from_multi_index(index, axis_azimuth=axis_azimuth, axis_dip=axis_dip, axis_plunge=axis_plunge)
 
     @classmethod
-    def from_multi_index(
-            cls,
-            index: pd.MultiIndex,
-            axis_u: Vector = (1, 0, 0),
-            axis_v: Vector = (0, 1, 0),
-            axis_w: Vector = (0, 0, 1),
-    ) -> "RegularGeometry":
+    def from_multi_index(cls, index: pd.MultiIndex,
+                         axis_azimuth: float = 0.0,
+                         axis_dip: float = 0.0,
+                         axis_plunge: float = 0.0
+                         ) -> "RegularGeometry":
         if not {"x", "y", "z"}.issubset(index.names):
             raise ValueError("Index must contain the levels 'x', 'y', 'z'.")
+
+        axis_u, axis_v, axis_w = rotation_to_axis_orientation(axis_azimuth, axis_dip, axis_plunge)
 
         x = np.sort(index.get_level_values("x").unique())
         y = np.sort(index.get_level_values("y").unique())
@@ -344,9 +341,9 @@ class RegularGeometry(Geometry):
         block_size = float(dx.min()), float(dy.min()), float(dz.min())
 
         # Compute the expected corner as if the minimum centroid is the first block
-        corner_x = x[0] - block_size[0] / 2
-        corner_y = y[0] - block_size[1] / 2
-        corner_z = z[0] - block_size[2] / 2
+        corner_x = float(x[0] - block_size[0] / 2)
+        corner_y = float(y[0] - block_size[1] / 2)
+        corner_z = float(z[0] - block_size[2] / 2)
 
         # Compute the shape, accounting for sparsity in the index
         shape = (int((max(x) - min(x)) / block_size[0]) + 1,
@@ -361,14 +358,12 @@ class RegularGeometry(Geometry):
                    shape=shape)
 
     @classmethod
-    def from_extents(
-            cls,
-            extents: tuple[MinMax, MinMax, MinMax],
-            block_size: Triple,
-            axis_u: Vector = (1, 0, 0),
-            axis_v: Vector = (0, 1, 0),
-            axis_w: Vector = (0, 0, 1),
-    ) -> "RegularGeometry":
+    def from_extents(cls, extents: tuple[MinMax, MinMax, MinMax],
+                     block_size: BlockSize,
+                     axis_u: Vector = (1, 0, 0),
+                     axis_v: Vector = (0, 1, 0),
+                     axis_w: Vector = (0, 0, 1),
+                     ) -> "RegularGeometry":
         """Create a RegularGeometry from extents."""
         min_x, max_x = extents[0]
         min_y, max_y = extents[1]
@@ -433,29 +428,20 @@ class RegularGeometry(Geometry):
         y = oy + (np.arange(ny) + 0.5) * dy
         z = oz + (np.arange(nz) + 0.5) * dz
 
-        # Create a grid of coordinates
+        # Create a meshgrid and flatten in C order, then stack as (N, 3)
         xx, yy, zz = np.meshgrid(x, y, z, indexing="ij")
+        coords = np.stack([xx.ravel(order='C'), yy.ravel(order='C'), zz.ravel(order='C')], axis=-1)  # (N, 3)
 
-        # Flatten the grid
-        centroids = np.vstack([xx.ravel(), yy.ravel(), zz.ravel()])
+        # Apply rotation if needed
+        rotation_matrix = np.array([self.axis_u, self.axis_v, self.axis_w]).T
+        rotated_coords = coords @ rotation_matrix  # (N, 3)
 
-        # Rotation axes
-        u, v, w = self.axis_u, self.axis_v, self.axis_w
-
-        # Create rotation matrix
-        rotation_matrix = np.array([u, v, w]).T
-
-        # Apply rotation
-        rotated_centroids = rotation_matrix @ centroids
-
-        # Create a MultiIndex
+        # Create MultiIndex from rotated coordinates
         index = pd.MultiIndex.from_arrays(
-            [rotated_centroids[0], rotated_centroids[1], rotated_centroids[2]],
-            names=["x", "y", "z"],
+            [rotated_coords[:, 0], rotated_coords[:, 1], rotated_coords[:, 2]],
+            names=["x", "y", "z"]
         )
-
-        # Sort the MultiIndex by x, y, z levels
-        return index.sortlevel(level=["x", "y", "z"])[0]
+        return index
 
     def to_dataframe(self) -> pd.DataFrame:
         """
@@ -515,11 +501,10 @@ class RegularGeometry(Geometry):
             Point3: The coordinates of the nearest centroid.
         """
 
-        reference_centroid: Point = (
-            self.centroid_x[0],
-            self.centroid_y[0],
-            self.centroid_z[0],
-        )
+        reference_centroid: Point = (float(self.centroid_x[0]),
+                                     float(self.centroid_y[0]),
+                                     float(self.centroid_z[0]),
+                                     )
         dx, dy, dz = self.block_size
         ref_x, ref_y, ref_z = reference_centroid
 
