@@ -1,0 +1,6 @@
+parq\_blockmodel.utils.orientation\_utils.generate\_block\_model\_with\_3d\_ellipse
+===================================================================================
+
+.. currentmodule:: parq_blockmodel.utils.orientation_utils
+
+.. autofunction:: generate_block_model_with_3d_ellipse

@@ -1,0 +1,6 @@
+parq\_blockmodel.utils.orientation\_utils.visualize\_block\_model\_with\_threshold
+==================================================================================
+
+.. currentmodule:: parq_blockmodel.utils.orientation_utils
+
+.. autofunction:: visualize_block_model_with_threshold

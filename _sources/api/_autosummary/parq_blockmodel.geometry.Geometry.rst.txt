@@ -1,0 +1,52 @@
+parq\_blockmodel.geometry.Geometry
+==================================
+
+.. currentmodule:: parq_blockmodel.geometry
+
+.. autoclass:: Geometry
+   :members:
+   :special-members: __add__, __mul__
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~Geometry.__init__
+      ~Geometry.from_multi_index
+      ~Geometry.nearest_centroid_lookup
+      ~Geometry.to_json_file
+      ~Geometry.to_multi_index
+      ~Geometry.to_summary_json
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~Geometry.axis_u
+      ~Geometry.axis_v
+      ~Geometry.axis_w
+      ~Geometry.bounding_box
+      ~Geometry.centroid_u
+      ~Geometry.centroid_v
+      ~Geometry.centroid_w
+      ~Geometry.centroid_x
+      ~Geometry.centroid_y
+      ~Geometry.centroid_z
+      ~Geometry.extents
+      ~Geometry.is_regular
+      ~Geometry.is_rotated
+      ~Geometry.num_blocks
+      ~Geometry.shape
+      ~Geometry.srs
+      ~Geometry.summary
+      ~Geometry.corner
+   
+   
