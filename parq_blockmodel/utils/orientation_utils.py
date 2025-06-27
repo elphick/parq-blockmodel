@@ -2,6 +2,10 @@ import numpy as np
 import pandas as pd
 from typing import Optional, Tuple, Union
 
+from numpy.linalg import norm
+
+from parq_blockmodel.types import Vector
+
 
 def calculate_orientation(
         blocks: pd.DataFrame,
@@ -61,6 +65,34 @@ def calculate_orientation(
 
     return orientation_df
 
+
+def compute_orientation(centroids: np.ndarray) -> tuple[float, float, float]:
+    """Compute the azimuth, dip, and plunge angles of the main axis of a set of centroids.
+
+    Args:
+        centroids: A 2D numpy array of shape (N, 3) where N is the number of centroids and each row represents a
+            centroid's (x, y, z) coordinates.
+
+    Returns:
+        A tuple containing the azimuth, dip, and plunge angles in degrees.
+    """
+    # Center the data
+    X = centroids - np.mean(centroids, axis=0)
+    # SVD for PCA
+    _, _, Vt = np.linalg.svd(X, full_matrices=False)
+    main_axis = Vt[0]
+    # Ensure main_axis points in the positive y direction (north)
+    if main_axis[1] < 0:
+        main_axis = -main_axis
+    # Normalize
+    main_axis = main_axis / np.linalg.norm(main_axis)
+    # Azimuth: angle from north (y-axis) in x-y plane
+    azimuth = np.degrees(np.arctan2(main_axis[0], main_axis[1])) % 360
+    # Dip: angle from horizontal (x-y plane)
+    dip = np.degrees(np.arccos(main_axis[2]))
+    # Plunge: angle from horizontal, projected onto x-z plane
+    plunge = np.degrees(np.arctan2(main_axis[2], main_axis[0]))
+    return azimuth, dip, plunge
 
 def generate_block_model_with_ellipse(
         x_range: Tuple[float, float],
@@ -266,8 +298,10 @@ def visualize_block_model_with_threshold():
     plotter.add_legend()
     plotter.show()
 
+
 import pyvista as pv
 import numpy as np
+
 
 def visualize_block_model_with_3d_ellipse_and_slider():
     # Parameters for the block model
@@ -327,9 +361,9 @@ def visualize_block_model_with_3d_ellipse_and_slider():
     plotter.add_axes()
     plotter.show()
 
+
 if __name__ == '__main__':
     # Run the visualization
     # visualize_block_model_with_threshold()
 
     visualize_block_model_with_3d_ellipse_and_slider()
-

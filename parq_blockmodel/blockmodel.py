@@ -325,7 +325,7 @@ class ParquetBlockModel:
             plotter.show_axes()
 
         text_name = "cell_info_text"
-        plotter.add_text("", position="lower_left", font_size=12, name=text_name)
+        plotter.add_text("", position="upper_left", font_size=12, name=text_name)
         cell_centers = mesh.cell_centers().points  # shape: (n_cells, 3)
 
         if enable_picking:
@@ -343,9 +343,9 @@ class ParquetBlockModel:
                     else:
                         value = picked_cell.cell_data[scalar][0]
                         msg = f"Picked cell value: {scalar}: {value}"
-                    plotter.add_text(msg, position="lower_left", font_size=12, name=text_name)
+                    plotter.add_text(msg, position="upper_left", font_size=12, name=text_name)
                 else:
-                    plotter.add_text("No valid cell picked.", position="lower_left", font_size=12, name=text_name)
+                    plotter.add_text("No valid cell picked.", position="upper_left", font_size=12, name=text_name)
 
             plotter.enable_cell_picking(callback=cell_callback, show_message=False, through=False)
             plotter.title = f"{self.name} - Press R and select a cell for attribute data"
