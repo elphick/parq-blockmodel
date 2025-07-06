@@ -9,6 +9,8 @@ sys.path.insert(0, os.path.abspath('../..'))
 
 import parq_blockmodel
 import pyvista
+from plotly.io._sg_scraper import plotly_sg_scraper
+
 
 # -- Project information -----------------------------------------------------
 
@@ -29,7 +31,7 @@ pyvista.BUILDING_GALLERY = True  # necessary when building the sphinx gallery
 pyvista.set_plot_theme("document")
 pyvista.global_theme.window_size = np.array([1024, 768]) * 2
 
-image_scrapers = ("pyvista", "matplotlib")
+image_scrapers = (plotly_sg_scraper, "pyvista", "matplotlib")
 
 
 # -- General configuration ---------------------------------------------------
@@ -52,7 +54,7 @@ autosummary_generate = True
 
 sphinx_gallery_conf = {
     'filename_pattern': r'\.py',
-    'ignore_pattern': r'(__init__)|(05_trame_webserver)\.py',
+    'ignore_pattern': r'(__init__)|(05_trame_webserver)|(06_reblocking)|(xx.*)\.py',
     'examples_dirs': '../../examples',  # path to your example scripts
     'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
     'within_subsection_order': FileNameSortKey,

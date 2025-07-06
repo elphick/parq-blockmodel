@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+import logging
+from pathlib import Path
+from typing import TYPE_CHECKING, Optional, Union
 
 import pandas as pd
 import numpy as np
+from scipy.stats import mode
 
 from parq_blockmodel import RegularGeometry
 
@@ -184,3 +187,26 @@ def df_to_pv_unstructured_grid(df: pd.DataFrame, block_size: tuple[float, float,
         grid.cell_data[col] = blocks[col].values
 
     return grid
+
+
+def calculate_spacing(grid: pv.UnstructuredGrid) -> tuple[float, float, float]:
+    """
+    Calculate the spacing of an UnstructuredGrid by finding the mode of unique differences.
+
+    Args:
+        grid (pv.UnstructuredGrid): The input PyVista UnstructuredGrid.
+
+    Returns:
+        tuple[float, float, float]: The spacing in x, y, and z directions.
+    """
+    # Extract unique x, y, z coordinates
+    x_coords = np.unique(grid.points[:, 0])
+    y_coords = np.unique(grid.points[:, 1])
+    z_coords = np.unique(grid.points[:, 2])
+
+    # Calculate differences and find the mode
+    dx = mode(np.diff(x_coords)).mode
+    dy = mode(np.diff(y_coords)).mode
+    dz = mode(np.diff(z_coords)).mode
+
+    return dx, dy, dz

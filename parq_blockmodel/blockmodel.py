@@ -35,6 +35,7 @@ from parq_blockmodel.geometry import RegularGeometry
 
 if typing.TYPE_CHECKING:
     import pyvista as pv  # type: ignore[import]
+    import plotly.graph_objects as go
 
 
 class ParquetBlockModel:
@@ -276,6 +277,114 @@ class ParquetBlockModel:
         if not columns:
             self.report_path = self.blockmodel_path.with_suffix('.html')
         return self.report_path
+
+    def create_heatmap_from_threshold(self, attribute: str, threshold: float, axis: str = "z",
+                                      return_array: bool = False) -> Union['pv.ImageData', np.ndarray]:
+        """
+        Create a 2D heatmap from a 3D block model at a specified attribute threshold.
+
+        Args:
+            attribute (str): The name of the attribute to threshold.
+            threshold (float): The threshold value for the attribute.
+            axis (str): The axis to view from ('x', 'y', or 'z'). Defaults to 'z'.
+            return_array (bool): If True, returns the heatmap as a NumPy array. Defaults to False.
+
+        Returns:
+            Union[pv.ImageData, np.ndarray]: A 2D heatmap as a PyVista ImageData object or a NumPy array.
+            """
+        import pyvista as pv
+        import numpy as np
+
+        if attribute not in self.attributes:
+            raise ValueError(f"Attribute '{attribute}' not found in the block model.")
+        if axis not in {"x", "y", "z"}:
+            raise ValueError("Invalid axis. Choose from 'x', 'y', or 'z'.")
+
+        # Load the block model as PyVista ImageData
+        mesh: pv.ImageData = self.to_pyvista(grid_type="image", attributes=[attribute])
+
+        # Apply the threshold
+        mesh.cell_data['count'] = mesh.cell_data[attribute] > threshold
+        mesh.cell_data['count'] = mesh.cell_data['count'].astype(np.int8)
+
+        # Reshape and sum along the specified axis
+        reshaped_data = mesh.cell_data['count'].reshape(
+            (mesh.dimensions[0] - 1, mesh.dimensions[1] - 1, mesh.dimensions[2] - 1))
+        summed_data: Optional[np.ndarray] = None
+        if axis == "z":
+            summed_data = np.sum(reshaped_data, axis=2)
+            new_dimensions = (mesh.dimensions[0], mesh.dimensions[1], 1)
+        elif axis == "x":
+            summed_data = np.sum(reshaped_data, axis=0)
+            new_dimensions = (1, mesh.dimensions[1], mesh.dimensions[2])
+        elif axis == "y":
+            summed_data = np.sum(reshaped_data, axis=1)
+            new_dimensions = (mesh.dimensions[0], 1, mesh.dimensions[2])
+
+        if return_array:
+            return summed_data
+
+        # Create a new ImageData object
+        new_mesh = pv.ImageData(dimensions=new_dimensions)
+        new_mesh.cell_data['summed_count'] = summed_data.ravel(order='F')
+
+        return new_mesh
+
+    def plot_heatmap(self, attribute: str, threshold: float, axis: str = "z",
+                     title: Optional[str] = None) -> 'go.Figure':
+        """
+        Create a 2D heatmap plotly figure from a 3D block model at a specified attribute threshold.
+
+        Args:
+            attribute (str): The name of the attribute to threshold.
+            threshold (float): The threshold value for the attribute.
+            axis (str): The axis to view from ('x', 'y', or 'z'). Defaults to 'z'.
+            title (Optional[str]): The title of the heatmap. If None, a default title is used.
+
+        Returns:
+            go.Figure: A Plotly figure containing the heatmap.
+        """
+        import plotly.graph_objects as go
+        import plotly.express as px
+
+        summed_data = self.create_heatmap_from_threshold(attribute, threshold, axis, return_array=True)
+
+        data, labels, extents = self._get_heatmap_data(axis, summed_data)
+        # fig = go.Figure(data=go.Heatmap(x=data[0], y=data[1], z=data[2], colorscale='Viridis'))
+        fig = px.imshow(summed_data, color_continuous_scale='Viridis')
+
+        # fig.update_xaxes(range=extents[0], scaleanchor="y", scaleratio=1)
+        # fig.update_yaxes(range=extents[1])
+        fig.update_layout(title=f"Heatmap of {attribute}, thresholded at {threshold}",
+                          xaxis_title=labels[0],
+                          yaxis_title=labels[1])
+        if title is not None:
+            fig.update_layout(title=title)
+        return fig
+
+    def _get_heatmap_data(self, axis, summed_data
+                          ) -> tuple[tuple[np.ndarray, ...], tuple[str, ...], tuple[float, ...]]:
+        if axis == "z":
+            x = np.arange(summed_data.shape[0])
+            y = np.arange(summed_data.shape[1])
+            z = summed_data.T
+            labels = "Easting", "Northing"
+            extents = self.geometry.extents[0:2]  # x, y extents
+        elif axis == "x":
+            x = np.arange(summed_data.shape[1])
+            y = np.arange(summed_data.shape[2])
+            z = summed_data.T
+            labels = "Northing", "RL"
+            extents = self.geometry.extents[1], self.geometry.extents[2]
+        elif axis == "y":
+            x = np.arange(summed_data.shape[0])
+            y = np.arange(summed_data.shape[2])
+            z = summed_data
+            labels = "Easting", "RL"
+            extents = self.geometry.extents[0], self.geometry.extents[1]
+        else:
+            raise ValueError("Invalid axis. Choose from 'x', 'y', or 'z'.")
+        return tuple([x, y, z]), labels, extents
 
     def plot(self, scalar: str,
              grid_type: typing.Literal["image", "structured", "unstructured"] = "image",
