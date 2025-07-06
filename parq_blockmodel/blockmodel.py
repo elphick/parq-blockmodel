@@ -278,6 +278,48 @@ class ParquetBlockModel:
             self.report_path = self.blockmodel_path.with_suffix('.html')
         return self.report_path
 
+    def reblock(self, block_size: tuple[float, float, float], return_pyvista: bool=False
+                ) -> Union["ParquetBlockModel", "pv.ImageData"]:
+        """
+        Reblock the grid to a new block size.
+
+        Args:
+            block_size (Tuple[float, float, float]): The new block size (dx, dy, dz).
+            return_pyvista (bool): If True, return a pyvista instance, otherwise return a ParquetBlockModel
+
+        Returns:
+            ParquetBlockModel: A new ParquetBlockModel instance with the reblocked grid.
+        """
+        import pyvista as pv
+        # Load the current grid as PyVista ImageData
+        mesh: pv.ImageData = self.to_pyvista(grid_type="image")
+
+        # check the reblocking does not change the extents
+        new_shape: list = []
+        for i, extent in enumerate(self.geometry.extents):
+            if (extent[1] - extent[0]) % block_size[i] != 0:
+                raise ValueError(
+                    f"Reblocking must align with the original grid: extents={self.geometry.extents}, "
+                    f"block_size={block_size}. Ensure that each extent is divisible by the corresponding block size.")
+            new_shape.append(int((extent[1] - extent[0]) / block_size[i]))
+        new_mesh = pv.ImageData(dimensions=new_shape, spacing=block_size, origin=self.geometry.corner)
+
+        # Resample data onto the new grid
+        resampled_mesh = new_mesh.sample(mesh, pass_cell_data=True)
+
+        if return_pyvista:
+            return resampled_mesh
+
+        # Convert resampled data back to a DataFrame
+        resampled_df = pd.DataFrame(resampled_mesh.cell_data)
+
+        # Create a new ParquetBlockModel instance
+        new_geometry = RegularGeometry(block_size=block_size, corner=self.geometry.corner, shape=new_shape)
+        new_path = self.blockmodel_path.with_name(f"{self.name}_reblocked.pbm.parquet")
+        resampled_df.to_parquet(new_path, index=False)
+
+        return ParquetBlockModel(blockmodel_path=new_path, geometry=new_geometry)
+
     def create_heatmap_from_threshold(self, attribute: str, threshold: float, axis: str = "z",
                                       return_array: bool = False) -> Union['pv.ImageData', np.ndarray]:
         """

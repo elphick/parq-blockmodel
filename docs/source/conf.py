@@ -54,7 +54,7 @@ autosummary_generate = True
 
 sphinx_gallery_conf = {
     'filename_pattern': r'\.py',
-    'ignore_pattern': r'(__init__)|(05_trame_webserver)|(06_reblocking)|(xx.*)\.py',
+    'ignore_pattern': r'(__init__)|(05_trame_webserver)|(xx.*)\.py',
     'examples_dirs': '../../examples',  # path to your example scripts
     'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
     'within_subsection_order': FileNameSortKey,
