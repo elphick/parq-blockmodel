@@ -1,0 +1,36 @@
+parq\_blockmodel.utils.orientation\_utils
+=========================================
+
+.. automodule:: parq_blockmodel.utils.orientation_utils
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+      :nosignatures:
+   
+      calculate_orientation
+      compute_orientation
+      generate_block_model_with_3d_ellipse
+      generate_block_model_with_ellipse
+      visualize_block_model_with_3d_ellipse_and_slider
+      visualize_block_model_with_threshold
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

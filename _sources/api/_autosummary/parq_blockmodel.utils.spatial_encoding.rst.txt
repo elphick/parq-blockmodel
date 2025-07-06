@@ -1,0 +1,35 @@
+parq\_blockmodel.utils.spatial\_encoding
+========================================
+
+.. automodule:: parq_blockmodel.utils.spatial_encoding
+
+   
+   
+   
+
+   
+   
+   .. rubric:: Functions
+
+   .. autosummary::
+      :toctree:
+      :nosignatures:
+   
+      decode_coordinates
+      encode_coordinates
+      encoded_index_to_multiindex
+      is_integer
+      multiindex_to_encoded_index
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+

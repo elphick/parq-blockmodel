@@ -1,0 +1,6 @@
+parq\_blockmodel.utils.orientation\_utils.calculate\_orientation
+================================================================
+
+.. currentmodule:: parq_blockmodel.utils.orientation_utils
+
+.. autofunction:: calculate_orientation

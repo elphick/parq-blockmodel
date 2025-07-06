@@ -1,0 +1,6 @@
+parq\_blockmodel.utils.pyvista\_utils.calculate\_spacing
+========================================================
+
+.. currentmodule:: parq_blockmodel.utils.pyvista_utils
+
+.. autofunction:: calculate_spacing

@@ -1,0 +1,62 @@
+parq\_blockmodel.geometry.RegularGeometry
+=========================================
+
+.. currentmodule:: parq_blockmodel.geometry
+
+.. autoclass:: RegularGeometry
+   :members:
+   :special-members: __add__, __mul__
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~RegularGeometry.__init__
+      ~RegularGeometry.from_extents
+      ~RegularGeometry.from_json
+      ~RegularGeometry.from_multi_index
+      ~RegularGeometry.from_parquet
+      ~RegularGeometry.is_compatible
+      ~RegularGeometry.nearest_centroid_lookup
+      ~RegularGeometry.to_dataframe
+      ~RegularGeometry.to_json
+      ~RegularGeometry.to_json_file
+      ~RegularGeometry.to_multi_index
+      ~RegularGeometry.to_pyvista
+      ~RegularGeometry.to_spatial_index
+      ~RegularGeometry.to_summary_json
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~RegularGeometry.axis_angles
+      ~RegularGeometry.axis_u
+      ~RegularGeometry.axis_v
+      ~RegularGeometry.axis_w
+      ~RegularGeometry.bounding_box
+      ~RegularGeometry.centroid_u
+      ~RegularGeometry.centroid_v
+      ~RegularGeometry.centroid_w
+      ~RegularGeometry.centroid_x
+      ~RegularGeometry.centroid_y
+      ~RegularGeometry.centroid_z
+      ~RegularGeometry.extents
+      ~RegularGeometry.is_regular
+      ~RegularGeometry.is_rotated
+      ~RegularGeometry.num_blocks
+      ~RegularGeometry.shape
+      ~RegularGeometry.srs
+      ~RegularGeometry.summary
+      ~RegularGeometry.corner
+      ~RegularGeometry.block_size
+   
+   

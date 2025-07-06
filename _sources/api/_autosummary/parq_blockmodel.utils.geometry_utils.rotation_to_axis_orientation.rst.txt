@@ -1,0 +1,6 @@
+parq\_blockmodel.utils.geometry\_utils.rotation\_to\_axis\_orientation
+======================================================================
+
+.. currentmodule:: parq_blockmodel.utils.geometry_utils
+
+.. autofunction:: rotation_to_axis_orientation

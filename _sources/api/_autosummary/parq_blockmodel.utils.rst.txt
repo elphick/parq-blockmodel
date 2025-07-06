@@ -1,0 +1,35 @@
+﻿parq\_blockmodel.utils
+======================
+
+.. automodule:: parq_blockmodel.utils
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+   
+   
+   
+
+
+
+.. rubric:: Modules
+
+.. autosummary::
+   :toctree:
+   :recursive:
+
+   demo_block_model
+   geometry_utils
+   orientation_utils
+   pyvista_utils
+   spatial_encoding
+

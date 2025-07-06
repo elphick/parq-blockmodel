@@ -1,0 +1,46 @@
+parq\_blockmodel.blockmodel.ParquetBlockModel
+=============================================
+
+.. currentmodule:: parq_blockmodel.blockmodel
+
+.. autoclass:: ParquetBlockModel
+   :members:
+   :special-members: __add__, __mul__
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~ParquetBlockModel.__init__
+      ~ParquetBlockModel.create_demo_block_model
+      ~ParquetBlockModel.create_heatmap_from_threshold
+      ~ParquetBlockModel.create_report
+      ~ParquetBlockModel.from_geometry
+      ~ParquetBlockModel.from_parquet
+      ~ParquetBlockModel.plot
+      ~ParquetBlockModel.plot_heatmap
+      ~ParquetBlockModel.read
+      ~ParquetBlockModel.to_dense_parquet
+      ~ParquetBlockModel.to_pyvista
+      ~ParquetBlockModel.validate_sparse
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~ParquetBlockModel.centroid_index
+      ~ParquetBlockModel.column_categorical_ordered
+      ~ParquetBlockModel.index_c
+      ~ParquetBlockModel.index_f
+      ~ParquetBlockModel.is_sparse
+      ~ParquetBlockModel.sparsity
+   
+   

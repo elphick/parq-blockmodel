@@ -1,0 +1,6 @@
+parq\_blockmodel.utils.orientation\_utils.visualize\_block\_model\_with\_3d\_ellipse\_and\_slider
+=================================================================================================
+
+.. currentmodule:: parq_blockmodel.utils.orientation_utils
+
+.. autofunction:: visualize_block_model_with_3d_ellipse_and_slider
