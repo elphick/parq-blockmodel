@@ -46,3 +46,4 @@ def test_ordering_after_rotation():
     # Check f_order_zyx: F order (zyx fastest to slowest)
     expected_f_order = np.arange(np.prod(shape)).reshape(shape, order='C').ravel(order='F')
     assert np.array_equal(df['f_index'].values, expected_f_order)
+

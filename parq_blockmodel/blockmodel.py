@@ -22,7 +22,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from parq_blockmodel.types import Shape3D, Point, BlockSize
-from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel
+from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel, create_toy_blockmodel
 from parq_blockmodel.utils.geometry_utils import rotation_to_axis_orientation
 from parq_tools.lazy_parquet import LazyParquetDataFrame
 from pyarrow.parquet import ParquetFile
@@ -231,6 +231,70 @@ class ParquetBlockModel:
         return cls(blockmodel_path=new_filepath, geometry=geometry)
 
     @classmethod
+    def create_toy_blockmodel(cls, filename: Path,
+                              shape: Shape3D = (3, 3, 3),
+                              block_size: BlockSize = (1, 1, 1),
+                              corner: Point = (-0.5, -0.5, -0.5),
+                              axis_azimuth: float = 0.0,
+                              axis_dip: float = 0.0,
+                              axis_plunge: float = 0.0,
+                              deposit_bearing: float = 20.0,
+                              deposit_dip: float = 30.0,
+                              deposit_plunge: float = 10.0,
+                              grade_name: str = 'grade',
+                              grade_min: float = 50.0,
+                              grade_max: float = 65.0,
+                              deposit_center=(10.0, 7.5, 5.0),
+                              deposit_radii=(8.0, 5.0, 3.0),
+                              noise_std: float = 0.2,
+                              ) -> "ParquetBlockModel":
+        """
+        Create a toy block model with specified parameters.
+
+        Args:
+            filename (Path): The file path where the Parquet file will be saved.
+            shape (tuple): The shape of the block model.
+            block_size (tuple): The size of each block.
+            corner (tuple): The coordinates of the corner of the block model.
+            axis_azimuth (float): The azimuth angle in degrees for rotation.
+            axis_dip (float): The dip angle in degrees for rotation.
+            axis_plunge (float): The plunge angle in degrees for rotation.
+            deposit_bearing (float): The azimuth angle of the deposit in degrees.
+            deposit_dip (float): The dip angle of the deposit in degrees.
+            deposit_plunge (float): The plunge angle of the deposit in degrees.
+            grade_name (str): The name of the column to store the grade values.
+            grade_min (float): The minimum grade value.
+            grade_max (float): The maximum grade value.
+            deposit_center (tuple): The center of the deposit (x, y, z).
+            deposit_radii (tuple): The radii of the deposit (rx, ry, rz).
+            noise_std: (float):
+        Returns:
+            ParquetBlockModel: An instance of ParquetBlockModel with toy data.
+        """
+
+        create_toy_blockmodel(shape=shape, block_size=block_size, corner=corner,
+                              axis_azimuth=axis_azimuth, axis_dip=axis_dip, axis_plunge=axis_plunge,
+                              deposit_bearing=deposit_bearing, deposit_dip=deposit_dip, deposit_plunge=deposit_plunge,
+                              grade_name=grade_name, grade_min=grade_min, grade_max=grade_max,
+                              deposit_center=deposit_center, deposit_radii=deposit_radii,
+                              noise_std=noise_std, parquet_filepath=filename,
+                              )
+        # get the orientation of the axes
+        axis_u, axis_v, axis_w = rotation_to_axis_orientation(
+            axis_azimuth=axis_azimuth, axis_dip=axis_dip,
+            axis_plunge=axis_plunge)
+        # create geometry that aligns with the demo block model
+        geometry = RegularGeometry(block_size=block_size, corner=corner, shape=shape,
+                                   axis_u=axis_u, axis_v=axis_v, axis_w=axis_w)
+
+        if not geometry.is_rotated:
+            cls._validate_geometry(filename)
+
+        new_filepath = shutil.copy(filename, filename.resolve().with_suffix(".pbm.parquet"))
+
+        return cls(blockmodel_path=new_filepath, geometry=geometry)
+
+    @classmethod
     def from_geometry(cls, geometry: RegularGeometry,
                       path: Path,
                       name: Optional[str] = None
@@ -278,7 +342,7 @@ class ParquetBlockModel:
             self.report_path = self.blockmodel_path.with_suffix('.html')
         return self.report_path
 
-    def reblock(self, block_size: tuple[float, float, float], return_pyvista: bool=False
+    def reblock(self, block_size: tuple[float, float, float], return_pyvista: bool = False
                 ) -> Union["ParquetBlockModel", "pv.ImageData"]:
         """
         Reblock the grid to a new block size.
@@ -349,9 +413,9 @@ class ParquetBlockModel:
         mesh.cell_data['count'] = mesh.cell_data[attribute] > threshold
         mesh.cell_data['count'] = mesh.cell_data['count'].astype(np.int8)
 
-        # Reshape and sum along the specified axis
+        # Reshape and sum along the specified axis, using Fortran order to match (x, y, z)
         reshaped_data = mesh.cell_data['count'].reshape(
-            (mesh.dimensions[0] - 1, mesh.dimensions[1] - 1, mesh.dimensions[2] - 1))
+            (mesh.dimensions[0] - 1, mesh.dimensions[1] - 1, mesh.dimensions[2] - 1), order='F')
         summed_data: Optional[np.ndarray] = None
         if axis == "z":
             summed_data = np.sum(reshaped_data, axis=2)
@@ -362,14 +426,13 @@ class ParquetBlockModel:
         elif axis == "y":
             summed_data = np.sum(reshaped_data, axis=1)
             new_dimensions = (mesh.dimensions[0], 1, mesh.dimensions[2])
-
         if return_array:
-            return summed_data
-
-        # Create a new ImageData object
-        new_mesh = pv.ImageData(dimensions=new_dimensions)
-        new_mesh.cell_data['summed_count'] = summed_data.ravel(order='F')
-
+            return summed_data.T  # Flip for correct orientation
+        # Create a new ImageData object with correct dimensions
+        new_mesh = pv.ImageData(dimensions=(summed_data.shape[0] + 1, summed_data.shape[1] + 1, 1),
+                                spacing=self.geometry.block_size,
+                                origin=self.geometry.corner)
+        new_mesh.cell_data[attribute] = summed_data.ravel(order='F')
         return new_mesh
 
     def plot_heatmap(self, attribute: str, threshold: float, axis: str = "z",
@@ -392,14 +455,16 @@ class ParquetBlockModel:
         summed_data = self.create_heatmap_from_threshold(attribute, threshold, axis, return_array=True)
 
         data, labels, extents = self._get_heatmap_data(axis, summed_data)
-        # fig = go.Figure(data=go.Heatmap(x=data[0], y=data[1], z=data[2], colorscale='Viridis'))
-        fig = px.imshow(summed_data, color_continuous_scale='Viridis')
+        x_extent, y_extent = extents
+        nx, ny = summed_data.shape[1], summed_data.shape[0]
+        x_ticks = np.linspace(x_extent[0], x_extent[1], nx)
+        y_ticks = np.linspace(y_extent[0], y_extent[1], ny)
+        fig = px.imshow(summed_data, origin="lower", x=x_ticks, y=y_ticks, color_continuous_scale='Viridis')
 
-        # fig.update_xaxes(range=extents[0], scaleanchor="y", scaleratio=1)
-        # fig.update_yaxes(range=extents[1])
         fig.update_layout(title=f"Heatmap of {attribute}, thresholded at {threshold}",
                           xaxis_title=labels[0],
-                          yaxis_title=labels[1])
+                          yaxis_title=labels[1], )
+        fig.update_yaxes(range=[0, 1])
         if title is not None:
             fig.update_layout(title=title)
         return fig
@@ -409,13 +474,13 @@ class ParquetBlockModel:
         if axis == "z":
             x = np.arange(summed_data.shape[0])
             y = np.arange(summed_data.shape[1])
-            z = summed_data.T
+            z = summed_data
             labels = "Easting", "Northing"
             extents = self.geometry.extents[0:2]  # x, y extents
         elif axis == "x":
             x = np.arange(summed_data.shape[1])
             y = np.arange(summed_data.shape[2])
-            z = summed_data.T
+            z = summed_data
             labels = "Northing", "RL"
             extents = self.geometry.extents[1], self.geometry.extents[2]
         elif axis == "y":
