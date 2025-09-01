@@ -67,7 +67,12 @@ def create_demo_blockmodel(shape: tuple[int, int, int] = (3, 3, 3),
     df.set_index(keys=['x', 'y', 'z'], inplace=True)
     df['index_f'] = index_f
     df['depth'] = surface_rl - zz_flat_c
-
+    df['depth_category'] = pd.cut(
+        df['depth'],
+        bins=2,
+        labels=['shallow', 'deep'],
+        include_lowest=True
+    ).astype('category')
     if parquet_filepath is not None:
         df.to_parquet(parquet_filepath)
         return parquet_filepath

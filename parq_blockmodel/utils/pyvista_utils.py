@@ -10,13 +10,12 @@ from scipy.stats import mode
 
 from parq_blockmodel import RegularGeometry
 
-if TYPE_CHECKING:
-    import pyvista as pv
+import pyvista as pv
 
 
 def df_to_pv_image_data(df: pd.DataFrame,
                         geometry: RegularGeometry,
-                        fill_value=np.nan) -> 'pv.ImageData':
+                        fill_value=np.nan) -> pv.ImageData:
     """
     Convert a DataFrame to a PyVista ImageData object for a dense regular grid.
 
@@ -33,6 +32,9 @@ def df_to_pv_image_data(df: pd.DataFrame,
     if not isinstance(df.index, pd.MultiIndex):
         df = df.set_index(['x', 'y', 'z'])
 
+    # Sort index to match PyVista's Fortran order (z, y, x)
+    df = df.sort_index(level=['z', 'y', 'x'])
+
     # Create dense index and reindex
     dense_index = geometry.to_multi_index()
     dense_df = df.reindex(dense_index)
@@ -42,16 +44,38 @@ def df_to_pv_image_data(df: pd.DataFrame,
 
     for attr in df.columns:
         arr = dense_df[attr].to_numpy().reshape(shape, order='C').ravel(order='F')
-        arr = np.where(np.isnan(arr), fill_value, arr)
+        if dense_df[attr].hasnans:
+            arr = np.where(np.isnan(arr), fill_value, arr)
         grid.cell_data[attr] = arr
 
     return grid
 
 
+def pv_image_data_to_df(image_data: pv.ImageData) -> pd.DataFrame:
+    """
+    Convert a PyVista ImageData object to a DataFrame using cell centroids.
+
+    Args:
+        image_data (pv.ImageData): The input PyVista ImageData object.
+
+    Returns:
+        pd.DataFrame: A DataFrame with columns x, y, z (centroids) and cell data attributes.
+    """
+    centroids = image_data.cell_centers().points
+    df = pd.DataFrame({k: np.asarray(v) for k, v in image_data.cell_data.items()})
+    df['x'] = centroids[:, 0]
+    df['y'] = centroids[:, 1]
+    df['z'] = centroids[:, 2]
+    # set and sort index
+    df.set_index(['x', 'y', 'z'], inplace=True)
+    df.sort_index(inplace=True, ascending=True)
+    return df
+
+
 def df_to_pv_structured_grid(df: pd.DataFrame,
                              block_size: Optional[tuple[float, float, float]] = None,
                              validate_block_size: bool = True
-                             ) -> 'pv.StructuredGrid':
+                             ) -> pv.StructuredGrid:
     """Convert a DataFrame into a PyVista StructuredGrid.
 
     This function is for the full grid dense block model.
@@ -69,7 +93,6 @@ def df_to_pv_structured_grid(df: pd.DataFrame,
     Returns:
         pv.StructuredGrid: A PyVista StructuredGrid object.
     """
-    import pyvista as pv
 
     # ensure the dataframe is sorted by z, y, x, since Pyvista uses 'F' order.
     df = df.sort_index(level=['z', 'y', 'x'])
@@ -114,7 +137,7 @@ def df_to_pv_structured_grid(df: pd.DataFrame,
 
 
 def df_to_pv_unstructured_grid(df: pd.DataFrame, block_size: tuple[float, float, float],
-                               validate_block_size: bool = True) -> 'pv.UnstructuredGrid':
+                               validate_block_size: bool = True) -> pv.UnstructuredGrid:
     """Convert a DataFrame into a PyVista UnstructuredGrid.
 
     This function is for the unstructured grid block model, which is typically used for sparse or
@@ -134,8 +157,6 @@ def df_to_pv_unstructured_grid(df: pd.DataFrame, block_size: tuple[float, float,
     Returns:
         pv.UnstructuredGrid: A PyVista UnstructuredGrid object.
     """
-
-    import pyvista as pv
 
     # ensure the dataframe is sorted by z, y, x, since Pyvista uses 'F' order.
     blocks = df.reset_index().sort_values(['z', 'y', 'x'])
@@ -189,6 +210,53 @@ def df_to_pv_unstructured_grid(df: pd.DataFrame, block_size: tuple[float, float,
     return grid
 
 
+def df_to_poly_data(df: pd.DataFrame) -> pv.PolyData:
+    """
+    Convert a DataFrame to a PyVista PolyData object for a sparse grid.
+
+    Args:
+        df: DataFrame with MultiIndex (x, y, z) or columns x, y, z.
+        geometry: RegularGeometry instance (provides shape, spacing, origin).
+
+    Returns:
+        pv.PolyData: PyVista PolyData object with point data.
+    """
+
+    # Ensure index is MultiIndex (x, y, z)
+    if not isinstance(df.index, pd.MultiIndex):
+        df = df.set_index(['x', 'y', 'z'])
+
+    # Use only the present centroids
+    points = df.index.to_frame(index=False).values
+
+    poly_data = pv.PolyData(points)
+    for attr in df.columns:
+        poly_data.point_data[attr] = df[attr].values
+
+    return poly_data
+
+
+def poly_data_to_df(poly_data: pv.PolyData) -> pd.DataFrame:
+    """
+    Convert a PyVista PolyData object to a DataFrame using point coordinates.
+
+    Args:
+        poly_data (pv.PolyData): The input PyVista PolyData object.
+
+    Returns:
+        pd.DataFrame: A DataFrame with columns x, y, z (coordinates) and point data attributes.
+    """
+    points = poly_data.points
+    df = pd.DataFrame({k: np.asarray(v) for k, v in poly_data.point_data.items()})
+    df['x'] = points[:, 0]
+    df['y'] = points[:, 1]
+    df['z'] = points[:, 2]
+    # set and sort index
+    df.set_index(['x', 'y', 'z'], inplace=True)
+    df.sort_index(inplace=True, ascending=True)
+    return df
+
+
 def calculate_spacing(grid: pv.UnstructuredGrid) -> tuple[float, float, float]:
     """
     Calculate the spacing of an UnstructuredGrid by finding the mode of unique differences.
@@ -210,3 +278,185 @@ def calculate_spacing(grid: pv.UnstructuredGrid) -> tuple[float, float, float]:
     dz = mode(np.diff(z_coords)).mode
 
     return dx, dy, dz
+
+
+def infer_regular_geometry_from_df(df: pd.DataFrame):
+    """
+    Infer RegularGeometry from DataFrame centroids (x, y, z columns or index).
+    Returns a RegularGeometry instance.
+    """
+    # Try to get x, y, z from index or columns
+    if isinstance(df.index, pd.MultiIndex):
+        x = df.index.get_level_values('x').unique()
+        y = df.index.get_level_values('y').unique()
+        z = df.index.get_level_values('z').unique()
+    else:
+        x = df['x'].unique()
+        y = df['y'].unique()
+        z = df['z'].unique()
+    x = np.sort(x)
+    y = np.sort(y)
+    z = np.sort(z)
+    shape = (len(x), len(y), len(z))
+    spacing = (
+        np.diff(x).mean() if len(x) > 1 else 1.0,
+        np.diff(y).mean() if len(y) > 1 else 1.0,
+        np.diff(z).mean() if len(z) > 1 else 1.0,
+    )
+    origin = (x[0] - spacing[0] / 2, y[0] - spacing[1] / 2, z[0] - spacing[2] / 2)
+    return RegularGeometry(shape=shape, block_size=spacing, corner=origin)
+
+
+def _get_geometry_from_df(df):
+    # Try to get geometry from df.geometry if present, else infer from centroids
+    if hasattr(df, 'geometry'):
+        return df.geometry
+    return infer_regular_geometry_from_df(df)
+
+
+import math
+
+import numpy as np
+import pyvista as pv
+
+
+class CustomPlotter(pv.Plotter):
+    """
+    A custom PyVista Plotter with Z-up enforcement, picking, and directional camera view.
+
+    Examples
+    --------
+    >>> grid = pv.ImageData(dimensions=(4, 4, 4), spacing=(1, 1, 1), origin=(0, 0, 0))
+    >>> grid.cell_data["block_id"] = np.arange(grid.n_cells)
+    >>>
+    >>> plotter = CustomPlotter()
+    >>> plotter.add_mesh(grid, show_edges=True)
+    >>> plotter.set_directional_view(direction='WSW', elevation_deg=30)
+    >>> plotter.add_axes()
+    >>> plotter.show()
+    """
+
+    HELP_TEXT_NAME = "help_overlay"
+
+    HOTKEYS = {
+        "h": "Show/hide this help",
+        "p": "Toggle cell picking",
+        "z": "Z-up rotation (hold)",
+    }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.hotkey_pressed = {'z': False}
+        self.picking_enabled = False
+        self.slicer_enabled = False
+        self.help_visible = False
+        self._show_help_overlay()
+        self._setup_callbacks()
+
+    def _key_press_callback(self, obj, event):
+        key = obj.GetKeySym()
+        if key == 'z':
+            self.hotkey_pressed['z'] = True
+        if key == 'p':
+            if not self.picking_enabled:
+                self.enable_general_picking()
+                self.picking_enabled = True
+            else:
+                self.disable_picking()
+                self.remove_actor("cell_info_text")
+                self.picking_enabled = False
+        if key == 'h':
+            if not self.help_visible:
+                self._show_help_overlay()
+                self.help_visible = True
+            else:
+                self.remove_actor(self.HELP_TEXT_NAME)
+                self.help_visible = False
+
+    def _show_help_overlay(self):
+        lines = []
+        for k, v in self.HOTKEYS.items():
+            lines.append(f"[{k.upper()}]  {v}")
+        help_text = "\n".join(lines)
+        self.add_text(
+            help_text,
+            position="right_edge",
+            font_size=10,
+            name=self.HELP_TEXT_NAME,
+            color="white",
+            shadow=True,
+            viewport=True,
+        )
+
+    def set_directional_view(
+            self,
+            direction='WSW',
+            radius_factor=4.0,
+            elevation_deg=30,
+            azimuth_deg=None
+    ):
+        # Map compass directions to azimuth angles (degrees)
+        direction_azimuth = {
+            'N': 0, 'NNE': 22.5, 'NE': 45, 'ENE': 67.5,
+            'E': 90, 'ESE': 112.5, 'SE': 135, 'SSE': 157.5,
+            'S': 180, 'SSW': 202.5, 'SW': 225, 'WSW': 247.5,
+            'W': 270, 'WNW': 292.5, 'NW': 315, 'NNW': 337.5
+        }
+        if azimuth_deg is None:
+            azimuth_deg = direction_azimuth.get(direction.upper(), 247.5)  # Default to WSW
+
+        bounds = self.bounds
+        center = [
+            (bounds[1] + bounds[0]) / 2,
+            (bounds[3] + bounds[2]) / 2,
+            (bounds[5] + bounds[4]) / 2
+        ]
+        max_dim = max(bounds[1] - bounds[0], bounds[3] - bounds[2], bounds[5] - bounds[4])
+        r = max_dim * radius_factor
+
+        azimuth = math.radians(azimuth_deg)
+        elevation = math.radians(elevation_deg)
+        x = center[0] + r * math.cos(elevation) * math.cos(azimuth)
+        y = center[1] + r * math.cos(elevation) * math.sin(azimuth)
+        z = center[2] + r * math.sin(elevation)
+        self.camera_position = [(x, y, z), center, (0, 0, 1)]
+
+    def _setup_callbacks(self):
+        iren = self.iren
+        iren.add_observer("KeyPressEvent", self._key_press_callback)
+        iren.add_observer("KeyReleaseEvent", self._key_release_callback)
+        iren.add_observer("InteractionEvent", self._enforce_z_up_during_interaction)
+
+    def _key_release_callback(self, obj, event):
+        key = obj.GetKeySym()
+        if key == 'z':
+            self.hotkey_pressed['z'] = False
+
+    def _enforce_z_up_during_interaction(self, obj, event):
+        if self.hotkey_pressed['z']:
+            self.camera.SetViewUp(0, 0, 1)
+            self.render()
+
+    def enable_general_picking(self):
+        def cell_callback(picked_cell):
+            text_name = "cell_info_text"
+            if text_name in self.actors:
+                self.remove_actor(text_name)
+            if hasattr(picked_cell, "n_cells") and picked_cell.n_cells == 1:
+                for mesh in self.meshes:  # self.meshes is a list
+                    if "vtkOriginalCellIds" in picked_cell.cell_data:
+                        cell_id = int(picked_cell.cell_data["vtkOriginalCellIds"][0])
+                        centroid = mesh.cell_centers().points[cell_id]
+                        centroid_str = f"({centroid[0]:.1f}, {centroid[1]:.1f}, {centroid[2]:.1f})"
+                        values = {attr: mesh.cell_data[attr][cell_id] for attr in mesh.cell_data}
+                        msg = f"Cell ID: {cell_id}, {centroid_str}, " + ", ".join(
+                            f"{k}: {v}" for k, v in values.items())
+                        break
+                else:
+                    msg = "Picked cell, but could not resolve mesh/cell data."
+                self.add_text(msg, position="upper_left", font_size=12, name=text_name)
+            else:
+                self.add_text("No valid cell picked.", position="upper_left", font_size=12, name=text_name)
+
+        self.disable_picking()  # Always disable before enabling
+        self.enable_cell_picking(callback=cell_callback, show_message=False, through=False)

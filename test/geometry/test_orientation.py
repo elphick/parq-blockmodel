@@ -1,4 +1,4 @@
-from parq_blockmodel.utils.orientation_utils import generate_block_model_with_ellipse, calculate_orientation
+from scratch.visualise_rotation import generate_block_model_with_ellipse, calculate_orientation
 
 
 def test_orientation_with_ellipse():

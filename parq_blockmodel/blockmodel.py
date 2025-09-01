@@ -32,6 +32,7 @@ from parq_tools import ParquetProfileReport, filter_parquet_file
 from parq_tools.utils import atomic_output_file
 
 from parq_blockmodel.geometry import RegularGeometry
+from parq_blockmodel.reblocking.reblocking import downsample_blockmodel, upsample_blockmodel
 
 if typing.TYPE_CHECKING:
     import pyvista as pv  # type: ignore[import]
@@ -189,6 +190,59 @@ class ParquetBlockModel:
         return cls(blockmodel_path=new_filepath, geometry=geometry)
 
     @classmethod
+    def from_dataframe(cls, dataframe: pd.DataFrame,
+                       filename: Path,
+                       geometry: Optional[RegularGeometry] = None,
+                       name: Optional[str] = None,
+                       overwrite: bool = False,
+                       axis_azimuth: float = 0.0,
+                       axis_dip: float = 0.0,
+                       axis_plunge: float = 0.0
+                       ) -> "ParquetBlockModel":
+        """Create a ParquetBlockModel from a Pandas DataFrame.
+        Args:
+            dataframe (pd.DataFrame): The DataFrame containing block model data.
+            filename (Path): The file path where the Parquet file will be saved.
+            geometry (Optional[RegularGeometry]): The geometry of the block model. If None, it will be inferred from the DataFrame.
+            name (Optional[str]): The name of the block model. If None, the name will be derived from the filename.
+            overwrite (bool): If True, allows overwriting an existing ParquetBlockModel file. Defaults to False.
+            axis_azimuth (float): The azimuth angle in degrees for rotation. Defaults to 0.0.
+            axis_dip (float): The dip angle in degrees for rotation. Defaults to 0.0.
+            axis_plunge (float): The plunge angle in degrees for rotation. Defaults to 0.0.
+        Returns:
+            ParquetBlockModel: An instance of ParquetBlockModel created from the DataFrame.
+        """
+        # Ensure MultiIndex
+        if dataframe.index.names != ["x", "y", "z"]:
+            raise ValueError("DataFrame index must be a MultiIndex with names ['x', 'y', 'z'].")
+
+        # Warn if not sorted
+        if not dataframe.index.is_monotonic_increasing:
+            warnings.warn("DataFrame index is not sorted in ascending order.")
+
+        # Ensure correct filename extension
+        if not filename.suffix == ".parquet":
+            raise ValueError(f"Filename {filename} must have a '.parquet' extension.")
+        pbm_path = filename.with_suffix(".pbm.parquet")
+        if pbm_path.exists() and not overwrite:
+            raise FileExistsError(f"File {pbm_path} already exists. Use overwrite=True to allow mutation.")
+
+        # Infer geometry if needed
+        geometry = geometry or RegularGeometry.from_multi_index(
+            dataframe.index, axis_azimuth=axis_azimuth, axis_dip=axis_dip, axis_plunge=axis_plunge)
+        if not isinstance(geometry, RegularGeometry):
+            raise TypeError("geometry must be a RegularGeometry instance.")
+
+        # Save DataFrame to Parquet
+        dataframe.to_parquet(pbm_path, index=True)
+
+        # Validate geometry
+        cls._validate_geometry(pbm_path, geometry)
+
+        return cls(blockmodel_path=pbm_path, name=name, geometry=geometry)
+
+
+    @classmethod
     def create_demo_block_model(cls, filename: Path,
                                 shape: Shape3D = (3, 3, 3),
                                 block_size: BlockSize = (1, 1, 1),
@@ -342,47 +396,47 @@ class ParquetBlockModel:
             self.report_path = self.blockmodel_path.with_suffix('.html')
         return self.report_path
 
-    def reblock(self, block_size: tuple[float, float, float], return_pyvista: bool = False
-                ) -> Union["ParquetBlockModel", "pv.ImageData"]:
+    def downsample(self, new_block_size, aggregation_config) -> "ParquetBlockModel":
         """
-        Reblock the grid to a new block size.
-
+        Downsample the block model to a coarser grid with specified aggregation methods for each attribute.
+        This function supports downsampling of both categorical and numeric attributes.
         Args:
-            block_size (Tuple[float, float, float]): The new block size (dx, dy, dz).
-            return_pyvista (bool): If True, return a pyvista instance, otherwise return a ParquetBlockModel
+            new_block_size: tuple of floats (dx, dy, dz) for the new block size.
+            aggregation_config: dict mapping attribute names to aggregation methods.
 
+        Example:
+            aggregation_config = {
+                'grade': {'method': 'weighted_mean', 'weight': 'dry_mass'},
+                'density': {'method': 'weighted_mean', 'weight': 'volume'},
+                'dry_mass': {'method': 'sum'},
+                'volume': {'method': 'sum'},
+                'rock_type': {'method': 'mode'}
+            }
         Returns:
-            ParquetBlockModel: A new ParquetBlockModel instance with the reblocked grid.
+            ParquetBlockModel: A new ParquetBlockModel instance with the downsampled grid.
         """
-        import pyvista as pv
-        # Load the current grid as PyVista ImageData
-        mesh: pv.ImageData = self.to_pyvista(grid_type="image")
+        return downsample_blockmodel(self, new_block_size, aggregation_config)
 
-        # check the reblocking does not change the extents
-        new_shape: list = []
-        for i, extent in enumerate(self.geometry.extents):
-            if (extent[1] - extent[0]) % block_size[i] != 0:
-                raise ValueError(
-                    f"Reblocking must align with the original grid: extents={self.geometry.extents}, "
-                    f"block_size={block_size}. Ensure that each extent is divisible by the corresponding block size.")
-            new_shape.append(int((extent[1] - extent[0]) / block_size[i]))
-        new_mesh = pv.ImageData(dimensions=new_shape, spacing=block_size, origin=self.geometry.corner)
+    def upsample(self, new_block_size, interpolation_config) -> "ParquetBlockModel":
+        """
+        Upsample the block model to a finer grid with specified interpolation methods for each attribute.
+        This function supports upsampling of both categorical and numeric attributes.
+        Args:
+            new_block_size: tuple of floats (dx, dy, dz) for the new block size.
+            interpolation_config: dict mapping attribute names to interpolation methods.
 
-        # Resample data onto the new grid
-        resampled_mesh = new_mesh.sample(mesh, pass_cell_data=True)
-
-        if return_pyvista:
-            return resampled_mesh
-
-        # Convert resampled data back to a DataFrame
-        resampled_df = pd.DataFrame(resampled_mesh.cell_data)
-
-        # Create a new ParquetBlockModel instance
-        new_geometry = RegularGeometry(block_size=block_size, corner=self.geometry.corner, shape=new_shape)
-        new_path = self.blockmodel_path.with_name(f"{self.name}_reblocked.pbm.parquet")
-        resampled_df.to_parquet(new_path, index=False)
-
-        return ParquetBlockModel(blockmodel_path=new_path, geometry=new_geometry)
+        Example:
+            interpolation_config = {
+                'grade': {'method': 'linear'},
+                'density': {'method': 'nearest'},
+                'dry_mass': {'method': 'linear'},
+                'volume': {'method': 'linear'},
+                'rock_type': {'method': 'nearest'}
+            }
+        Returns:
+            ParquetBlockModel: A new ParquetBlockModel instance with the upsampled grid.
+        """
+        return upsample_blockmodel(self, new_block_size, interpolation_config)
 
     def create_heatmap_from_threshold(self, attribute: str, threshold: float, axis: str = "z",
                                       return_array: bool = False) -> Union['pv.ImageData', np.ndarray]:
@@ -457,8 +511,10 @@ class ParquetBlockModel:
         data, labels, extents = self._get_heatmap_data(axis, summed_data)
         x_extent, y_extent = extents
         nx, ny = summed_data.shape[1], summed_data.shape[0]
-        x_ticks = np.linspace(x_extent[0], x_extent[1], nx)
-        y_ticks = np.linspace(y_extent[0], y_extent[1], ny)
+        x_edges = np.linspace(x_extent[0], x_extent[1], nx + 1)
+        y_edges = np.linspace(y_extent[0], y_extent[1], ny + 1)
+        x_ticks = 0.5 * (x_edges[:-1] + x_edges[1:])
+        y_ticks = 0.5 * (y_edges[:-1] + y_edges[1:])
         fig = px.imshow(summed_data, origin="lower", x=x_ticks, y=y_ticks, color_continuous_scale='Viridis')
 
         fig.update_layout(title=f"Heatmap of {attribute}, thresholded at {threshold}",
@@ -569,13 +625,15 @@ class ParquetBlockModel:
         return plotter
 
     def read(self, columns: Optional[list[str]] = None,
-             with_index: bool = True, dense: bool = False) -> pd.DataFrame:
+             index: typing.Literal["xyz", "ijk", None] = "xyz",
+             dense: bool = False) -> pd.DataFrame:
         """
         Read the Parquet file and return a DataFrame.
 
         Args:
             columns: List of column names to read. If None, all columns are read.
-            with_index: If True, includes the index ('x', 'y', 'z') in the DataFrame.
+            index: The index type to use for the DataFrame. Options are "xyz" for centroid coordinates,
+                "ijk" for block indices, or None for no index.
             dense: If True, reads the data as a dense grid. If False, reads the data as a sparse grid.
 
         Returns:
@@ -584,13 +642,24 @@ class ParquetBlockModel:
         if columns is None:
             columns = self.columns
         df = pq.read_table(self.blockmodel_path, columns=columns).to_pandas()
-        if with_index:
+        if index == "xyz":
             df.index = self.centroid_index
-            if dense:
-                dense_index = self.geometry.to_multi_index()
-                if len(df) == len(dense_index):
-                    assert df.index.equals(dense_index)
-                df = df.reindex(dense_index)
+        elif index == "ijk":
+            dense_index = self.geometry.to_ijk_multi_index()
+            df.index = dense_index
+        else:
+            raise ValueError("index_type must be 'xyz' or 'ijk'")
+        if dense:
+            dense_index = self.geometry.to_multi_index() if index == "xyz" else self.geometry.to_ijk_multi_index()
+            df = df.reindex(dense_index)
+
+        # if index:
+        #     df.index = self.centroid_index
+        #     if dense:
+        #         dense_index = self.geometry.to_multi_index()
+        #         if len(df) == len(dense_index):
+        #             assert df.index.equals(dense_index)
+        #         df = df.reindex(dense_index)
         return df
 
     def to_pyvista(self, grid_type: typing.Literal["image", "structured", "unstructured"] = "structured",
@@ -602,15 +671,15 @@ class ParquetBlockModel:
 
         if grid_type == "image":
             from parq_blockmodel.utils.pyvista_utils import df_to_pv_image_data
-            grid = df_to_pv_image_data(df=self.read(columns=attributes, with_index=True, dense=False),
+            grid = df_to_pv_image_data(df=self.read(columns=attributes, dense=False),
                                        geometry=self.geometry)
         elif grid_type == "structured":
             from parq_blockmodel.utils.pyvista_utils import df_to_pv_structured_grid
-            grid = df_to_pv_structured_grid(df=self.read(columns=attributes, with_index=True, dense=False),
+            grid = df_to_pv_structured_grid(df=self.read(columns=attributes, dense=False),
                                             validate_block_size=True)
         elif grid_type == "unstructured":
             from parq_blockmodel.utils.pyvista_utils import df_to_pv_unstructured_grid
-            grid = df_to_pv_unstructured_grid(df=self.read(columns=attributes, with_index=True, dense=False),
+            grid = df_to_pv_unstructured_grid(df=self.read(columns=attributes, dense=False),
                                               block_size=self.geometry.block_size,
                                               validate_block_size=True)
         else:

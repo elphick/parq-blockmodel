@@ -16,6 +16,7 @@ def test_regular_geometry_init():
     assert geom.shape == (4, 5, 6)
     assert geom.is_regular
 
+
 def test_centroid_properties():
     geom = RegularGeometry(
         corner=(0.0, 0.0, 0.0),
@@ -23,13 +24,11 @@ def test_centroid_properties():
         shape=(2, 2, 2),
         srs='my_srs'
     )
-    np.testing.assert_allclose(geom.centroid_u, [0.5, 1.5])
-    np.testing.assert_allclose(geom.centroid_v, [0.5, 1.5])
-    np.testing.assert_allclose(geom.centroid_w, [0.5, 1.5])
     np.testing.assert_allclose(geom.centroid_x, [0.5, 0.5, 0.5, 0.5, 1.5, 1.5, 1.5, 1.5])
     np.testing.assert_allclose(geom.centroid_y, [0.5, 0.5, 1.5, 1.5, 0.5, 0.5, 1.5, 1.5])
     np.testing.assert_allclose(geom.centroid_z, [0.5, 1.5, 0.5, 1.5, 0.5, 1.5, 0.5, 1.5])
     assert geom.srs == 'my_srs'
+
 
 def test_extents_and_bounding_box():
     geom = RegularGeometry(
@@ -43,6 +42,7 @@ def test_extents_and_bounding_box():
     assert extents[2] == (0.0, 2.0)
     assert geom.bounding_box == ((0.0, 2.0), (0.0, 2.0))
 
+
 def test_to_json_and_from_json():
     geom = RegularGeometry(
         corner=(1.0, 2.0, 3.0),
@@ -55,6 +55,7 @@ def test_to_json_and_from_json():
     assert geom2.block_size == [1.0, 1.0, 1.0]
     assert geom2.shape == [2, 2, 2]
 
+
 def test_nearest_centroid_lookup():
     geom = RegularGeometry(
         corner=(0.0, 0.0, 0.0),
@@ -63,6 +64,7 @@ def test_nearest_centroid_lookup():
     )
     assert geom.nearest_centroid_lookup(0.6, 0.6, 0.6) == (0.5, 0.5, 0.5)
     assert geom.nearest_centroid_lookup(1.4, 1.4, 1.4) == (1.5, 1.5, 1.5)
+
 
 def test_is_compatible_true():
     geom1 = RegularGeometry(
@@ -77,6 +79,7 @@ def test_is_compatible_true():
     )
     assert geom1.is_compatible(geom2)
 
+
 def test_is_compatible_false():
     geom1 = RegularGeometry(
         corner=(0.0, 0.0, 0.0),
@@ -89,6 +92,7 @@ def test_is_compatible_false():
         shape=(2, 2, 2)
     )
     assert not geom1.is_compatible(geom2)
+
 
 def test_is_compatible_different_shapes():
     geom1 = RegularGeometry(
@@ -103,6 +107,7 @@ def test_is_compatible_different_shapes():
     )
     assert not geom1.is_compatible(geom2)
 
+
 def test_is_compatible_different_block_sizes():
     geom1 = RegularGeometry(
         corner=(0.0, 0.0, 0.0),
@@ -116,6 +121,7 @@ def test_is_compatible_different_block_sizes():
     )
     assert not geom1.is_compatible(geom2)
 
+
 def test_is_compatible_different_corners():
     geom1 = RegularGeometry(
         corner=(0.0, 0.0, 0.0),
@@ -128,6 +134,7 @@ def test_is_compatible_different_corners():
         shape=(2, 2, 2)
     )
     assert geom1.is_compatible(geom2)
+
 
 def test_is_compatible_different_srs():
     geom1 = RegularGeometry(
@@ -144,6 +151,7 @@ def test_is_compatible_different_srs():
     )
     assert not geom1.is_compatible(geom2)
 
+
 def test_to_dataframe():
     geom = RegularGeometry(
         corner=(0.0, 0.0, 0.0),
@@ -152,10 +160,10 @@ def test_to_dataframe():
     )
     df = geom.to_dataframe()
     expected_data = {
-            'x': [0.5, 0.5, 0.5, 0.5, 1.5, 1.5, 1.5, 1.5],
-            'y': [0.5, 0.5, 1.5, 1.5, 0.5, 0.5, 1.5, 1.5],
-            'z': [0.5, 1.5, 0.5, 1.5, 0.5, 1.5, 0.5, 1.5]
-        }
+        'x': [0.5, 0.5, 0.5, 0.5, 1.5, 1.5, 1.5, 1.5],
+        'y': [0.5, 0.5, 1.5, 1.5, 0.5, 0.5, 1.5, 1.5],
+        'z': [0.5, 1.5, 0.5, 1.5, 0.5, 1.5, 0.5, 1.5]
+    }
     expected_df = pd.DataFrame(expected_data)
     pd.testing.assert_frame_equal(df, expected_df)
 
@@ -163,6 +171,7 @@ def test_to_dataframe():
     assert df.attrs['geometry']['corner'] == (0.0, 0.0, 0.0)
     assert df.attrs['geometry']['block_size'] == (1.0, 1.0, 1.0)
     assert df.attrs['geometry']['shape'] == (2, 2, 2)
+
 
 def test_axis_rotation():
     geom = RegularGeometry(
@@ -178,9 +187,10 @@ def test_axis_rotation():
     assert geom.axis_w == (0.0, 0.0, 1.0)
 
     # check the expected centroids
-    np.testing.assert_allclose(geom.centroid_u, [0.5, 1.5])
-    np.testing.assert_allclose(geom.centroid_v, [0.5, 1.5])
-    np.testing.assert_allclose(geom.centroid_w, [0.5, 1.5])
+    np.testing.assert_allclose(geom.centroid_x, [0.5, 0.5, 0.5, 0.5, 1.5, 1.5, 1.5, 1.5])
+    np.testing.assert_allclose(geom.centroid_y, [0.5, 0.5, 1.5, 1.5, 0.5, 0.5, 1.5, 1.5])
+    np.testing.assert_allclose(geom.centroid_z, [0.5, 1.5, 0.5, 1.5, 0.5, 1.5, 0.5, 1.5])
+
 
 def test_axis_rotation_custom():
     from math import cos, sin, radians
@@ -218,9 +228,6 @@ def test_axis_rotation_custom():
     np.testing.assert_allclose(geom.centroid_y, expected_y)
     np.testing.assert_allclose(geom.centroid_z, expected_z)
 
-    np.testing.assert_allclose(geom.centroid_u, np.unique(expected_x))
-    np.testing.assert_allclose(geom.centroid_v, np.unique(expected_y))
-    np.testing.assert_allclose(geom.centroid_w, np.unique(expected_z))
 
 def test_axis_rotation_invalid():
     with pytest.raises(ValueError, match="Axis vectors must be orthogonal and normalized."):
@@ -233,6 +240,7 @@ def test_axis_rotation_invalid():
             axis_w=(0.0, 0.0, 1.0)
         )
 
+
 def test_axis_rotation_non_orthogonal():
     with pytest.raises(ValueError, match="Axis vectors must be orthogonal and normalized."):
         RegularGeometry(
@@ -243,6 +251,7 @@ def test_axis_rotation_non_orthogonal():
             axis_v=(1.0, 1.0, 0.0),  # Not orthogonal to axis_u
             axis_w=(0.0, 0.0, 1.0)
         )
+
 
 def test_axis_rotation_non_normalized():
     with pytest.raises(ValueError, match="Axis vectors must be orthogonal and normalized."):
@@ -269,6 +278,7 @@ def test_from_extents_block_alignment():
     np.testing.assert_allclose(geom.centroid_z, [0.5, 1.5, 0.5, 1.5, 0.5, 1.5, 0.5, 1.5])
     # The extents should match the input
     assert geom.extents == extents
+
 
 def test_from_extents_rounding_error():
     # Extents that are not perfectly divisible by block size

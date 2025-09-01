@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
+import plotly.io as pio
 import plotly.graph_objects as go
 
 from parq_blockmodel import ParquetBlockModel
@@ -33,15 +34,15 @@ pbm
 # --------------
 # We'll create a heatmap plot in plan view.
 
-fig: go.Figure = pbm.plot_heatmap(attribute='c_index',
+fig: go.Figure = pbm.plot_heatmap(attribute='index_c',
                                   threshold=4,
                                   axis='z')
 
-fig
+pio.show(fig)
 
 # %%
 # view the heatmap matrix
-heatmap_matrix: np.ndarray = pbm.create_heatmap_from_threshold(attribute='c_index',
+heatmap_matrix: np.ndarray = pbm.create_heatmap_from_threshold(attribute='index_c',
                                                                  threshold=4,
                                                                  axis='z',
                                                                  return_array=True)

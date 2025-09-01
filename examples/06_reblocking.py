@@ -5,7 +5,6 @@ Reblocking
 
 """
 
-
 import tempfile
 
 import pandas as pd
@@ -29,18 +28,39 @@ pbm
 # %%
 # Visualise the Model
 # -------------------
-
-p = pbm.plot(scalar='depth', threshold=False, enable_picking=True)
-p.show()
+# A continuous attribute.
+pbm.plot(scalar='depth', threshold=False, enable_picking=True).show()
 
 # %%
-# Create a new grid with smaller blocks
-reblocked_mesh: pv.ImageData = pbm.reblock(block_size=(0.5, 0.5, 0.5), return_pyvista=True)
+# A categorical attribute.
 
-reblocked_mesh = reblocked_mesh.point_data_to_cell_data()
+pbm.plot(scalar='depth_category', threshold=False, enable_picking=True).show()
 
-p: pv.Plotter = pv.Plotter()
-p.add_mesh(reblocked_mesh, scalars='depth', show_edges=True)
-p.show()
+# %%
+# Upsampling
+# -------
+# Create a new grid with smaller blocks, and visualise.
+reblocked_pbm: ParquetBlockModel = pbm.upsample(new_block_size=(0.5, 0.5, 0.5),
+                                                interpolation_config={
+                                                    'depth': 'linear',
+                                                    'depth_category': 'nearest'
+                                                })
 
-print(reblocked_mesh)
+reblocked_pbm.plot(scalar='depth', threshold=False, enable_picking=True).show()
+
+# %%
+# Visualise a reblocked categorical attribute.
+reblocked_pbm.plot(scalar='depth_category', threshold=False, enable_picking=True).show()
+
+# %%
+# Downsample
+# ----------
+# Downsample the upsampled model back to the original block size.
+
+downsampled_pbm: ParquetBlockModel = reblocked_pbm.downsample(new_block_size=(1.0, 1.0, 1.0),
+                                                              aggregation_config={
+                                                                  'depth': {'method': 'mean'},
+                                                                  'depth_category': {'method': 'mode'}
+                                                              })
+
+reblocked_pbm.plot(scalar='depth', threshold=False, enable_picking=True).show()
