@@ -22,6 +22,7 @@ def create_demo_blockmodel(shape: tuple[int, int, int] = (3, 3, 3),
     - index_c: A zero based index in C-style order (row-major). The order returned when sorting by x, y, z.
     - index_f: A zero based index in Fortran-style order (column-major). The order returned when sorting by z, y, x.
     - depth: The depth of each block, calculated as the distance from the surface (maximum z coordinate).
+    - depth_category: A categorical attribute that cuts the depth into two bins: 'shallow' and 'deep'.
 
     Args:
         shape: Shape of the block model (nx, ny, nz).

@@ -49,10 +49,10 @@ def _calculate_factors(blockmodel, new_block_size):
             raise ValueError("Block sizes must be integer multiples or divisors for up/downsampling.")
 
     fx, fy, fz = factors
-    if all(f > 1 for f in factors):
+    if all(f >= 1 for f in factors):
         # Downsampling
         new_shape = tuple(int(o // f) for o, f in zip(old_shape, factors))
-    elif all(f < 1 for f in factors):
+    elif all(f <= 1 for f in factors):
         # Upsampling
         up_factors = [int(round(1 / f)) for f in factors]
         new_shape = tuple(int(o * uf) for o, uf in zip(old_shape, up_factors))

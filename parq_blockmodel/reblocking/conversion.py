@@ -66,7 +66,10 @@ def dict_3d_to_tabular(
             raise ValueError(f"Shape mismatch for column {col}: {arr.shape} != {shape}")
         flat = arr.ravel(order='C')
         if categories and col in categories:
-            data[col] = pd.Categorical.from_codes(flat, categories[col])
+            data[col] = pd.Categorical.from_codes(
+                np.asarray(flat, dtype=flat.dtype if np.issubdtype(flat.dtype, np.integer) else np.int64),
+                categories[col]
+            )
         else:
             data[col] = flat
 

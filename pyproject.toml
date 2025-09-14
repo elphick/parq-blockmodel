@@ -10,8 +10,8 @@ packages = [{ include = "parq_blockmodel" }]
 python = ">=3.10,<3.13"
 numpy = ">=1.25.2"
 pyarrow = ">=16.0"
-parq-tools = "0.3.1"
-pyvista = "^0.45.2"
+parq-tools = ">=0.3.1"
+pyvista = ">=0.46.3"
 geopandas = "^1.1.1"
 tqdm = { version = "^4.67.1", optional = true }
 ydata-profiling = { version = "^4.16.1", optional = true }
@@ -20,12 +20,16 @@ plotly = { version = "^5.15.0", optional = true }
 #parq-tools = { git = "https://github.com/elphick/parq-tools.git", branch = "12-column-descriptions-in-profile-report" }
 #ezdxf = { version = "^1.4.2", optional = true }
 #scikit-image = "^0.25.2"
+rioxarray = { version = "^0.19.0", optional = true }
+imageio = { version = "^2.37.0", optional = true }
+imageio-ffmpeg = { version = "^0.6.0", optional = true }
 
 [tool.poetry.extras]
 profiling = ["ydata-profiling", "setuptools"]
 progress = ["tqdm"]
+temporal = ["rioxarray"]
 viz = ["plotly"]  #, "exzdxf"]
-all = ["ydata-profiling", "setuptools", "tqdm", "pyvista"]
+all = ["ydata-profiling", "setuptools", "tqdm", "rioxarray", "plotly"]  #, "ezdxf"]
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.2.1"

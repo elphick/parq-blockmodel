@@ -503,7 +503,6 @@ class ParquetBlockModel:
         Returns:
             go.Figure: A Plotly figure containing the heatmap.
         """
-        import plotly.graph_objects as go
         import plotly.express as px
 
         summed_data = self.create_heatmap_from_threshold(attribute, threshold, axis, return_array=True)
@@ -670,15 +669,15 @@ class ParquetBlockModel:
             attributes = self.attributes
 
         if grid_type == "image":
-            from parq_blockmodel.utils.pyvista_utils import df_to_pv_image_data
+            from parq_blockmodel.utils.pyvista.pyvista_utils import df_to_pv_image_data
             grid = df_to_pv_image_data(df=self.read(columns=attributes, dense=False),
                                        geometry=self.geometry)
         elif grid_type == "structured":
-            from parq_blockmodel.utils.pyvista_utils import df_to_pv_structured_grid
+            from parq_blockmodel.utils.pyvista.pyvista_utils import df_to_pv_structured_grid
             grid = df_to_pv_structured_grid(df=self.read(columns=attributes, dense=False),
                                             validate_block_size=True)
         elif grid_type == "unstructured":
-            from parq_blockmodel.utils.pyvista_utils import df_to_pv_unstructured_grid
+            from parq_blockmodel.utils.pyvista.pyvista_utils import df_to_pv_unstructured_grid
             grid = df_to_pv_unstructured_grid(df=self.read(columns=attributes, dense=False),
                                               block_size=self.geometry.block_size,
                                               validate_block_size=True)

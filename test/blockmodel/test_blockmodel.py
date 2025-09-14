@@ -48,7 +48,7 @@ def test_block_model_with_categorical_data(tmp_path):
     assert isinstance(block_model, ParquetBlockModel)
     assert block_model.blockmodel_path == parquet_path.with_suffix(".pbm.parquet")
     assert block_model.name == parquet_path.stem
-    assert block_model.data.shape == (27, 4)  # 3x3x3 rows, 4 columns including index
+    assert block_model.data.shape == (27, 5)  # 3x3x3 rows, 5 columns including index
 
 
 def test_sparse_block_model(tmp_path):

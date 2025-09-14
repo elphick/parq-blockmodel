@@ -40,27 +40,38 @@ pbm.plot(scalar='depth_category', threshold=False, enable_picking=True).show()
 # Upsampling
 # -------
 # Create a new grid with smaller blocks, and visualise.
-reblocked_pbm: ParquetBlockModel = pbm.upsample(new_block_size=(0.5, 0.5, 0.5),
+upsampled_pbm: ParquetBlockModel = pbm.upsample(new_block_size=(0.5, 0.5, 0.5),
                                                 interpolation_config={
                                                     'depth': 'linear',
                                                     'depth_category': 'nearest'
                                                 })
 
-reblocked_pbm.plot(scalar='depth', threshold=False, enable_picking=True).show()
+upsampled_pbm.plot(scalar='depth', threshold=False, enable_picking=True).show()
 
 # %%
 # Visualise a reblocked categorical attribute.
-reblocked_pbm.plot(scalar='depth_category', threshold=False, enable_picking=True).show()
+upsampled_pbm.plot(scalar='depth_category', threshold=False, enable_picking=True).show()
 
 # %%
 # Downsample
 # ----------
 # Downsample the upsampled model back to the original block size.
 
-downsampled_pbm: ParquetBlockModel = reblocked_pbm.downsample(new_block_size=(1.0, 1.0, 1.0),
+downsampled_pbm: ParquetBlockModel = upsampled_pbm.downsample(new_block_size=(1.0, 1.0, 1.0),
                                                               aggregation_config={
                                                                   'depth': {'method': 'mean'},
                                                                   'depth_category': {'method': 'mode'}
                                                               })
 
-reblocked_pbm.plot(scalar='depth', threshold=False, enable_picking=True).show()
+downsampled_pbm.plot(scalar='depth', threshold=False, enable_picking=True).show()
+downsampled_pbm.plot(scalar='depth_category', threshold=False, enable_picking=True).show()
+
+# %%
+# Validate
+# --------
+# Confirm the round trip returned the original data
+
+blocks_original: pd.DataFrame = pbm.data.to_pandas()
+blocks_up_down: pd.DataFrame = pbm.data.to_pandas()
+
+pd.testing.assert_frame_equal(blocks_original, blocks_up_down)
