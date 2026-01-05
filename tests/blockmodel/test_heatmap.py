@@ -7,12 +7,12 @@ from parq_blockmodel.utils import create_demo_blockmodel
 def test_heatmap_array(tmpdir):
     import numpy as np
 
-    parquet_filepath: Path = Path(tmpdir) / 'test.parquet'
+    parquet_filepath: Path = Path(tmpdir) / 'tests.parquet'
     shape = (3, 3, 3)
     pbm: ParquetBlockModel = ParquetBlockModel.create_demo_block_model(filename=parquet_filepath,
                                                                        shape=shape,
                                                                        )
-    heatmap: np.ndarray = pbm.create_heatmap_from_threshold(attribute='c_index',
+    heatmap: np.ndarray = pbm.create_heatmap_from_threshold(attribute='index_c',
                                                             threshold=4,
                                                             axis='z',
                                                             return_array=True)
@@ -24,12 +24,12 @@ def test_heatmap_array(tmpdir):
     print("Heatmap shape:", heatmap.shape)
 
 def test_heatmap_plot(tmpdir):
-    parquet_filepath: Path = Path(tmpdir) / 'test.parquet'
+    parquet_filepath: Path = Path(tmpdir) / 'tests.parquet'
     shape = (3, 3, 3)
     pbm: ParquetBlockModel = ParquetBlockModel.create_demo_block_model(filename=parquet_filepath,
                                                                        shape=shape,
                                                                        )
-    fig = pbm.plot_heatmap(attribute='c_index',
+    fig = pbm.plot_heatmap(attribute='index_c',
                            threshold=4,
                            axis='z')
 

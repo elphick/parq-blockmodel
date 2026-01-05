@@ -4,12 +4,15 @@ import sys
 import numpy as np
 from sphinx_gallery.sorting import FileNameSortKey
 
+from parq_blockmodel.utils.plotly_edge import set_plotly_edge
+
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../..'))
 
 import parq_blockmodel
 import pyvista
 from plotly.io._sg_scraper import plotly_sg_scraper
+import plotly.io as pio
 
 
 # -- Project information -----------------------------------------------------
@@ -32,6 +35,13 @@ pyvista.set_plot_theme("document")
 pyvista.global_theme.window_size = np.array([1024, 768]) * 2
 
 image_scrapers = (plotly_sg_scraper, "pyvista", "matplotlib")
+
+# Ensure that chrome is installed for plotly image export
+# from parq_blockmodel.utils.plotly_chrome import ensure_chrome_installed
+print("Trying to install chrome...")
+# ensure_chrome_installed()
+pio.renderers.default = "sphinx_gallery_png"
+set_plotly_edge()
 
 
 # -- General configuration ---------------------------------------------------
@@ -59,7 +69,7 @@ sphinx_gallery_conf = {
     'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
     'within_subsection_order': FileNameSortKey,
     'capture_repr': ('_repr_html_', '__repr__'),
-    'image_scrapers': image_scrapers
+    'image_scrapers': image_scrapers,
 }
 
 # Add any paths that contain templates here, relative to this directory.

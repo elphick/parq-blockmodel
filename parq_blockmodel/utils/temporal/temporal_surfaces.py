@@ -1,8 +1,6 @@
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import imageio
-import imageio_ffmpeg
 import numpy as np
 import pandas as pd
 import matplotlib.animation as animation
@@ -118,6 +116,7 @@ class TemporalSurfaceManager:
         if output_path.suffix == '.gif':
             ani.save(output_path, writer=PillowWriter(fps=fps))
         elif output_path.suffix in ['.mp4', '.avi']:
+            import imageio_ffmpeg
             plt.rcParams['animation.ffmpeg_path'] = imageio_ffmpeg.get_ffmpeg_exe()
             ani.save(output_path, writer="ffmpeg", fps=fps)
         plt.close(fig)

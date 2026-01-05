@@ -179,6 +179,11 @@ def build_waste_dump_time_series(
     return dump_array
 
 
+def sample_point_values(ds: xr.Dataset, variable: str, num: int) -> pd.DataFrame:
+    """Randomly sample from the grid to create a point dataset"""
+    return ds[variable].to_pandas().sample(num)
+
+
 if __name__ == '__main__':
     # Example usage
     ts = list(pd.date_range(start="2024-01-01", end="2025-01-01", freq="MS"))
@@ -207,3 +212,7 @@ if __name__ == '__main__':
         angle_of_repose=38
     )
     print("Waste dump time series DataArray created.")
+
+    # sample from elevation grid
+    samples: pd.DataFrame = sample_point_values(data_array.to_dataset(), variable='elevation', num=40)
+    print(samples.shape)
