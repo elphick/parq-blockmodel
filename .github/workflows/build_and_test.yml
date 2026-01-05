@@ -50,9 +50,11 @@ jobs:
         run: |
           poetry install --no-cache --all-extras --no-interaction
 
-      - name: Test with pytest
-        run: |
-          poetry run pytest
+#      - name: Test with pytest
+#        run: |
+#          poetry run pytest
+      - name: Run pytest serially
+        run: poetry run pytest -n 0
 
   coverage-badge:
     runs-on: ubuntu-latest
