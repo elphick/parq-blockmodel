@@ -10,7 +10,7 @@ def autoset_plotly_browser() -> None:
     """
     if is_github_runner():  # (linux)
         import plotly.io as pio
-        pio.install_browser()  # Installs Chromium automatically
+        pio.get_chrome()
     else:  # default to edge (windows)
         import os
         os.environ["BROWSER_PATH"] = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
