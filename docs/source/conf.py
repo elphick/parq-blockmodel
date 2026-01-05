@@ -4,7 +4,7 @@ import sys
 import numpy as np
 from sphinx_gallery.sorting import FileNameSortKey
 
-from parq_blockmodel.utils.plotly_edge import set_plotly_edge
+from parq_blockmodel.utils.plotly_scraper import autoset_plotly_browser
 
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../..'))
@@ -36,12 +36,8 @@ pyvista.global_theme.window_size = np.array([1024, 768]) * 2
 
 image_scrapers = (plotly_sg_scraper, "pyvista", "matplotlib")
 
-# Ensure that chrome is installed for plotly image export
-# from parq_blockmodel.utils.plotly_chrome import ensure_chrome_installed
-print("Trying to install chrome...")
-# ensure_chrome_installed()
 pio.renderers.default = "sphinx_gallery_png"
-set_plotly_edge()
+autoset_plotly_browser()  # for gallery thumbnails
 
 
 # -- General configuration ---------------------------------------------------

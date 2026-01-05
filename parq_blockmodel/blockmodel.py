@@ -33,7 +33,6 @@ from parq_tools.utils import atomic_output_file
 
 from parq_blockmodel.geometry import RegularGeometry
 from parq_blockmodel.reblocking.reblocking import downsample_blockmodel, upsample_blockmodel
-from parq_blockmodel.utils.plotly_chrome import ensure_chrome_installed
 
 if typing.TYPE_CHECKING:
     import pyvista as pv  # type: ignore[import]

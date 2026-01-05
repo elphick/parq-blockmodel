@@ -951,17 +951,6 @@ all = ["GeoAlchemy2", "SQLAlchemy (>=2.0)", "folium", "geopy", "mapclassify (>=2
 dev = ["codecov", "pre-commit", "pytest (>=3.1.0)", "pytest-cov", "pytest-xdist", "ruff"]
 
 [[package]]
-name = "htmlmin"
-version = "0.1.12"
-description = "An HTML Minifier"
-optional = false
-python-versions = "*"
-groups = ["main"]
-files = [
-    {file = "htmlmin-0.1.12.tar.gz", hash = "sha256:50c1ef4630374a5d723900096a961cff426dff46b48f34d194a81bbe14eca178"},
-]
-
-[[package]]
 name = "idna"
 version = "3.11"
 description = "Internationalized Domain Names in Applications (IDNA)"
@@ -2410,15 +2399,15 @@ type = ["mypy (>=1.18.2)"]
 
 [[package]]
 name = "plotly"
-version = "6.3.0"
+version = "6.5.0"
 description = "An open-source interactive data visualization library for Python"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
 markers = "extra == \"viz\" or extra == \"all\""
 files = [
-    {file = "plotly-6.3.0-py3-none-any.whl", hash = "sha256:7ad806edce9d3cdd882eaebaf97c0c9e252043ed1ed3d382c3e3520ec07806d4"},
-    {file = "plotly-6.3.0.tar.gz", hash = "sha256:8840a184d18ccae0f9189c2b9a2943923fd5cae7717b723f36eef78f444e5a73"},
+    {file = "plotly-6.5.0-py3-none-any.whl", hash = "sha256:5ac851e100367735250206788a2b1325412aa4a4917a4fe3e6f0bc5aa6f3d90a"},
+    {file = "plotly-6.5.0.tar.gz", hash = "sha256:d5d38224883fd38c1409bef7d6a8dc32b74348d39313f3c52ca998b8e447f5c8"},
 ]
 
 [package.dependencies]
@@ -2431,7 +2420,7 @@ dev-build = ["build", "jupyter", "plotly[dev-core]"]
 dev-core = ["pytest", "requests", "ruff (==0.11.12)"]
 dev-optional = ["anywidget", "colorcet", "fiona (<=1.9.6) ; python_version <= \"3.8\"", "geopandas", "inflect", "numpy", "orjson", "pandas", "pdfrw", "pillow", "plotly-geo", "plotly[dev-build]", "plotly[kaleido]", "polars[timezone]", "pyarrow", "pyshp", "pytz", "scikit-image", "scipy", "shapely", "statsmodels", "vaex ; python_version <= \"3.9\"", "xarray"]
 express = ["numpy"]
-kaleido = ["kaleido (>=1.0.0)"]
+kaleido = ["kaleido (>=1.1.0)"]
 
 [[package]]
 name = "pluggy"
@@ -4605,4 +4594,4 @@ viz = ["kaleido", "plotly"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "9f1c2b5c3d77c53e4e8cf76468dd12d6399015e55137d226562f63b21b69b18b"
+content-hash = "f80f7d924a63dbfc42b29b26871554e85def6b10802426020dd6373294bbbde8"
