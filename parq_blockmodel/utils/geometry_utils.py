@@ -1,10 +1,26 @@
 import logging
 from pathlib import Path
 
+import pandas as pd
 import pyarrow.parquet as pq
 import numpy as np
 
 from parq_blockmodel.types import Vector
+
+
+def dense_ijk_multiindex(shape) -> pd.MultiIndex:
+    # shape = (nx, ny, nz)
+    i, j, k = np.meshgrid(
+        np.arange(shape[0]),
+        np.arange(shape[1]),
+        np.arange(shape[2]),
+        indexing='ij'
+    )
+    # Flatten and stack for MultiIndex
+    return pd.MultiIndex.from_arrays(
+        [i.ravel(order='C'), j.ravel(order='C'), k.ravel(order='C')],
+        names=['i', 'j', 'k']
+    )
 
 
 def validate_geometry(filepath: Path) -> None:
@@ -170,5 +186,5 @@ def rotate_points(points: np.ndarray,
         np.ndarray: Rotated points.
     """
     u, v, w = rotation_to_axis_orientation(azimuth, dip, plunge)
-    rotation_matrix = np.array([u, v, w]).T
+    rotation_matrix = np.array([u, v, w])
     return points @ rotation_matrix

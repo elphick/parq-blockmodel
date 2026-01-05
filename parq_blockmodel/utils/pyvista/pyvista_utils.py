@@ -1,8 +1,6 @@
 from __future__ import annotations
 
-import logging
-from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Union
+from typing import Optional
 
 import pandas as pd
 import numpy as np
@@ -10,13 +8,15 @@ from scipy.stats import mode
 
 from parq_blockmodel import RegularGeometry
 
-if TYPE_CHECKING:
-    import pyvista as pv
+import pyvista as pv
 
 
 def df_to_pv_image_data(df: pd.DataFrame,
                         geometry: RegularGeometry,
-                        fill_value=np.nan) -> 'pv.ImageData':
+                        fill_value=np.nan,
+                        categorical_encode: bool = False,
+                        categorical_mappings: dict[str, dict] = None,
+                        ) -> pv.ImageData:
     """
     Convert a DataFrame to a PyVista ImageData object for a dense regular grid.
 
@@ -24,6 +24,8 @@ def df_to_pv_image_data(df: pd.DataFrame,
         df: DataFrame with MultiIndex (x, y, z) or columns x, y, z.
         geometry: RegularGeometry instance (provides shape, spacing, origin).
         fill_value: Value to use for missing cells.
+        categorical_encode: Whether to encode categorical columns.
+        categorical_mappings: Mapping of categorical column names to integers.  If None, will auto-generate.
 
     Returns:
         pv.ImageData: PyVista ImageData object with cell data.
@@ -33,6 +35,9 @@ def df_to_pv_image_data(df: pd.DataFrame,
     if not isinstance(df.index, pd.MultiIndex):
         df = df.set_index(['x', 'y', 'z'])
 
+    # Sort index to match PyVista's Fortran order (z, y, x)
+    df = df.sort_index(level=['z', 'y', 'x'])
+
     # Create dense index and reindex
     dense_index = geometry.to_multi_index()
     dense_df = df.reindex(dense_index)
@@ -41,17 +46,51 @@ def df_to_pv_image_data(df: pd.DataFrame,
     grid: pv.ImageData = geometry.to_pyvista()
 
     for attr in df.columns:
-        arr = dense_df[attr].to_numpy().reshape(shape, order='C').ravel(order='F')
-        arr = np.where(np.isnan(arr), fill_value, arr)
-        grid.cell_data[attr] = arr
+        col = dense_df[attr]
+        if categorical_encode and (col.dtype == "object" or col.dtype.name == "category"):
+            if categorical_mappings and attr in categorical_mappings:
+                mapping = categorical_mappings[attr]
+                codes = col.map(mapping).astype(int)
+            else:
+                cat = pd.Categorical(col)
+                codes = cat.codes
+                mapping = dict(enumerate(cat.categories))
+            arr = codes.reshape(shape, order='C').ravel(order='F')
+            grid.cell_data[attr] = arr
+            from parq_blockmodel.utils.pyvista.categorical_utils import store_mapping_dict
+            store_mapping_dict(grid, attr, mapping)
+        else:
+            arr = col.to_numpy().reshape(shape, order='C').ravel(order='F')
+            grid.cell_data[attr] = np.where(pd.isna(arr), fill_value, arr)
 
     return grid
+
+
+def pv_image_data_to_df(image_data: pv.ImageData) -> pd.DataFrame:
+    """
+    Convert a PyVista ImageData object to a DataFrame using cell centroids.
+
+    Args:
+        image_data (pv.ImageData): The input PyVista ImageData object.
+
+    Returns:
+        pd.DataFrame: A DataFrame with columns x, y, z (centroids) and cell data attributes.
+    """
+    centroids = image_data.cell_centers().points
+    df = pd.DataFrame({k: np.asarray(v) for k, v in image_data.cell_data.items()})
+    df['x'] = centroids[:, 0]
+    df['y'] = centroids[:, 1]
+    df['z'] = centroids[:, 2]
+    # set and sort index
+    df.set_index(['x', 'y', 'z'], inplace=True)
+    df.sort_index(inplace=True, ascending=True)
+    return df
 
 
 def df_to_pv_structured_grid(df: pd.DataFrame,
                              block_size: Optional[tuple[float, float, float]] = None,
                              validate_block_size: bool = True
-                             ) -> 'pv.StructuredGrid':
+                             ) -> pv.StructuredGrid:
     """Convert a DataFrame into a PyVista StructuredGrid.
 
     This function is for the full grid dense block model.
@@ -69,7 +108,6 @@ def df_to_pv_structured_grid(df: pd.DataFrame,
     Returns:
         pv.StructuredGrid: A PyVista StructuredGrid object.
     """
-    import pyvista as pv
 
     # ensure the dataframe is sorted by z, y, x, since Pyvista uses 'F' order.
     df = df.sort_index(level=['z', 'y', 'x'])
@@ -114,7 +152,7 @@ def df_to_pv_structured_grid(df: pd.DataFrame,
 
 
 def df_to_pv_unstructured_grid(df: pd.DataFrame, block_size: tuple[float, float, float],
-                               validate_block_size: bool = True) -> 'pv.UnstructuredGrid':
+                               validate_block_size: bool = True) -> pv.UnstructuredGrid:
     """Convert a DataFrame into a PyVista UnstructuredGrid.
 
     This function is for the unstructured grid block model, which is typically used for sparse or
@@ -134,8 +172,6 @@ def df_to_pv_unstructured_grid(df: pd.DataFrame, block_size: tuple[float, float,
     Returns:
         pv.UnstructuredGrid: A PyVista UnstructuredGrid object.
     """
-
-    import pyvista as pv
 
     # ensure the dataframe is sorted by z, y, x, since Pyvista uses 'F' order.
     blocks = df.reset_index().sort_values(['z', 'y', 'x'])
@@ -189,6 +225,53 @@ def df_to_pv_unstructured_grid(df: pd.DataFrame, block_size: tuple[float, float,
     return grid
 
 
+def df_to_poly_data(df: pd.DataFrame) -> pv.PolyData:
+    """
+    Convert a DataFrame to a PyVista PolyData object for a sparse grid.
+
+    Args:
+        df: DataFrame with MultiIndex (x, y, z) or columns x, y, z.
+        geometry: RegularGeometry instance (provides shape, spacing, origin).
+
+    Returns:
+        pv.PolyData: PyVista PolyData object with point data.
+    """
+
+    # Ensure index is MultiIndex (x, y, z)
+    if not isinstance(df.index, pd.MultiIndex):
+        df = df.set_index(['x', 'y', 'z'])
+
+    # Use only the present centroids
+    points = df.index.to_frame(index=False).values
+
+    poly_data = pv.PolyData(points)
+    for attr in df.columns:
+        poly_data.point_data[attr] = df[attr].values
+
+    return poly_data
+
+
+def poly_data_to_df(poly_data: pv.PolyData) -> pd.DataFrame:
+    """
+    Convert a PyVista PolyData object to a DataFrame using point coordinates.
+
+    Args:
+        poly_data (pv.PolyData): The input PyVista PolyData object.
+
+    Returns:
+        pd.DataFrame: A DataFrame with columns x, y, z (coordinates) and point data attributes.
+    """
+    points = poly_data.points
+    df = pd.DataFrame({k: np.asarray(v) for k, v in poly_data.point_data.items()})
+    df['x'] = points[:, 0]
+    df['y'] = points[:, 1]
+    df['z'] = points[:, 2]
+    # set and sort index
+    df.set_index(['x', 'y', 'z'], inplace=True)
+    df.sort_index(inplace=True, ascending=True)
+    return df
+
+
 def calculate_spacing(grid: pv.UnstructuredGrid) -> tuple[float, float, float]:
     """
     Calculate the spacing of an UnstructuredGrid by finding the mode of unique differences.
@@ -210,3 +293,43 @@ def calculate_spacing(grid: pv.UnstructuredGrid) -> tuple[float, float, float]:
     dz = mode(np.diff(z_coords)).mode
 
     return dx, dy, dz
+
+
+def infer_regular_geometry_from_df(df: pd.DataFrame):
+    """
+    Infer RegularGeometry from DataFrame centroids (x, y, z columns or index).
+    Returns a RegularGeometry instance.
+    """
+    # Try to get x, y, z from index or columns
+    if isinstance(df.index, pd.MultiIndex):
+        x = df.index.get_level_values('x').unique()
+        y = df.index.get_level_values('y').unique()
+        z = df.index.get_level_values('z').unique()
+    else:
+        x = df['x'].unique()
+        y = df['y'].unique()
+        z = df['z'].unique()
+    x = np.sort(x)
+    y = np.sort(y)
+    z = np.sort(z)
+    shape = (len(x), len(y), len(z))
+    spacing = (
+        np.diff(x).mean() if len(x) > 1 else 1.0,
+        np.diff(y).mean() if len(y) > 1 else 1.0,
+        np.diff(z).mean() if len(z) > 1 else 1.0,
+    )
+    origin = (x[0] - spacing[0] / 2, y[0] - spacing[1] / 2, z[0] - spacing[2] / 2)
+    return RegularGeometry(shape=shape, block_size=spacing, corner=origin)
+
+
+def _get_geometry_from_df(df):
+    # Try to get geometry from df.geometry if present, else infer from centroids
+    if hasattr(df, 'geometry'):
+        return df.geometry
+    return infer_regular_geometry_from_df(df)
+
+
+import numpy as np
+import pyvista as pv
+
+

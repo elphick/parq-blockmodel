@@ -48,7 +48,7 @@ def test_block_model_with_categorical_data(tmp_path):
     assert isinstance(block_model, ParquetBlockModel)
     assert block_model.blockmodel_path == parquet_path.with_suffix(".pbm.parquet")
     assert block_model.name == parquet_path.stem
-    assert block_model.data.shape == (27, 4)  # 3x3x3 rows, 4 columns including index
+    assert block_model.data.shape == (27, 5)  # 3x3x3 rows, 5 columns including index
 
 
 def test_sparse_block_model(tmp_path):
@@ -66,7 +66,7 @@ def test_sparse_block_model(tmp_path):
 
     block_model.to_dense_parquet(parquet_path.with_suffix('.dense.parquet'), show_progress=True)
     df = pd.read_parquet(parquet_path.with_suffix('.dense.parquet'))
-    assert df.shape[0] == 4 * 4 * 4
+    assert df.shape[0] == 4 * 4 * 3  # since we removed one z layer of blocks
 
 def test_block_model_with_empty_parquet(tmp_path):
     # Create an empty Parquet file

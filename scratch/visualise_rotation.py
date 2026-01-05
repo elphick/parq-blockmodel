@@ -7,93 +7,6 @@ from numpy.linalg import norm
 from parq_blockmodel.types import Vector
 
 
-def calculate_orientation(
-        blocks: pd.DataFrame,
-        query: Optional[str] = None
-) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], pd.DataFrame]:
-    """
-    Calculate the orientation (bearing, dip, plunge) of block centroids.
-
-    Args:
-        blocks (pd.DataFrame): DataFrame containing block centroids with x, y, z columns.
-        query (Optional[str]): Optional query string to filter the DataFrame.
-
-    Returns:
-        Union[Tuple[np.ndarray, np.ndarray, np.ndarray], pd.DataFrame]:
-        Either 3 vectors (u, v, w) or a DataFrame with bearing, dip, and plunge in degrees.
-    """
-    # Apply the query if provided
-    if query:
-        blocks = blocks.query(query)
-
-    # Ensure required columns are present
-    if not {'x', 'y', 'z'}.issubset(blocks.columns):
-        raise ValueError("The DataFrame must contain 'x', 'y', and 'z' columns.")
-
-    # Extract coordinates
-    x = blocks['x'].values
-    y = blocks['y'].values
-    z = blocks['z'].values
-
-    # Calculate differences between consecutive points
-    dx = np.diff(x)
-    dy = np.diff(y)
-    dz = np.diff(z)
-
-    # Calculate bearing (azimuth) in degrees
-    bearing = np.degrees(np.arctan2(dy, dx)) % 360
-
-    # Calculate dip in degrees
-    horizontal_distance = np.sqrt(dx ** 2 + dy ** 2)
-    dip = np.degrees(np.arctan2(dz, horizontal_distance))
-
-    # Calculate plunge in degrees
-    vector_magnitude = np.sqrt(dx ** 2 + dy ** 2 + dz ** 2)
-    plunge = np.degrees(np.arcsin(dz / vector_magnitude))
-
-    # Optionally return as vectors (u, v, w)
-    u = dx / vector_magnitude
-    v = dy / vector_magnitude
-    w = dz / vector_magnitude
-
-    # Return as a DataFrame with angles
-    orientation_df = pd.DataFrame({
-        'bearing': bearing,
-        'dip': dip,
-        'plunge': plunge
-    })
-
-    return orientation_df
-
-
-def compute_orientation(centroids: np.ndarray) -> tuple[float, float, float]:
-    """Compute the azimuth, dip, and plunge angles of the main axis of a set of centroids.
-
-    Args:
-        centroids: A 2D numpy array of shape (N, 3) where N is the number of centroids and each row represents a
-            centroid's (x, y, z) coordinates.
-
-    Returns:
-        A tuple containing the azimuth, dip, and plunge angles in degrees.
-    """
-    # Center the data
-    X = centroids - np.mean(centroids, axis=0)
-    # SVD for PCA
-    _, _, Vt = np.linalg.svd(X, full_matrices=False)
-    main_axis = Vt[0]
-    # Ensure main_axis points in the positive y direction (north)
-    if main_axis[1] < 0:
-        main_axis = -main_axis
-    # Normalize
-    main_axis = main_axis / np.linalg.norm(main_axis)
-    # Azimuth: angle from north (y-axis) in x-y plane
-    azimuth = np.degrees(np.arctan2(main_axis[0], main_axis[1])) % 360
-    # Dip: angle from horizontal (x-y plane)
-    dip = np.degrees(np.arccos(main_axis[2]))
-    # Plunge: angle from horizontal, projected onto x-z plane
-    plunge = np.degrees(np.arctan2(main_axis[2], main_axis[0]))
-    return azimuth, dip, plunge
-
 def generate_block_model_with_ellipse(
         x_range: Tuple[float, float],
         y_range: Tuple[float, float],
@@ -231,10 +144,6 @@ def generate_block_model_with_3d_ellipse(
     })
 
     return block_model
-
-
-import pyvista as pv
-import numpy as np
 
 
 def visualize_block_model_with_threshold():

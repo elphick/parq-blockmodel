@@ -3,7 +3,6 @@ import pandas as pd
 
 from parq_blockmodel import RegularGeometry
 from parq_blockmodel.utils import rotation_to_axis_orientation
-from parq_blockmodel.utils.orientation_utils import compute_orientation
 
 
 def test_rotated_demo_block_model(tmp_path):
@@ -28,12 +27,4 @@ def test_rotated_demo_block_model(tmp_path):
                                axis_u=axis_u, axis_v=axis_v, axis_w=axis_w)
 
     assert blocks.index.equals(geometry.to_multi_index())
-
-    # # test our ability to recover the rotation from the centroids
-    # centroids = np.stack(blocks.index.to_frame(index=False).values)
-    # calc_azimuth, calc_dip, calc_plunge = compute_orientation(centroids)
-    #
-    # assert np.allclose(calc_azimuth, axis_azimuth)
-    # assert np.allclose(calc_dip, axis_dip)
-    # assert np.allclose(calc_plunge, axis_plunge)
 

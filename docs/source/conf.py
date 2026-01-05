@@ -4,12 +4,15 @@ import sys
 import numpy as np
 from sphinx_gallery.sorting import FileNameSortKey
 
+from parq_blockmodel.utils.plotly_scraper import autoset_plotly_browser
+
 sys.path.insert(0, os.path.abspath('..'))
 sys.path.insert(0, os.path.abspath('../..'))
 
 import parq_blockmodel
 import pyvista
 from plotly.io._sg_scraper import plotly_sg_scraper
+import plotly.io as pio
 
 
 # -- Project information -----------------------------------------------------
@@ -33,6 +36,9 @@ pyvista.global_theme.window_size = np.array([1024, 768]) * 2
 
 image_scrapers = (plotly_sg_scraper, "pyvista", "matplotlib")
 
+pio.renderers.default = "sphinx_gallery_png"
+autoset_plotly_browser()  # for gallery thumbnails
+
 
 # -- General configuration ---------------------------------------------------
 
@@ -54,12 +60,12 @@ autosummary_generate = True
 
 sphinx_gallery_conf = {
     'filename_pattern': r'\.py',
-    'ignore_pattern': r'(__init__)|(05_trame_webserver)|(06_reblocking)|(xx.*)\.py',
+    'ignore_pattern': r'(__init__)|(05_trame_webserver)|(xx.*)\.py',
     'examples_dirs': '../../examples',  # path to your example scripts
     'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
     'within_subsection_order': FileNameSortKey,
     'capture_repr': ('_repr_html_', '__repr__'),
-    'image_scrapers': image_scrapers
+    'image_scrapers': image_scrapers,
 }
 
 # Add any paths that contain templates here, relative to this directory.

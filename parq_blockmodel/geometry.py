@@ -57,6 +57,11 @@ class Geometry(ABC):
     _is_regular: Optional[bool] = None
     _logger: logging.Logger = logging.getLogger(__name__)
 
+    @property
+    def is_sparse(self) -> bool:
+        """Indicates whether the geometry is sparse."""
+        return False
+
     def to_summary_json(self) -> str:
         """Convert the geometry to a JSON string.
 
@@ -102,22 +107,19 @@ class Geometry(ABC):
         """Return the centroids as a (3, N) array."""
         pass
 
-    @property
     @abstractmethod
-    def centroid_u(self) -> NDArray[np.floating]:
-        """Return the unique u coordinates of the centroids."""
+    def centroid_i(self) -> NDArray[np.floating]:
+        """Return the unique i (axis u) indices of the centroids."""
         pass
 
-    @property
     @abstractmethod
-    def centroid_v(self) -> NDArray[np.floating]:
-        """Return the unique v coordinates of the centroids."""
+    def centroid_j(self) -> NDArray[np.floating]:
+        """Return the unique j (axis v) indices of the centroids."""
         pass
 
-    @property
     @abstractmethod
-    def centroid_w(self) -> NDArray[np.floating]:
-        """Return the unique w coordinates of the centroids."""
+    def centroid_k(self) -> NDArray[np.floating]:
+        """Return the unique k (axis w) indices of the centroids."""
         pass
 
     @property
@@ -176,6 +178,10 @@ class Geometry(ABC):
         pass
 
     @abstractmethod
+    def to_ijk_multi_index(self, dtype: type = np.int32) -> pd.MultiIndex:
+        pass
+
+    @abstractmethod
     def nearest_centroid_lookup(self, x: float, y: float, z: float) -> Point:
         pass
 
@@ -209,6 +215,15 @@ class RegularGeometry(Geometry):
         return True
 
     @cached_property
+    def c_index(self) -> np.ndarray:
+        """
+        Compute the zero-based C-order (tabular) index for the dense grid.
+        Returns:
+            np.ndarray: A 1D array of C-order indices.
+        """
+        return np.arange(np.prod(self.shape), dtype=np.int32)
+
+    @cached_property
     def _centroids(self) -> np.ndarray:
         # Compute axis-aligned centroids
         x = np.arange(self.corner[0] + self.block_size[0] / 2,
@@ -227,17 +242,14 @@ class RegularGeometry(Geometry):
         rotated = rotation_matrix @ centroids
         return rotated  # shape: (3, N)
 
-    @property
-    def centroid_u(self) -> np.ndarray:
-        return np.unique(self._centroids[0])
+    def centroid_i(self, dtype='int32') -> np.ndarray:
+        return np.arange(self.shape[0], dtype=dtype)
 
-    @property
-    def centroid_v(self) -> np.ndarray:
-        return np.unique(self._centroids[1])
+    def centroid_j(self, dtype='int32') -> np.ndarray:
+        return np.arange(self.shape[1], dtype=dtype)
 
-    @property
-    def centroid_w(self) -> np.ndarray:
-        return np.unique(self._centroids[2])
+    def centroid_k(self, dtype='int32') -> np.ndarray:
+        return np.arange(self.shape[2], dtype=dtype)
 
     @property
     def centroid_x(self) -> np.ndarray:
@@ -323,37 +335,96 @@ class RegularGeometry(Geometry):
     def from_multi_index(cls, index: pd.MultiIndex,
                          axis_azimuth: float = 0.0,
                          axis_dip: float = 0.0,
-                         axis_plunge: float = 0.0
-                         ) -> "RegularGeometry":
+                         axis_plunge: float = 0.0,
+                         srs: Optional[str] = None) -> Union["RegularGeometry", "SparseRegularGeometry"]:
+        """
+        Create a RegularGeometry or SparseRegularGeometry instance from a pandas MultiIndex.
+
+        Args:
+            index (pd.MultiIndex): A MultiIndex containing the levels 'x', 'y', and 'z'.
+            axis_azimuth (float): The azimuth angle in degrees for rotation. Defaults to 0.0.
+            axis_dip (float): The dip angle in degrees for rotation. Defaults to 0.0.
+            axis_plunge (float): The plunge angle in degrees for rotation. Defaults to 0.0.
+            srs (Optional[str]): The spatial reference system (e.g., EPSG code). Defaults to None.
+
+        Returns:
+            Union[RegularGeometry, SparseRegularGeometry]: An instance of RegularGeometry or SparseRegularGeometry.
+        """
         if not {"x", "y", "z"}.issubset(index.names):
             raise ValueError("Index must contain the levels 'x', 'y', 'z'.")
 
-        axis_u, axis_v, axis_w = rotation_to_axis_orientation(axis_azimuth, axis_dip, axis_plunge)
+        rotation_matrix = np.array(rotation_to_axis_orientation(axis_azimuth, axis_dip, axis_plunge)).T
 
-        x = np.sort(index.get_level_values("x").unique())
-        y = np.sort(index.get_level_values("y").unique())
-        z = np.sort(index.get_level_values("z").unique())
+        # Skip rotation if no rotation is needed
+        if not (axis_azimuth or axis_dip or axis_plunge):
+            unrotated_centroids = np.column_stack(
+                [index.get_level_values("x"), index.get_level_values("y"), index.get_level_values("z")]
+            )
+        else:
+            inverse_rotation_matrix = np.linalg.inv(rotation_matrix)
+            # Transform centroids into the u, v, w (axis) context
+            centroids = np.column_stack(
+                [index.get_level_values("x"), index.get_level_values("y"), index.get_level_values("z")]
+            )
+            unrotated_centroids = centroids @ inverse_rotation_matrix
 
-        dx = np.unique(np.diff(x))
-        dy = np.unique(np.diff(y))
-        dz = np.unique(np.diff(z))
+        # Calculate block size, corner, and shape in the unrotated context
+        x, y, z = unrotated_centroids.T
+        dx, dy, dz = np.diff(np.unique(x)), np.diff(np.unique(y)), np.diff(np.unique(z))
+        block_size = (dx.min(), dy.min(), dz.min())
+        corner = (x.min() - block_size[0] / 2, y.min() - block_size[1] / 2, z.min() - block_size[2] / 2)
+        shape = (
+            int((x.max() - x.min()) / block_size[0]) + 1,
+            int((y.max() - y.min()) / block_size[1]) + 1,
+            int((z.max() - z.min()) / block_size[2]) + 1,
+        )
 
-        block_size = float(dx.min()), float(dy.min()), float(dz.min())
+        # Check if sparse
+        expected_dense_size = np.prod(shape)
+        if len(index) < expected_dense_size:
+            return SparseRegularGeometry.from_multi_index(index=index, shape=shape,
+                                                          corner=corner, axis_azimuth=axis_azimuth,
+                                                          axis_dip=axis_dip, axis_plunge=axis_plunge,
+                                                          srs=srs)
 
-        # Compute the expected corner as if the minimum centroid is the first block
-        corner_x = float(x[0] - block_size[0] / 2)
-        corner_y = float(y[0] - block_size[1] / 2)
-        corner_z = float(z[0] - block_size[2] / 2)
+        # Return RegularGeometry for dense grids
+        return cls(corner=corner, axis_u=rotation_matrix[:, 0], axis_v=rotation_matrix[:, 1],
+                   axis_w=rotation_matrix[:, 2], block_size=block_size, shape=shape, srs=srs)
 
-        # Compute the shape, accounting for sparsity in the index
-        shape = (int((max(x) - min(x)) / block_size[0]) + 1,
-                 int((max(y) - min(y)) / block_size[1]) + 1,
-                 int((max(z) - min(z)) / block_size[2]) + 1)
+    @classmethod
+    def from_centroids(cls, centroids: np.ndarray) -> "RegularGeometry":
+        """Create a RegularGeometry from centroids.
 
-        return cls(corner=(corner_x, corner_y, corner_z),
-                   axis_u=axis_u,
-                   axis_v=axis_v,
-                   axis_w=axis_w,
+        Typically, this is used to create a RegularGeometry from a (3, N) array of centroids,
+        where each row corresponds to x, y, z coordinates of the centroids, perhaps from a pyvista grid or similar.
+
+        Args:
+            centroids (np.ndarray): A (3, N) array of centroids.
+
+        Returns:
+            RegularGeometry: The created RegularGeometry object.
+        """
+        if centroids.shape[0] != 3:
+            raise ValueError("Centroids must be a (3, N) array.")
+
+        # Calculate the corner based on the first centroid
+        corner = (
+            float(centroids[0, 0] - centroids[0, 1] / 2),
+            float(centroids[1, 0] - centroids[1, 1] / 2),
+            float(centroids[2, 0] - centroids[2, 1] / 2),
+        )
+
+        # Calculate block size from the first two centroids
+        block_size = (
+            float(centroids[0, 1] - centroids[0, 0]),
+            float(centroids[1, 1] - centroids[1, 0]),
+            float(centroids[2, 1] - centroids[2, 0]),
+        )
+
+        # Calculate shape
+        shape = (len(np.unique(centroids[0])), len(np.unique(centroids[1])), len(np.unique(centroids[2])))
+
+        return cls(corner=corner,
                    block_size=block_size,
                    shape=shape)
 
@@ -409,39 +480,18 @@ class RegularGeometry(Geometry):
         )
 
     def to_multi_index(self) -> pd.MultiIndex:
-        """Convert a RegularGeometry to a MultiIndex.
-
-        The MultiIndex will have the following levels:
-        - x: The x coordinates of the cell centres
-        - y: The y coordinates of the cell centres
-        - z: The z coordinates of the cell centres
-
-        Returns:
-            pd.MultiIndex: The MultiIndex representing the blockmodel element geometry.
         """
-        ox, oy, oz = self.corner
-        dx, dy, dz = self.block_size
-        nx, ny, nz = self.shape
+        Convert the geometry to a MultiIndex using the c-index as the base.
+        """
+        coords = np.column_stack([self.centroid_x, self.centroid_y, self.centroid_z])
+        return pd.MultiIndex.from_arrays(coords.T, names=["x", "y", "z"])
 
-        # Calculate the coordinates of the block centers
-        x = ox + (np.arange(nx) + 0.5) * dx
-        y = oy + (np.arange(ny) + 0.5) * dy
-        z = oz + (np.arange(nz) + 0.5) * dz
-
-        # Create a meshgrid and flatten in C order, then stack as (N, 3)
-        xx, yy, zz = np.meshgrid(x, y, z, indexing="ij")
-        coords = np.stack([xx.ravel(order='C'), yy.ravel(order='C'), zz.ravel(order='C')], axis=-1)  # (N, 3)
-
-        # Apply rotation if needed
-        rotation_matrix = np.array([self.axis_u, self.axis_v, self.axis_w]).T
-        rotated_coords = coords @ rotation_matrix  # (N, 3)
-
-        # Create MultiIndex from rotated coordinates
-        index = pd.MultiIndex.from_arrays(
-            [rotated_coords[:, 0], rotated_coords[:, 1], rotated_coords[:, 2]],
-            names=["x", "y", "z"]
-        )
-        return index
+    def to_ijk_multi_index(self, dtype: type = np.int32) -> pd.MultiIndex:
+        """
+        Convert the geometry to a MultiIndex with (i, j, k) indices using the c-index.
+        """
+        i, j, k = np.unravel_index(self.c_index, self.shape, order="C")
+        return pd.MultiIndex.from_arrays([i.astype(dtype), j.astype(dtype), k.astype(dtype)], names=["i", "j", "k"])
 
     def to_dataframe(self) -> pd.DataFrame:
         """
@@ -556,3 +606,124 @@ class RegularGeometry(Geometry):
             self._logger.warning(f"Incompatibility in z dimension: {z_offset} != {int(z_offset)}.")
             return False
         return True
+
+
+class SparseRegularGeometry(RegularGeometry):
+    """A subclass of RegularGeometry for sparse geometries using c-index."""
+
+    def __init__(self, corner, block_size, shape, c_index: np.ndarray,
+                 axis_u=(1, 0, 0), axis_v=(0, 1, 0), axis_w=(0, 0, 1), srs: Optional[str] = None):
+        super().__init__(corner, block_size, shape, axis_u, axis_v, axis_w, srs)
+        self.c_index = np.asarray(c_index, dtype=np.int32)
+        self._validate_c_index()
+
+    @property
+    def is_sparse(self) -> bool:
+        """Indicates that this geometry is sparse."""
+        return True
+
+    def _validate_c_index(self):
+        """Ensure the c-index values are valid for the dense grid."""
+        if not np.all((0 <= self.c_index) & (self.c_index < np.prod(self.shape))):
+            raise ValueError("c_index values must be within the range of the dense grid.")
+
+    def to_multi_index(self) -> pd.MultiIndex:
+        """Convert the sparse c-index to a MultiIndex with (x, y, z) coordinates."""
+        dense_multi_index = super().to_multi_index()
+        return dense_multi_index[self.c_index]
+
+    def to_ijk_multi_index(self, dtype: type = np.int32) -> pd.MultiIndex:
+        """Convert the sparse c-index to a MultiIndex with (i, j, k) indices."""
+        i, j, k = np.unravel_index(self.c_index, self.shape, order="C")
+        return pd.MultiIndex.from_arrays([i.astype(dtype), j.astype(dtype), k.astype(dtype)], names=["i", "j", "k"])
+
+    @classmethod
+    def from_multi_index(cls, index: pd.MultiIndex, shape: Optional[Shape3D] = None, corner: Optional[Point] = None,
+                         axis_azimuth: float = 0.0, axis_dip: float = 0.0, axis_plunge: float = 0.0,
+                         srs: Optional[str] = None) -> "SparseRegularGeometry":
+        """
+        Create a SparseRegularGeometry instance from a pandas MultiIndex.
+
+        Args:
+            index (pd.MultiIndex): A MultiIndex containing the levels 'x', 'y', and 'z'.
+            shape (Optional[Shape3D]): The shape of the grid. If None, it is calculated as the tightest possible.
+            corner (Optional[Point]): The corner of the grid. If None, it is calculated as the tightest possible.
+            axis_azimuth (float): The azimuth angle in degrees for rotation. Defaults to 0.0.
+            axis_dip (float): The dip angle in degrees for rotation. Defaults to 0.0.
+            axis_plunge (float): The plunge angle in degrees for rotation. Defaults to 0.0.
+            srs (Optional[str]): The spatial reference system. Defaults to None.
+
+        Returns:
+            SparseRegularGeometry: An instance of SparseRegularGeometry.
+        """
+        if not {"x", "y", "z"}.issubset(index.names):
+            raise ValueError("Index must contain the levels 'x', 'y', 'z'.")
+
+        rotation_matrix = np.array(rotation_to_axis_orientation(axis_azimuth, axis_dip, axis_plunge)).T
+
+        # Skip rotation if no rotation is needed
+        if not (axis_azimuth or axis_dip or axis_plunge):
+            unrotated_centroids = np.column_stack(
+                [index.get_level_values("x"), index.get_level_values("y"), index.get_level_values("z")]
+            )
+        else:
+            inverse_rotation_matrix = np.linalg.inv(rotation_matrix)
+            # Transform centroids into the u, v, w (axis) context
+            centroids = np.column_stack(
+                [index.get_level_values("x"), index.get_level_values("y"), index.get_level_values("z")]
+            )
+            unrotated_centroids = centroids @ inverse_rotation_matrix
+
+        # Calculate block size from unique differences
+        x, y, z = unrotated_centroids.T
+        dx, dy, dz = np.diff(np.unique(x)), np.diff(np.unique(y)), np.diff(np.unique(z))
+        block_size = (dx.min(), dy.min(), dz.min())
+
+        # Calculate corner and shape if not provided
+        if corner is None:
+            corner = (x.min() - block_size[0] / 2, y.min() - block_size[1] / 2, z.min() - block_size[2] / 2)
+        if shape is None:
+            shape = (
+                int((x.max() - corner[0]) / block_size[0]) + 1,
+                int((y.max() - corner[1]) / block_size[1]) + 1,
+                int((z.max() - corner[2]) / block_size[2]) + 1,
+            )
+
+        # Calculate c_index for the sparse grid
+        i = np.floor((unrotated_centroids[:, 0] - corner[0]) / block_size[0]).astype(np.int32)
+        j = np.floor((unrotated_centroids[:, 1] - corner[1]) / block_size[1]).astype(np.int32)
+        k = np.floor((unrotated_centroids[:, 2] - corner[2]) / block_size[2]).astype(np.int32)
+        c_index = np.ravel_multi_index((i, j, k), shape, order="C")
+
+        return cls(corner=corner, block_size=block_size, shape=shape, c_index=c_index,
+                   axis_u=rotation_matrix[:, 0], axis_v=rotation_matrix[:, 1],
+                   axis_w=rotation_matrix[:, 2], srs=srs)
+
+    def to_json(self) -> str:
+        """Serialize SparseRegularGeometry to a JSON string."""
+        data = {
+            "corner": self.corner,
+            "block_size": self.block_size,
+            "shape": self.shape,
+            "axis_u": self.axis_u,
+            "axis_v": self.axis_v,
+            "axis_w": self.axis_w,
+            "srs": self.srs,
+            "c_index": self.c_index.tolist(),  # Convert numpy array to list for JSON compatibility
+        }
+        return json.dumps(data)
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "SparseRegularGeometry":
+        """Deserialize a JSON string to create a SparseRegularGeometry object."""
+        data = json.loads(json_str)
+        return cls(
+            corner=tuple(data["corner"]),
+            block_size=tuple(data["block_size"]),
+            shape=tuple(data["shape"]),
+            c_index=np.array(data["c_index"], dtype=np.int32),
+            axis_u=tuple(data["axis_u"]),
+            axis_v=tuple(data["axis_v"]),
+            axis_w=tuple(data["axis_w"]),
+            srs=data["srs"],
+        )
