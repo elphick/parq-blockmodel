@@ -11,7 +11,7 @@ python = ">=3.11,<3.13"
 numpy = ">=1.25.2,<2.1"  #2.1 max for numba->ydata-profiling compatibility
 pyarrow = ">=16.0"
 parq-tools = ">=0.3.1"
-pyvista = ">=0.46.3"
+pyvista = ">=0.44.2"
 geopandas = "^1.1.1"
 tqdm = { version = ">=4.67.1", optional = true }
 ydata-profiling = { version = "^4.16.1", optional = true }

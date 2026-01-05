@@ -4605,4 +4605,4 @@ viz = ["kaleido", "plotly"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.13"
-content-hash = "0b18d1ea926a445f6cc8bfd1cdcfac6399a9217eb374edc873a39cdbf8114317"
+content-hash = "cbffafa08970b140e9842973a13798472c1bec3a6c931472ca726f7d9b6349f3"
