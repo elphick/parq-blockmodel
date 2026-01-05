@@ -1,7 +1,9 @@
+import os
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from parq_blockmodel import ParquetBlockModel
 from parq_blockmodel.utils.demo_block_model import create_toy_blockmodel
@@ -44,6 +46,7 @@ def test_toy_blockmodel_parquet(tmpdir):
     assert not toy_blocks.empty, "The DataFrame should not be empty."
     assert 'fe' in toy_blocks.columns, "The DataFrame should contain 'fe' column."
 
+@pytest.mark.skipif(os.getenv('CI') == 'true', reason="Requires display")
 def test_class_method(tmpdir):
 
     parquet_filepath = Path(tmpdir) / 'toy_blockmodel.parquet'
