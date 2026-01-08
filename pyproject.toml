@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "parq-blockmodel"
-version = "0.1.5"
+version = "0.1.6"
 description = "A Python package for efficient storage, manipulation, and analysis of mining block models using Parquet files."
 authors = ["Greg <11791585+elphick@users.noreply.github.com>"]
 readme = "README.md"
@@ -8,14 +8,14 @@ packages = [{ include = "parq_blockmodel" }]
 
 [tool.poetry.dependencies]
 python = ">=3.11,<3.13"
-numpy = ">=1.25.2,<2.0"  #2.1 max for numba->ydata-profiling compatibility
+numpy = ">=1.25.2,<2.1"  #2.1 max for numba->ydata-profiling compatibility
 pyarrow = ">=16.0"
 parq-tools = ">=0.3.1"
 pyvista = ">=0.44.2"
 geopandas = "^1.1.1"
 tqdm = { version = ">=4.67.1", optional = true }
 ydata-profiling = { version = ">=4.16.1", optional = true }
-setuptools = { version = "*", optional = true }
+setuptools = { version = "*", optional = true }  # needed for ydata-profiling: https://github.com/ydataai/ydata-profiling/pull/1619
 plotly = { version = ">=5.24.1", optional = true }
 #parq-tools = { git = "https://github.com/elphick/parq-tools.git", branch = "12-column-descriptions-in-profile-report" }
 #ezdxf = { version = "^1.4.2", optional = true }

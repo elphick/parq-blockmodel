@@ -29,7 +29,7 @@ def _validate_params(config, new_block_size):
 
 def _prepare_arrays_and_index(blockmodel) -> tuple[dict[str, np.ndarray], dict[str, pd.Index], pd.MultiIndex]:
     dense_ijk_index = blockmodel.geometry.to_ijk_multi_index()
-    df = blockmodel.read(index='ijk', dense=True)
+    df: pd.DataFrame = blockmodel.read(index='ijk', dense=True)
     df = df.reset_index().set_index(['i', 'j', 'k'])
     arrays, categories = tabular_to_3d_dict(df)
     return arrays, categories, dense_ijk_index
