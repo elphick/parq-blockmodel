@@ -35,7 +35,7 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
             'dry_mass': {'method': 'sum', fill_ratio: fill_ratio},
             'volume': {'method': 'sum'},
             'rock_type': {'method': 'mode'}
-            'mass_with_missing': {'method': 'sum', 'replacement': { 0: nan }}
+            'mass_with_missing': {'method': 'sum', 'replace': { 0: nan }}
         }
 
         downsampled = downsample_attributes(attributes, fx=2, fy=2, fz=2, aggregation_config=aggregation_config)
@@ -92,7 +92,7 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
         config = aggregation_config.get(attr, {'method': 'mean'})
         method = config['method']
         fill = config.get('fill_ratio')
-        replacement = config.get('replacement', {})
+        replacement = config.get('replace', {})
         if not isinstance(replacement, dict):
             raise ValueError("The replace value must be a dictionary of the form {old_value: new_value}")
 
