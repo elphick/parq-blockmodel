@@ -13,6 +13,12 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
     - fx, fy, fz: downsampling factors along x, y, z axes
     - aggregation_config: dict specifying aggregation method and optional weight for each attribute
 
+    The `fill_ratio` key in aggregation_config indicates that the aggregation should be normalized
+    by the fill ratio attribute specified.  This is useful when some blocks may be partially filled after reblocking.
+
+    The `replace` key is used in cased where the reblocking return 0 for missing data, but the user wants to convert
+    these back to NaN or another missing value indicator.
+
     Example:
         attributes = {
             'grade': grade,
@@ -20,6 +26,7 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
             'dry_mass': dry_mass,
             'volume': volume,
             'rock_type': rock_types
+            'mass_with_missing': mass_with_missing
         }
 
         aggregation_config = {
@@ -28,9 +35,15 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
             'dry_mass': {'method': 'sum', fill_ratio: fill_ratio},
             'volume': {'method': 'sum'},
             'rock_type': {'method': 'mode'}
+            'mass_with_missing': {'method': 'sum', 'replacement': { 0: nan }}
         }
 
         downsampled = downsample_attributes(attributes, fx=2, fy=2, fz=2, aggregation_config=aggregation_config)
+
+    NOTE: for regular models only the averaging f density can be simplified:
+    From: 'density': {'method': 'weighted_mean', 'weight': 'volume', fill_ratio: fill_ratio},
+    To: 'density': {'method': 'mean'},
+
 
     Returns:
     - dict of downsampled 3D arrays
@@ -79,6 +92,9 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
         config = aggregation_config.get(attr, {'method': 'mean'})
         method = config['method']
         fill = config.get('fill_ratio')
+        replacement = config.get('replacement', {})
+        if not isinstance(replacement, dict):
+            raise ValueError("The replace value must be a dictionary of the form {old_value: new_value}")
 
         # Reshape and transpose
         reshaped = data.reshape(new_shape).transpose(transpose_axes)
@@ -123,5 +139,18 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
         else:
             raise ValueError(f"Unsupported aggregation method: {method}")
 
+        if replacement:
+            arr = result[attr]
+            replace_map = {k: normalise_missing_value(v) for k, v in replacement.items()}
+            for old_value, new_value in replace_map.items():
+                arr[arr == old_value] = new_value
+            result[attr] = arr
+
     return result
+
+def normalise_missing_value(val):
+    """Convert common missing value indicators to np.nan."""
+    if val is None or str(val).lower() in {'nan', 'none', 'na', 'n/a', 'null'}:
+        return np.nan
+    return val
 
