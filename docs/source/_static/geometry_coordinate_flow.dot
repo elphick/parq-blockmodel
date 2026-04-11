@@ -1,0 +1,95 @@
+digraph G {
+    rankdir=LR;
+    newrank=true;
+    splines=ortho;
+    node [shape=box, style=rounded, fontname=Arial];
+    edge [fontname=Arial, fontsize=9];
+    // Input layer
+    subgraph cluster_input {
+        label="Geometry Definition";
+        style=filled;
+        color=lightgrey;
+        corner [label="corner
+(x₀, y₀, z₀)", style="rounded,filled", fillcolor=lightblue];
+        blocksize [label="block_size
+(dx, dy, dz)", style="rounded,filled", fillcolor=lightblue];
+        shape [label="shape
+(nᵢ, nⱼ, nₖ)", style="rounded,filled", fillcolor=lightblue];
+    }
+    // Logical indices layer
+    subgraph cluster_logical {
+        label="Logical Indices (Canonical C-order)";
+        style=filled;
+        color=lightyellow;
+        ijk [label="(i, j, k)
+0 ≤ i < nᵢ
+0 ≤ j < nⱼ
+0 ≤ k < nₖ", style="rounded,filled", fillcolor=lightyellow];
+        rowindex [label="Row Index (flat)
+r = i + nᵢ(j + nⱼ·k)", style="rounded,filled", fillcolor=lightyellow];
+    }
+    // Local coordinate layer
+    subgraph cluster_local {
+        label="Local Coordinates";
+        style=filled;
+        color=lightgreen;
+        local [label="Local Grid Position
+u = x₀ + (i + 0.5)·dx
+v = y₀ + (j + 0.5)·dy
+w = z₀ + (k + 0.5)·dz", style="rounded,filled", fillcolor=lightgreen];
+    }
+    // Transformation layer
+    subgraph cluster_transform {
+        label="Axis Transformation";
+        style=filled;
+        color=lightpink;
+        rotation [label="Rotation Matrix R
+R = [axis_u | axis_v | axis_w]ᵀ
+R⁻¹ = Rᵀ (orthonormal)", style="rounded,filled", fillcolor=lightsalmon];
+        axes [label="Axis Vectors
+axis_u, axis_v, axis_w", style="rounded,filled", fillcolor=lightcyan];
+    }
+    // World coordinates layer
+    subgraph cluster_world {
+        label="World Coordinates";
+        style=filled;
+        color=lavender;
+        world [label="(x, y, z)\ncentroid positions\nin world space", style="rounded,filled", fillcolor=lavender];
+        world_id [label="world_id = encode_coordinates(x, y, z)\nstable 64-bit positional identifier", style="rounded,dashed,filled", fillcolor=aliceblue];
+    }
+    // Edges - Input to Logical
+    corner -> ijk [label="define grid"];
+    blocksize -> ijk [label="cell size"];
+    shape -> ijk [label="bounds"];
+    ijk -> rowindex [label="flatten
+C-order"];
+    // Edges - Logical to Local
+    ijk -> local [label="apply
+offsets"];
+    blocksize -> local [label="scale"];
+    corner -> local [label="translate"];
+    // Edges - Local to World
+    local -> rotation [label="world coords need rotation"];
+    axes -> rotation [label="define
+orientation", constraint=false];
+    rotation -> world [label="R @ local\n= [x, y, z]"];
+    world -> world_id [style=dashed, label="optional", constraint=false];
+    // Inverse transformations (dashed)
+    world -> rotation [style=dashed, label="R⁻¹ (inverse)"];
+    rotation -> local [style=dashed];
+    local -> ijk [style=dashed];
+    // Layout helpers – stack secondary nodes below primaries
+    rotation -> axes [style=invis, weight=20];
+    world_id -> world [style=invis, weight=100];
+    // Metadata info
+    info [label="Metadata Storage:
+All geometry metadata is stored
+in Parquet file key-value pairs.
+Block coordinates are derived
+from metadata + implicit C-order.", shape=note, style="filled", fillcolor=lightyellow];
+    {rank=same; corner; blocksize; shape}
+    {rank=same; ijk; rowindex}
+    {rank=same; local}
+    {rank=same; rotation; axes}
+    {rank=same; world; world_id}
+}

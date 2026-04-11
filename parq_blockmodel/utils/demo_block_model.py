@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Iterable
+from typing import Literal, Tuple
 
 import numpy as np
 import pandas as pd
@@ -13,77 +13,203 @@ def create_demo_blockmodel(shape: tuple[int, int, int] = (3, 3, 3),
                            azimuth: float = 0.0,
                            dip: float = 0.0,
                            plunge: float = 0.0,
-                           parquet_filepath: Path = None
+                           parquet_filepath: Path = None,
+                           index_type: Literal["block_index", "world_centroids", "range"] = "block_index",
                            ) -> pd.DataFrame | Path:
-    """Create a demo blockmodel DataFrame or Parquet file.
 
-    The model contains block coordinates, indices, and depth information.
-
-    - index_c: A zero based index in C-style order (row-major). The order returned when sorting by x, y, z.
-    - index_f: A zero based index in Fortran-style order (column-major). The order returned when sorting by z, y, x.
-    - depth: The depth of each block, calculated as the distance from the surface (maximum z coordinate).
-    - depth_category: A categorical attribute that cuts the depth into two bins: 'shallow' and 'deep'.
-
-    Args:
-        shape: Shape of the block model (nx, ny, nz).
-        block_size: Size of each block (dx, dy, dz).
-        corner: The lower left (minimum) corner of the block model.
-        azimuth: Azimuth angle in degrees.
-        dip: Dip angle in degrees.
-        plunge: Plunge angle in degrees.
-        parquet_filepath: If provided, save the DataFrame to this Parquet file and return the file path.
-
-    Returns:
-        pd.DataFrame if parquet_filepath is None, else Path to the Parquet file.
     """
-    num_blocks = np.prod(shape)
+    Create a synthetic block model DataFrame or Parquet file.
 
-    # Generate the coordinates for the block model
-    x_coords = np.arange(corner[0] + block_size[0] / 2, corner[0] + shape[0] * block_size[0], block_size[0])
-    y_coords = np.arange(corner[1] + block_size[1] / 2, corner[1] + shape[1] * block_size[1], block_size[1])
-    z_coords = np.arange(corner[2] + block_size[2] / 2, corner[2] + shape[2] * block_size[2], block_size[2])
+    This function generates a rectilinear block model defined in logical
+    index space (i, j, k), together with world–space centroids and optional
+    rotation. The function is intended for testing, exploration, and examples.
 
-    # Create a meshgrid of coordinates
-    xx, yy, zz = np.meshgrid(x_coords, y_coords, z_coords, indexing='ij')
-    coords = np.stack([xx.ravel(order='C'), yy.ravel(order='C'), zz.ravel(order='C')], axis=-1)
+    ─────────────────────────────────────────────────────────────────────────────
+    BLOCK MODEL INDEXING
+    ─────────────────────────────────────────────────────────────────────────────
+    Logical indices:
+        - (i, j, k) represent block indices along the x, y, and z axes.
+        - Sorting by (i, j, k) gives the canonical logical block‑model order:
+              i varies slowest
+              j varies next
+              k varies fastest
+        This ordering is *purely logical* and independent of how NumPy stores
+        the data in memory.
 
-    index_c = np.arange(num_blocks)
-    index_f = np.arange(num_blocks).reshape(shape, order='C').ravel(order='F')
+    Linear index columns (optional helpers for reproducibility and debugging):
+        - linear_index_c:
+            Linear index obtained by flattening an (i,j,k) array using
+            NumPy C‑order (row‑major)   → last axis (k) varies fastest.
+
+        - linear_index_f:
+            Linear index obtained by flattening an (i,j,k) array using
+            NumPy F‑order (column‑major) → first axis (i) varies fastest.
+
+        These linear indices describe NumPy memory flattening conventions only.
+        They do *not* imply anything about logical block order.
+
+    ─────────────────────────────────────────────────────────────────────────────
+    WORLD COORDINATES
+    ─────────────────────────────────────────────────────────────────────────────
+    World centroids are computed using:
+        x = corner_x + (i + 0.5) * dx
+        y = corner_y + (j + 0.5) * dy
+        z = corner_z + (k + 0.5) * dz
+
+    If azimuth, dip, or plunge are non‑zero, the world positions are rotated
+    about the origin after centroid generation.
+
+    ─────────────────────────────────────────────────────────────────────────────
+    DEPTH INFORMATION
+    ─────────────────────────────────────────────────────────────────────────────
+    - depth:
+        Computed as (maximum z centroid + dz/2) − z.
+    - depth_category:
+        Categorical split into 'shallow' and 'deep'.
+
+    ─────────────────────────────────────────────────────────────────────────────
+    DATAFRAME INDEXING OPTION
+    ─────────────────────────────────────────────────────────────────────────────
+    index_type:
+        - "block_index": the DataFrame is indexed by (i, j, k).
+        - "world_centroids": indexed by (x, y, z).
+        - "range": uses a default RangeIndex; no special indexing is applied.
+
+    ─────────────────────────────────────────────────────────────────────────────
+    ATTRIBUTES
+    ─────────────────────────────────────────────────────────────────────────────
+    The DataFrame is assigned lightweight geometry metadata under:
+        df.attrs["geometry"] = {
+            "shape": (nx, ny, nz),
+            "block_size": (dx, dy, dz),
+            "corner": (corner_x, corner_y, corner_z),
+            "rotation": { "azimuth": ..., "dip": ..., "plunge": ... },
+            "geometry_type": "rectilinear_blockmodel",
+            "index_type": index_type
+        }
+
+    These attrs are intentionally simpler than the full "parq‑blockmodel"
+    production schema, but pseudo‑compatible and useful for testing.
+
+    ─────────────────────────────────────────────────────────────────────────────
+    PARAMETERS
+    ─────────────────────────────────────────────────────────────────────────────
+    shape : tuple[int, int, int]
+        Logical block model size (nx, ny, nz).
+
+    block_size : tuple[float, float, float]
+        Block dimensions (dx, dy, dz).
+
+    corner : tuple[float, float, float]
+        World‑space minimum corner of the unrotated model.
+
+    azimuth, dip, plunge : float
+        Rotation angles applied to world centroids.
+
+    parquet_filepath : Path | None
+        If supplied, the DataFrame is written to Parquet.
+
+    index_type : {"block_index", "world_centroids", "range"}
+        Specifies which index is assigned to the returned DataFrame.
+
+    ─────────────────────────────────────────────────────────────────────────────
+    RETURNS
+    ─────────────────────────────────────────────────────────────────────────────
+    DataFrame or Path
+        The block model DataFrame, or the Parquet path if saved.
+    """
+
+    # ------------------------------------------------------------------
+    # Canonical logical indices (i, j, k) in C-order
+    # ------------------------------------------------------------------
+    ni, nj, nk = shape
+    num_blocks = int(np.prod(shape))
+
+    # Use NumPy's C-order unravel to generate (i, j, k)
+    rows = np.arange(num_blocks, dtype=int)
+    i, j, k = np.unravel_index(rows, shape, order="C")
+
+    # ------------------------------------------------------------------
+    # World-space centroids (x, y, z), optionally rotated
+    # ------------------------------------------------------------------
+    dx, dy, dz = block_size
+    cx, cy, cz = corner
+
+    x = cx + (i + 0.5) * dx
+    y = cy + (j + 0.5) * dy
+    z = cz + (k + 0.5) * dz
+
+    coords = np.column_stack([x, y, z])
 
     if any(angle != 0.0 for angle in (azimuth, dip, plunge)):
         rotated = rotate_points(points=coords, azimuth=azimuth, dip=dip, plunge=plunge)
-        xx_flat_c, yy_flat_c, zz_flat_c = rotated[:, 0], rotated[:, 1], rotated[:, 2]
-    else:
-        xx_flat_c, yy_flat_c, zz_flat_c = coords[:, 0], coords[:, 1], coords[:, 2]
+        x, y, z = rotated[:, 0], rotated[:, 1], rotated[:, 2]
 
-    surface_rl = np.max(zz_flat_c) + block_size[2] / 2
+    # ------------------------------------------------------------------
+    # Linear index helpers (C- and F-order views)
+    # ------------------------------------------------------------------
+    index_c = rows
+    index_f = rows.reshape(shape, order="C").ravel(order="F")
 
+    # ------------------------------------------------------------------
+    # Build DataFrame with canonical logical + world coordinates
+    # ------------------------------------------------------------------
     df = pd.DataFrame({
-        'x': xx_flat_c,
-        'y': yy_flat_c,
-        'z': zz_flat_c,
-        'index_c': index_c
+        "i": i,
+        "j": j,
+        "k": k,
+        "x": x,
+        "y": y,
+        "z": z,
+        "index_c": index_c,
+        "index_f": index_f,
     })
 
-    df.set_index(keys=['x', 'y', 'z'], inplace=True)
-    df['index_f'] = index_f
-    df['depth'] = surface_rl - zz_flat_c
-    df['depth_category'] = pd.cut(
-        df['depth'],
+    # Depth information (using world Z)
+    surface_rl = float(np.max(z) + dz / 2.0)
+    df["depth"] = surface_rl - z
+    df["depth_category"] = pd.cut(
+        df["depth"],
         bins=2,
-        labels=['shallow', 'deep'],
-        include_lowest=True
-    ).astype('category')
+        labels=["shallow", "deep"],
+        include_lowest=True,
+    ).astype("category")
+
+    # ------------------------------------------------------------------
+    # Assign index according to index_type
+    # ------------------------------------------------------------------
+    if index_type == "block_index":
+        df.set_index(["i", "j", "k"], inplace=True)
+    elif index_type == "world_centroids":
+        df.set_index(["x", "y", "z"], inplace=True)
+    elif index_type == "range":
+        # Leave as default RangeIndex (0..N-1)
+        pass
+    else:
+        raise ValueError(f"Unknown index_type: {index_type}")
+
+    # Lightweight geometry metadata
+    df.attrs.setdefault("geometry", {})
+    df.attrs["geometry"].update({
+        "shape": tuple(shape),
+        "block_size": tuple(block_size),
+        "corner": tuple(corner),
+        "rotation": {"azimuth": azimuth, "dip": dip, "plunge": plunge},
+        "geometry_type": "rectilinear_blockmodel",
+        "index_type": index_type,
+    })
+
     if parquet_filepath is not None:
         df.to_parquet(parquet_filepath)
         return parquet_filepath
+
     return df
 
 
 def add_gradient_ellipsoid_grade(
         df: pd.DataFrame,
-        center: Iterable,
-        radii: Iterable,
+        center: Tuple[float, float, float],
+        radii: Tuple[float, float, float],
         grade_min: float = 5.0,
         grade_max: float = 65.0,
         bearing: float = 0.0,

@@ -14,6 +14,7 @@ Welcome to parq-blockmodel's documentation!
 
    usage/installation
    usage/quickstart
+   user_guide/geometry_coordinates
    user_guide
    auto_examples/index
    todo
@@ -21,4 +22,8 @@ Welcome to parq-blockmodel's documentation!
    api/modules
    license/*
 
+.. toctree::
+   :maxdepth: 1
+   :caption: Developer docs:
 
+   design_ijk_metadata

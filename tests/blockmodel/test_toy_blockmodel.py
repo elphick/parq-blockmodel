@@ -57,7 +57,7 @@ def test_class_method(tmpdir):
                                                   deposit_radii=(70, 30, 20),
                                                   deposit_center=tuple(0.5 * np.array((100, 75, 50))))
     assert isinstance(pbm, ParquetBlockModel), "The result should be a ParquetBlockModel instance."
-    assert pbm.blockmodel_path == parquet_filepath.with_suffix('.pbm.parquet'), "The filename is unexpected."
+    assert pbm.blockmodel_path == parquet_filepath.with_suffix('.pbm'), "The filename is unexpected."
 
     # p = pbm.plot(scalar='grade', threshold=True, enable_picking=True)
     # p.view_xy()

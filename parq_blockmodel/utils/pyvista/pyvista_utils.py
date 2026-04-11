@@ -38,8 +38,17 @@ def df_to_pv_image_data(df: pd.DataFrame,
     # Sort index to match PyVista's Fortran order (z, y, x)
     df = df.sort_index(level=['z', 'y', 'x'])
 
-    # Create dense index and reindex
-    dense_index = geometry.to_multi_index()
+    # Create dense index and reindex. RegularGeometry exposes XYZ centroids
+    # via ``to_multi_index_xyz`` in C-order. We sort this index by z, y, x
+    # to match the ordering expected later when reshaping with order='F'.
+    dense_index = geometry.to_multi_index_xyz()
+    # Ensure we have a proper MultiIndex with named levels and sort by
+    # z, then y, then x to match PyVista's expected ordering.
+    if not isinstance(dense_index, pd.MultiIndex):
+        dense_index = pd.MultiIndex.from_tuples(list(dense_index), names=["x", "y", "z"])
+    else:
+        dense_index = dense_index.set_names(["x", "y", "z"])
+    dense_index = dense_index.sort_values()
     dense_df = df.reindex(dense_index)
     shape = geometry.shape
 

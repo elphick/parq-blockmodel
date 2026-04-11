@@ -4,9 +4,12 @@ reblocking.py
 Module for reblocking operations on block models.
 """
 from typing import TYPE_CHECKING
+import json
 
 import numpy as np
 import pandas as pd
+import pyarrow as pa
+import pyarrow.parquet as pq
 
 from parq_blockmodel.reblocking.conversion import tabular_to_3d_dict, dict_3d_to_tabular
 from parq_blockmodel.reblocking.downsample import downsample_attributes
@@ -17,7 +20,6 @@ if TYPE_CHECKING:
 from parq_blockmodel.geometry import RegularGeometry
 
 
-
 def _validate_params(config, new_block_size):
     if not isinstance(new_block_size, tuple) or len(new_block_size) != 3:
         raise ValueError("new_block_size must be a tuple of three floats (dx, dy, dz).")
@@ -26,13 +28,26 @@ def _validate_params(config, new_block_size):
     if not isinstance(config, dict):
         raise ValueError("config must be a dictionary.")
 
+def _prepare_arrays_and_index(blockmodel) -> tuple[dict[str, np.ndarray], dict[str, pd.Index]]:
+    """Prepare dense attribute arrays and category indices for reblocking.
 
-def _prepare_arrays_and_index(blockmodel) -> tuple[dict[str, np.ndarray], dict[str, pd.Index], pd.MultiIndex]:
-    dense_ijk_index = blockmodel.geometry.to_ijk_multi_index()
-    df: pd.DataFrame = blockmodel.read(index='ijk', dense=True)
-    df = df.reset_index().set_index(['i', 'j', 'k'])
+    This helper reads the blockmodel on a dense ijk grid and converts it
+    into 3D arrays suitable for up/downsampling. Geometry-derived columns
+    (coordinates and linear indices) are excluded and later recomputed from
+    the new :class:`RegularGeometry` to avoid inconsistencies.
+    """
+
+    # Read a dense ijk-indexed view of the data. ``ParquetBlockModel.read``
+    # already returns a C-order (i, j, k) MultiIndex when ``index="ijk"``,
+    # which is exactly what ``tabular_to_3d_dict`` expects.
+    #
+    # Only load true attributes; drop geometry/linear-index helpers which
+    # will be regenerated for the reblocked grid.
+    geometry_cols = {"x", "y", "z", "i", "j", "k", "index_c", "index_f"}
+    cols = [c for c in blockmodel.columns if c not in geometry_cols]
+    df: pd.DataFrame = blockmodel.read(columns=cols, index="ijk", dense=True)
     arrays, categories = tabular_to_3d_dict(df)
-    return arrays, categories, dense_ijk_index
+    return arrays, categories
 
 def _calculate_factors(blockmodel, new_block_size):
     old_shape = blockmodel.geometry.shape
@@ -97,7 +112,7 @@ def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "Pa
 
     _validate_params(aggregation_config, new_block_size)
 
-    arrays, categories, _ = _prepare_arrays_and_index(blockmodel)
+    arrays, categories = _prepare_arrays_and_index(blockmodel)
 
     fx, fy, fz, new_shape = _calculate_factors(blockmodel, new_block_size)
 
@@ -111,18 +126,37 @@ def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "Pa
     elif any(dim < 1 for dim in (fx, fy, fz)) and any(dim > 1 for dim in (fx, fy, fz)):
         raise ValueError("Reblocking factors cannot specify upsample and downsample at the same time.")
 
-    # Convert back to DataFrame
+    # Convert back to DataFrame (ijk-indexed attributes only)
     new_geometry = _build_new_geometry(blockmodel, new_block_size, new_shape)
-    new_path = blockmodel.blockmodel_path.with_name(f"{blockmodel.name}.reblocked.pbm.parquet")
+    # Use canonical .pbm suffix expected by ParquetBlockModel
+    new_path = blockmodel.blockmodel_path.with_name(f"{blockmodel.name}.reblocked.pbm")
     reblocked_df = dict_3d_to_tabular(arrays, categories)
 
-    # assert the indexes are aligned
-    if not reblocked_df.index.equals(new_geometry.to_ijk_multi_index()):
-        raise ValueError("Upsampling index mismatch.")
+    # assert the indexes are aligned in ijk space
+    if not reblocked_df.index.equals(new_geometry.to_multi_index_ijk()):
+        raise ValueError("Reblocking ijk index mismatch.")
 
-    # back to x,y,z (for now until we move to c_index)
-    reblocked_df.index = new_geometry.to_multi_index()
-    reblocked_df.to_parquet(new_path)
+    # ------------------------------------------------------------------
+    # Reconstruct geometry-derived columns for the new grid
+    # ------------------------------------------------------------------
+    # x, y, z centroids in C-order matching the dense ijk index
+    reblocked_df["x"] = new_geometry.centroid_x
+    reblocked_df["y"] = new_geometry.centroid_y
+    reblocked_df["z"] = new_geometry.centroid_z
+
+    # Linear index helpers following the same conventions as the demo
+    # block model utilities (C-order index_c, F-order index_f).
+    N = int(np.prod(new_geometry.shape))
+    rows = np.arange(N)
+    reblocked_df["block_id"] = rows
+    reblocked_df["index_c"] = rows
+    reblocked_df["index_f"] = rows.reshape(new_geometry.shape, order="C").ravel(order="F")
+
+    table = pa.Table.from_pandas(reblocked_df.reset_index(drop=True), preserve_index=False)
+    meta = dict(table.schema.metadata or {})
+    meta[b"parq-blockmodel"] = json.dumps(new_geometry.to_metadata_dict()).encode("utf-8")
+    table = table.replace_schema_metadata(meta)
+    pq.write_table(table, new_path)
     return ParquetBlockModel(blockmodel_path=new_path, geometry=new_geometry)
 
 
@@ -155,7 +189,7 @@ def upsample_blockmodel(blockmodel, new_block_size, interpolation_config) -> "Pa
 
     _validate_params(interpolation_config, new_block_size)
 
-    arrays, categories, _ = _prepare_arrays_and_index(blockmodel)
+    arrays, categories = _prepare_arrays_and_index(blockmodel)
 
     fx, fy, fz, new_shape = _calculate_factors(blockmodel, new_block_size)
 
@@ -169,16 +203,32 @@ def upsample_blockmodel(blockmodel, new_block_size, interpolation_config) -> "Pa
     elif any(dim < 1 for dim in (fx, fy, fz)) and any(dim > 1 for dim in (fx, fy, fz)):
         raise ValueError("Reblocking factors cannot specify upsample and downsample at the same time.")
 
-    # Convert back to DataFrame
+    # Convert back to DataFrame (ijk-indexed attributes only)
     new_geometry = _build_new_geometry(blockmodel, new_block_size, new_shape)
-    new_path = blockmodel.blockmodel_path.with_name(f"{blockmodel.name}.reblocked.pbm.parquet")
+    # Use canonical .pbm suffix expected by ParquetBlockModel
+    new_path = blockmodel.blockmodel_path.with_name(f"{blockmodel.name}.reblocked.pbm")
     reblocked_df = dict_3d_to_tabular(arrays, categories)
 
-    # assert the indexes are aligned
-    if not reblocked_df.index.equals(new_geometry.to_ijk_multi_index()):
-        raise ValueError("Upsampling index mismatch.")
+    # assert the indexes are aligned in ijk space
+    if not reblocked_df.index.equals(new_geometry.to_multi_index_ijk()):
+        raise ValueError("Upsampling ijk index mismatch.")
 
-    # back to x,y,z (for now until we move to c_index)
-    reblocked_df.index = new_geometry.to_multi_index()
-    reblocked_df.to_parquet(new_path)
+    # ------------------------------------------------------------------
+    # Reconstruct geometry-derived columns for the new grid
+    # ------------------------------------------------------------------
+    reblocked_df["x"] = new_geometry.centroid_x
+    reblocked_df["y"] = new_geometry.centroid_y
+    reblocked_df["z"] = new_geometry.centroid_z
+
+    N = int(np.prod(new_geometry.shape))
+    rows = np.arange(N)
+    reblocked_df["block_id"] = rows
+    reblocked_df["index_c"] = rows
+    reblocked_df["index_f"] = rows.reshape(new_geometry.shape, order="C").ravel(order="F")
+
+    table = pa.Table.from_pandas(reblocked_df.reset_index(drop=True), preserve_index=False)
+    meta = dict(table.schema.metadata or {})
+    meta[b"parq-blockmodel"] = json.dumps(new_geometry.to_metadata_dict()).encode("utf-8")
+    table = table.replace_schema_metadata(meta)
+    pq.write_table(table, new_path)
     return ParquetBlockModel(blockmodel_path=new_path, geometry=new_geometry)

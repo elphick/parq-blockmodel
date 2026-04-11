@@ -93,10 +93,10 @@ def validate_axes_orthonormal(u, v, w, tol=1e-8):
     return True
 
 
-def rotation_to_axis_orientation(axis_azimuth: float = 0,
-                                 axis_dip: float = 0,
-                                 axis_plunge: float = 0
-                                 ) -> tuple[Vector, Vector, Vector]:
+def angles_to_axes(axis_azimuth: float = 0,
+                   axis_dip: float = 0,
+                   axis_plunge: float = 0
+                   ) -> tuple[Vector, Vector, Vector]:
     """
     Convert azimuth, dip, and plunge angles to orthonormal axes.
 
@@ -144,7 +144,7 @@ def rotation_to_axis_orientation(axis_azimuth: float = 0,
         return (1.0, 0.0, 0.0), (0.0, 1.0, 0.0), (0.0, 0.0, 1.0)
 
 
-def axis_orientation_to_rotation(axis_u, axis_v, axis_w):
+def axes_to_angles(axis_u, axis_v, axis_w):
     """
     Convert orthonormal axes to azimuth, dip, and plunge angles (in degrees).
     Returns (azimuth, dip, plunge).
@@ -185,6 +185,6 @@ def rotate_points(points: np.ndarray,
     Returns:
         np.ndarray: Rotated points.
     """
-    u, v, w = rotation_to_axis_orientation(azimuth, dip, plunge)
+    u, v, w = angles_to_axes(azimuth, dip, plunge)
     rotation_matrix = np.array([u, v, w])
     return points @ rotation_matrix
