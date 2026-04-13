@@ -1,12 +1,12 @@
 digraph G {
-    rankdir=LR;
+    rankdir=TD;
     newrank=true;
     splines=ortho;
     node [shape=box, style=rounded, fontname=Arial];
     edge [fontname=Arial, fontsize=9];
     // Input layer
     subgraph cluster_input {
-        label="Geometry Definition";
+        label="Local Geometry Definition";
         style=filled;
         color=lightgrey;
         corner [label="corner
@@ -80,7 +80,6 @@ orientation", constraint=false];
     local -> ijk [style=dashed];
     // Layout helpers – stack secondary nodes below primaries
     rotation -> axes [style=invis, weight=20];
-    world_id -> world [style=invis, weight=100];
     // Metadata info
     info [label="Metadata Storage:
 All geometry metadata is stored

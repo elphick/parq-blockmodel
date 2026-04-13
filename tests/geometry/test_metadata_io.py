@@ -4,14 +4,13 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
-from parq_blockmodel.geometry import RegularGeometry
+from parq_blockmodel.geometry import RegularGeometry, LocalGeometry, WorldFrame
 
 
 def make_geometry():
     return RegularGeometry(
-        corner=(0.0, 0.0, 0.0),
-        block_size=(1.0, 2.0, 3.0),
-        shape=(2, 2, 2),
+        local=LocalGeometry(corner=(0.0, 0.0, 0.0), block_size=(1.0, 2.0, 3.0), shape=(2, 2, 2)),
+        world=WorldFrame(),
     )
 
 
@@ -24,13 +23,13 @@ def test_roundtrip_via_attrs():
 
     geom2 = RegularGeometry.from_attrs(df.attrs)
 
-    assert geom2.corner == geom.corner
-    assert geom2.block_size == geom.block_size
-    assert geom2.shape == geom.shape
-    assert geom2.axis_u == geom.axis_u
-    assert geom2.axis_v == geom.axis_v
-    assert geom2.axis_w == geom.axis_w
-    assert geom2.srs == geom.srs
+    assert geom2.local.corner == geom.local.corner
+    assert geom2.local.block_size == geom.local.block_size
+    assert geom2.local.shape == geom.local.shape
+    assert geom2.world.axis_u == geom.world.axis_u
+    assert geom2.world.axis_v == geom.world.axis_v
+    assert geom2.world.axis_w == geom.world.axis_w
+    assert geom2.world.srs == geom.world.srs
 
 
 def test_roundtrip_via_parquet_metadata(tmp_path):
@@ -48,13 +47,13 @@ def test_roundtrip_via_parquet_metadata(tmp_path):
     pf = pq.ParquetFile(path)
     geom2 = RegularGeometry.from_parquet_metadata(pf.metadata)
 
-    assert geom2.corner == geom.corner
-    assert geom2.block_size == geom.block_size
-    assert geom2.shape == geom.shape
-    assert geom2.axis_u == geom.axis_u
-    assert geom2.axis_v == geom.axis_v
-    assert geom2.axis_w == geom.axis_w
-    assert geom2.srs == geom.srs
+    assert geom2.local.corner == geom.local.corner
+    assert geom2.local.block_size == geom.local.block_size
+    assert geom2.local.shape == geom.local.shape
+    assert geom2.world.axis_u == geom.world.axis_u
+    assert geom2.world.axis_v == geom.world.axis_v
+    assert geom2.world.axis_w == geom.world.axis_w
+    assert geom2.world.srs == geom.world.srs
 
 
 def test_from_parquet_metadata_missing_key_raises(tmp_path):

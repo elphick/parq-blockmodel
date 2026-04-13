@@ -14,7 +14,6 @@ Welcome to parq-blockmodel's documentation!
 
    usage/installation
    usage/quickstart
-   user_guide/geometry_coordinates
    user_guide
    auto_examples/index
    todo

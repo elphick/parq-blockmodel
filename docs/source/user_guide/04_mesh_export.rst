@@ -1,6 +1,5 @@
-"""
-Mesh Module - Triangulated Surface Representations
-===================================================
+Mesh Module
+===========
 
 The ``parq_blockmodel.mesh`` module provides functionality to convert regular
 block models into triangulated surface geometry. This enables visualization,

@@ -1,5 +1,9 @@
 # parq-blockmodel
 
+<p align="center">
+  <img src="https://raw.githubusercontent.com/elphick/parq-blockmodel/main/docs/source/_static/parq-blockmodel.svg" alt="df-eval icon" width="120" />
+</p>
+
 [![Run Tests](https://github.com/Elphick/parq-blockmodel/actions/workflows/build_and_test.yml/badge.svg?branch=main)](https://github.com/Elphick/parq-blockmodel/actions/workflows/build_and_test.yml)
 [![PyPI](https://img.shields.io/pypi/v/parq-blockmodel.svg?logo=python&logoColor=white)](https://pypi.org/project/parq-blockmodel/)
 ![Coverage](https://raw.githubusercontent.com/elphick/parq-blockmodel/main/docs/source/_static/badges/coverage.svg)

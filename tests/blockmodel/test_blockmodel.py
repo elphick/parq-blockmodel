@@ -5,9 +5,11 @@ import re
 import numpy as np
 import pandas as pd
 import pytest
+import pyarrow.parquet as pq
 
 from parq_blockmodel import ParquetBlockModel
 from parq_blockmodel.utils import create_demo_blockmodel
+from parq_blockmodel.utils.spatial_encoding import decode_world_coordinates, get_world_id_encoding_params
 
 
 def test_from_empty_parquet_raises_error(tmp_path):
@@ -125,11 +127,11 @@ def test_block_id_persisted_in_dense_pbm(tmp_path):
         blocks["x"].to_numpy(),
         blocks["y"].to_numpy(),
         blocks["z"].to_numpy(),
-    ).astype(np.int64)
+    ).astype(np.uint32)
 
     assert "block_id" in persisted.columns
     assert persisted.columns[0] == "block_id"
-    assert persisted["block_id"].dtype == np.int64
+    assert persisted["block_id"].dtype == np.uint32
     assert np.array_equal(persisted["block_id"].to_numpy(), expected_block_ids)
 
 
@@ -146,7 +148,7 @@ def test_block_id_persisted_in_sparse_pbm(tmp_path):
         sparse["x"].to_numpy(),
         sparse["y"].to_numpy(),
         sparse["z"].to_numpy(),
-    ).astype(np.int64)
+    ).astype(np.uint32)
 
     assert pbm.is_sparse
     assert "block_id" in persisted.columns
@@ -162,8 +164,8 @@ def test_validate_xyz_parquet_chunked(tmp_path):
     blocks[["x", "y", "z", "depth"]].to_parquet(parquet_path, index=False)
 
     geometry = ParquetBlockModel.validate_xyz_parquet(parquet_path, chunk_size=5)
-    assert geometry.shape == (4, 3, 2)
-    assert geometry.block_size == (2.0, 1.0, 0.5)
+    assert geometry.local.shape == (4, 3, 2)
+    assert geometry.local.block_size == (2.0, 1.0, 0.5)
 
 
 def test_index_properties_match_demo_columns(tmp_path):
@@ -176,5 +178,42 @@ def test_index_properties_match_demo_columns(tmp_path):
     assert np.array_equal(pbm.index_c, df["index_c"].to_numpy())
     assert np.array_equal(pbm.index_f, df["index_f"].to_numpy())
     assert len(pbm.index_c) == int(np.prod(shape))
+
+
+def test_world_id_persisted_and_decodable(tmp_path):
+    parquet_path = tmp_path / "world_id_source.parquet"
+    blocks = create_demo_blockmodel(shape=(3, 2, 2), block_size=(1.0, 1.0, 1.0), corner=(500000.0, 7000000.0, 100.0)).reset_index()
+    blocks[["x", "y", "z", "depth"]].to_parquet(parquet_path, index=False)
+
+    pbm = ParquetBlockModel.from_parquet(parquet_path, columns=["depth"], chunk_size=4)
+    persisted = pd.read_parquet(pbm.blockmodel_path)
+
+    assert "world_id" in persisted.columns
+    assert persisted["world_id"].dtype == np.int64
+
+    offset, scale = get_world_id_encoding_params(pbm.geometry.world_id_encoding)
+    x_dec, y_dec, z_dec = decode_world_coordinates(persisted["world_id"].to_numpy(dtype=np.int64), offset=offset, scale=scale)
+
+    x_true, y_true, z_true = pbm.geometry.xyz_from_row_index(persisted["block_id"].to_numpy(dtype=np.uint32))
+    np.testing.assert_allclose(x_dec, x_true, atol=0.05)
+    np.testing.assert_allclose(y_dec, y_true, atol=0.05)
+    np.testing.assert_allclose(z_dec, z_true, atol=0.05)
+
+
+def test_metadata_contains_schema_version_and_world_id_encoding(tmp_path):
+    parquet_path = tmp_path / "world_id_meta_source.parquet"
+    blocks = create_demo_blockmodel(shape=(2, 2, 2), block_size=(1.0, 1.0, 1.0), corner=(500000.0, 7000000.0, 50.0)).reset_index()
+    blocks[["x", "y", "z", "depth"]].to_parquet(parquet_path, index=False)
+
+    pbm = ParquetBlockModel.from_parquet(parquet_path, columns=["depth"], chunk_size=4)
+    geom = pbm.geometry
+
+    assert geom.schema_version == "1.0"
+    assert geom.world_id_encoding is not None
+    assert geom.world_id_encoding.get("column") == "world_id"
+
+    geom_meta = pq.read_metadata(pbm.blockmodel_path).metadata[b"parq-blockmodel"].decode("utf-8")
+    assert "schema_version" in geom_meta
+    assert "world_id_encoding" in geom_meta
 
 

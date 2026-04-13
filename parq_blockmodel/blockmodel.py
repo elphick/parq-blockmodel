@@ -44,13 +44,20 @@ import pyarrow.parquet as pq
 from parq_blockmodel.types import Shape3D, Point, BlockSize
 from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel, create_toy_blockmodel
 from parq_blockmodel.utils.geometry_utils import angles_to_axes
+from parq_blockmodel.utils.spatial_encoding import (
+    MAX_XY_VALUE,
+    MAX_Z_VALUE,
+    decode_world_coordinates,
+    encode_world_coordinates,
+    get_world_id_encoding_params,
+)
 from pyarrow.parquet import ParquetFile
 from tqdm import tqdm
 
 from parq_tools import ParquetProfileReport, filter_parquet_file, LazyParquetDF
 from parq_tools.utils import atomic_output_file
 
-from parq_blockmodel.geometry import RegularGeometry
+from parq_blockmodel.geometry import RegularGeometry, LocalGeometry, WorldFrame
 from parq_blockmodel.reblocking.reblocking import downsample_blockmodel, upsample_blockmodel
 
 if typing.TYPE_CHECKING:
@@ -100,7 +107,7 @@ class ParquetBlockModel:
     # Positional columns describe geometry/placement and are excluded from
     # ``self.attributes``. Keep linear index helpers (index_c/index_f) as
     # attributes for debug/visual validation workflows.
-    POSITION_COLUMNS = {"block_id", "i", "j", "k", "x", "y", "z"}
+    POSITION_COLUMNS = {"block_id", "world_id", "i", "j", "k", "x", "y", "z"}
 
     def __init__(self, blockmodel_path: Path, name: Optional[str] = None, geometry: Optional[RegularGeometry] = None):
         if blockmodel_path.suffix != ".pbm":
@@ -191,12 +198,12 @@ class ParquetBlockModel:
 
     @property
     def is_sparse(self) -> bool:
-        dense_count = int(np.prod(self.geometry.shape))
+        dense_count = int(np.prod(self.geometry.local.shape))
         return int(self.pf.metadata.num_rows) < dense_count
 
     @property
     def sparsity(self) -> float:
-        dense_count = int(np.prod(self.geometry.shape))
+        dense_count = int(np.prod(self.geometry.local.shape))
         return 1.0 - (int(self.pf.metadata.num_rows) / dense_count)
 
     @property
@@ -212,7 +219,7 @@ class ParquetBlockModel:
         stable mapping between a flat row index and ijk; most callers
         should use :meth:`read` with ``index="ijk"`` instead.
         """
-        shape = self.geometry.shape
+        shape = self.geometry.local.shape
         return np.arange(np.prod(shape)).reshape(shape, order='C').ravel(order='C')
 
     @property
@@ -223,11 +230,11 @@ class ParquetBlockModel:
         with ``order="F"``. This is useful when interacting with tools
         (such as some VTK/PyVista paths) that expect F‑order layouts.
         """
-        shape = self.geometry.shape
+        shape = self.geometry.local.shape
         return np.arange(np.prod(shape)).reshape(shape, order='C').ravel(order='F')
 
     def validate_sparse(self) -> bool:
-        dense_count = int(np.prod(self.geometry.shape))
+        dense_count = int(np.prod(self.geometry.local.shape))
         seen: set[int] = set()
         total = 0
         for block_ids in self._iter_block_ids():
@@ -246,8 +253,18 @@ class ParquetBlockModel:
         cols = set(self.columns)
         if "block_id" in cols:
             for batch in self._iter_batches(["block_id"], batch_size=batch_size):
-                block_ids = np.asarray(batch.column(0), dtype=np.int64)
+                block_ids = np.asarray(batch.column(0), dtype=np.uint32)
                 yield block_ids
+            return
+
+        if "world_id" in cols:
+            if not self.geometry.world_id_encoding:
+                raise ValueError("world_id column present but metadata has no world_id_encoding payload.")
+            offset, scale = get_world_id_encoding_params(self.geometry.world_id_encoding)
+            for batch in self._iter_batches(["world_id"], batch_size=batch_size):
+                world_ids = np.asarray(batch.column(0), dtype=np.int64)
+                x, y, z = decode_world_coordinates(world_ids, offset=offset, scale=scale)
+                yield self.geometry.row_index_from_xyz(x, y, z).astype(np.uint32)
             return
 
         if {"x", "y", "z"}.issubset(cols):
@@ -255,7 +272,7 @@ class ParquetBlockModel:
                 x = np.asarray(batch.column(0), dtype=float)
                 y = np.asarray(batch.column(1), dtype=float)
                 z = np.asarray(batch.column(2), dtype=float)
-                yield self.geometry.row_index_from_xyz(x, y, z).astype(np.int64)
+                yield self.geometry.row_index_from_xyz(x, y, z).astype(np.uint32)
             return
 
         if {"i", "j", "k"}.issubset(cols):
@@ -263,17 +280,17 @@ class ParquetBlockModel:
                 i = np.asarray(batch.column(0), dtype=np.int64)
                 j = np.asarray(batch.column(1), dtype=np.int64)
                 k = np.asarray(batch.column(2), dtype=np.int64)
-                yield self.geometry.row_index_from_ijk(i, j, k).astype(np.int64)
+                yield self.geometry.row_index_from_ijk(i, j, k).astype(np.uint32)
             return
 
-        dense_count = int(np.prod(self.geometry.shape))
+        dense_count = int(np.prod(self.geometry.local.shape))
         if int(self.pf.metadata.num_rows) != dense_count:
-            raise ValueError("Sparse model requires block_id, ijk, or xyz positional columns.")
+            raise ValueError("Sparse model requires block_id, world_id, ijk, or xyz positional columns.")
 
         offset = 0
         for rg in range(self.pf.metadata.num_row_groups):
             n_rows = self.pf.metadata.row_group(rg).num_rows
-            ids = np.arange(offset, offset + n_rows, dtype=np.int64)
+            ids = np.arange(offset, offset + n_rows, dtype=np.uint32)
             offset += n_rows
             yield ids
 
@@ -440,19 +457,36 @@ class ParquetBlockModel:
                 x = dataframe.index.get_level_values("x").to_numpy()
                 y = dataframe.index.get_level_values("y").to_numpy()
                 z = dataframe.index.get_level_values("z").to_numpy()
-                dataframe["block_id"] = geometry.row_index_from_xyz(x, y, z).astype(np.int64)
+                dataframe["block_id"] = geometry.row_index_from_xyz(x, y, z).astype(np.uint32)
             elif {"x", "y", "z"}.issubset(dataframe.columns):
                 dataframe["block_id"] = geometry.row_index_from_xyz(
                     dataframe["x"].to_numpy(), dataframe["y"].to_numpy(), dataframe["z"].to_numpy()
-                ).astype(np.int64)
+                ).astype(np.uint32)
             elif {"i", "j", "k"}.issubset(dataframe.columns):
                 dataframe["block_id"] = geometry.row_index_from_ijk(
                     dataframe["i"].to_numpy(), dataframe["j"].to_numpy(), dataframe["k"].to_numpy()
-                ).astype(np.int64)
-            elif len(dataframe) == int(np.prod(geometry.shape)):
-                dataframe["block_id"] = np.arange(len(dataframe), dtype=np.int64)
+                ).astype(np.uint32)
+            elif len(dataframe) == int(np.prod(geometry.local.shape)):
+                dataframe["block_id"] = np.arange(len(dataframe), dtype=np.uint32)
             else:
                 raise ValueError("Unable to derive block_id: provide xyz or ijk coordinates.")
+
+        if "world_id" not in dataframe.columns:
+            if dataframe.index.names == ["x", "y", "z"]:
+                x = dataframe.index.get_level_values("x").to_numpy(dtype=float)
+                y = dataframe.index.get_level_values("y").to_numpy(dtype=float)
+                z = dataframe.index.get_level_values("z").to_numpy(dtype=float)
+            elif {"x", "y", "z"}.issubset(dataframe.columns):
+                x = dataframe["x"].to_numpy(dtype=float)
+                y = dataframe["y"].to_numpy(dtype=float)
+                z = dataframe["z"].to_numpy(dtype=float)
+            else:
+                x, y, z = geometry.xyz_from_row_index(dataframe["block_id"].to_numpy(dtype=np.uint32))
+
+            if geometry.world_id_encoding is None:
+                geometry.world_id_encoding = cls._build_world_id_encoding_from_xyz(x, y, z)
+            offset, scale = get_world_id_encoding_params(geometry.world_id_encoding)
+            dataframe["world_id"] = encode_world_coordinates(x, y, z, offset=offset, scale=scale).astype(np.int64)
 
         # Attach geometry metadata to attrs for completeness
         dataframe.attrs["parq-blockmodel"] = geometry.to_metadata_dict()
@@ -586,8 +620,10 @@ class ParquetBlockModel:
             axis_azimuth=axis_azimuth, axis_dip=axis_dip,
             axis_plunge=axis_plunge)
         # create geometry that aligns with the demo block model
-        geometry = RegularGeometry(block_size=block_size, corner=corner, shape=shape,
-                                   axis_u=axis_u, axis_v=axis_v, axis_w=axis_w)
+        geometry = RegularGeometry(
+            local=LocalGeometry(corner=corner, block_size=block_size, shape=shape),
+            world=WorldFrame(axis_u=axis_u, axis_v=axis_v, axis_w=axis_w),
+        )
 
         if not geometry.is_rotated:
             cls._validate_geometry(filename)
@@ -632,7 +668,21 @@ class ParquetBlockModel:
             columns.
         """
         centroids_df = geometry.to_dataframe()
-        centroids_df["block_id"] = np.arange(int(np.prod(geometry.shape)), dtype=np.int64)
+        centroids_df["block_id"] = np.arange(int(np.prod(geometry.local.shape)), dtype=np.uint32)
+        if geometry.world_id_encoding is None:
+            geometry.world_id_encoding = cls._build_world_id_encoding_from_xyz(
+                centroids_df["x"].to_numpy(dtype=float),
+                centroids_df["y"].to_numpy(dtype=float),
+                centroids_df["z"].to_numpy(dtype=float),
+            )
+        offset, scale = get_world_id_encoding_params(geometry.world_id_encoding)
+        centroids_df["world_id"] = encode_world_coordinates(
+            centroids_df["x"].to_numpy(dtype=float),
+            centroids_df["y"].to_numpy(dtype=float),
+            centroids_df["z"].to_numpy(dtype=float),
+            offset=offset,
+            scale=scale,
+        ).astype(np.int64)
         centroids_df.attrs["parq-blockmodel"] = geometry.to_metadata_dict()
 
         table = pa.Table.from_pandas(centroids_df)
@@ -760,8 +810,8 @@ class ParquetBlockModel:
             return summed_data.T  # Flip for correct orientation
         # Create a new ImageData object with correct dimensions
         new_mesh = pv.ImageData(dimensions=(summed_data.shape[0] + 1, summed_data.shape[1] + 1, 1),
-                                spacing=self.geometry.block_size,
-                                origin=self.geometry.corner)
+                                spacing=self.geometry.local.block_size,
+                                origin=self.geometry.local.corner)
         new_mesh.cell_data[attribute] = summed_data.ravel(order='F')
         return new_mesh
 
@@ -967,20 +1017,26 @@ class ParquetBlockModel:
         block_ids: Optional[np.ndarray] = None
         if index in {"ijk", "xyz"}:
             if "block_id" in df.columns:
-                block_ids = df["block_id"].to_numpy(dtype=np.int64)
+                block_ids = df["block_id"].to_numpy(dtype=np.uint32)
+            elif "world_id" in df.columns:
+                if not self.geometry.world_id_encoding:
+                    raise ValueError("world_id column present but metadata has no world_id_encoding payload.")
+                offset, scale = get_world_id_encoding_params(self.geometry.world_id_encoding)
+                x, y, z = decode_world_coordinates(df["world_id"].to_numpy(dtype=np.int64), offset=offset, scale=scale)
+                block_ids = self.geometry.row_index_from_xyz(x, y, z).astype(np.uint32)
             elif {"i", "j", "k"}.issubset(df.columns):
                 block_ids = self.geometry.row_index_from_ijk(
                     df["i"].to_numpy(), df["j"].to_numpy(), df["k"].to_numpy()
-                ).astype(np.int64)
+                ).astype(np.uint32)
             elif {"x", "y", "z"}.issubset(df.columns):
                 block_ids = self.geometry.row_index_from_xyz(
                     df["x"].to_numpy(), df["y"].to_numpy(), df["z"].to_numpy()
-                ).astype(np.int64)
-            elif int(self.pf.metadata.num_rows) == int(np.prod(self.geometry.shape)):
-                block_ids = np.arange(len(df), dtype=np.int64)
+                ).astype(np.uint32)
+            elif int(self.pf.metadata.num_rows) == int(np.prod(self.geometry.local.shape)):
+                block_ids = np.arange(len(df), dtype=np.uint32)
             else:
                 ids_df = pq.read_table(self.blockmodel_path, columns=["block_id"]).to_pandas()
-                block_ids = ids_df["block_id"].to_numpy(dtype=np.int64)
+                block_ids = ids_df["block_id"].to_numpy(dtype=np.uint32)
 
         if index == "xyz":
             if {"x", "y", "z"}.issubset(df.columns):
@@ -1243,7 +1299,7 @@ class ParquetBlockModel:
         elif grid_type == "unstructured":
             from parq_blockmodel.utils.pyvista.pyvista_utils import df_to_pv_unstructured_grid
             grid = df_to_pv_unstructured_grid(df=self.read(columns=attributes, dense=False),
-                                              block_size=self.geometry.block_size,
+                                              block_size=self.geometry.local.block_size,
                                               validate_block_size=True)
         else:
             raise ValueError(f"Invalid grid type: {grid_type}. "
@@ -1291,21 +1347,24 @@ class ParquetBlockModel:
         columns = pq.read_schema(filepath).names
 
         has_block_id = "block_id" in columns
+        has_world_id = "world_id" in columns
         has_ijk = all(col in columns for col in ["i", "j", "k"])
         has_xyz = all(col in columns for col in ["x", "y", "z"])
 
-        if not any([has_block_id, has_ijk, has_xyz]):
-            raise ValueError("Dataset must contain at least one positional representation: block_id, ijk, or xyz.")
+        if not any([has_block_id, has_world_id, has_ijk, has_xyz]):
+            raise ValueError("Dataset must contain at least one positional representation: block_id, world_id, ijk, or xyz.")
 
         if geometry is None:
             geometry = RegularGeometry.from_parquet(filepath)
 
-        dense_count = int(np.prod(geometry.shape))
+        dense_count = int(np.prod(geometry.local.shape))
         seen: set[int] = set()
 
         pf = pq.ParquetFile(filepath)
         if has_block_id:
             columns_to_read = ["block_id"]
+        elif has_world_id:
+            columns_to_read = ["world_id"]
         elif has_xyz:
             columns_to_read = ["x", "y", "z"]
         else:
@@ -1313,17 +1372,24 @@ class ParquetBlockModel:
 
         for batch in pf.iter_batches(columns=columns_to_read, batch_size=chunk_size):
             if has_block_id:
-                block_ids = np.asarray(batch.column(0), dtype=np.int64)
+                block_ids = np.asarray(batch.column(0), dtype=np.uint32)
+            elif has_world_id:
+                if not geometry.world_id_encoding:
+                    raise ValueError("world_id column present but metadata has no world_id_encoding payload.")
+                offset, scale = get_world_id_encoding_params(geometry.world_id_encoding)
+                world_ids = np.asarray(batch.column(0), dtype=np.int64)
+                x, y, z = decode_world_coordinates(world_ids, offset=offset, scale=scale)
+                block_ids = geometry.row_index_from_xyz(x, y, z, tol=tol).astype(np.uint32)
             elif has_xyz:
                 x = np.asarray(batch.column(0), dtype=float)
                 y = np.asarray(batch.column(1), dtype=float)
                 z = np.asarray(batch.column(2), dtype=float)
-                block_ids = geometry.row_index_from_xyz(x, y, z, tol=tol).astype(np.int64)
+                block_ids = geometry.row_index_from_xyz(x, y, z, tol=tol).astype(np.uint32)
             else:
                 i = np.asarray(batch.column(0), dtype=np.int64)
                 j = np.asarray(batch.column(1), dtype=np.int64)
                 k = np.asarray(batch.column(2), dtype=np.int64)
-                block_ids = geometry.row_index_from_ijk(i, j, k).astype(np.int64)
+                block_ids = geometry.row_index_from_ijk(i, j, k).astype(np.uint32)
 
             if np.any(block_ids < 0) or np.any(block_ids >= dense_count):
                 raise ValueError("Sparse positions must be a subset of the dense geometry grid.")
@@ -1353,6 +1419,60 @@ class ParquetBlockModel:
         return geometry
 
     @classmethod
+    def _build_world_id_encoding_from_xyz(
+        cls,
+        x: np.ndarray,
+        y: np.ndarray,
+        z: np.ndarray,
+        scale: float = 10.0,
+    ) -> dict[str, object]:
+        """Build default world_id encoding metadata from xyz ranges."""
+        ox = np.floor(float(np.min(x)) * scale) / scale
+        oy = np.floor(float(np.min(y)) * scale) / scale
+        oz = np.floor(float(np.min(z)) * scale) / scale
+
+        x_span = float(np.max(x) - ox)
+        y_span = float(np.max(y) - oy)
+        z_span = float(np.max(z) - oz)
+        if x_span > MAX_XY_VALUE or y_span > MAX_XY_VALUE or z_span > MAX_Z_VALUE:
+            raise ValueError(
+                "Coordinates exceed world_id span limits (24/24/16 bits at scale=10). "
+                "Provide a custom encoding strategy."
+            )
+
+        return {
+            "enabled": True,
+            "column": "world_id",
+            "frame": "world_xyz",
+            "axis_order": ["x", "y", "z"],
+            "quantization": {
+                "scale": scale,
+                "rounding": "nearest",
+                "precision_decimals": 1,
+            },
+            "offset": {"x": ox, "y": oy, "z": oz, "units": "world"},
+            "bit_layout": {
+                "x_bits": 24,
+                "y_bits": 24,
+                "z_bits": 16,
+                "x_shift": 40,
+                "y_shift": 16,
+                "z_shift": 0,
+                "signed": False,
+            },
+            "range_after_offset": {
+                "x_min": 0.0,
+                "x_max": MAX_XY_VALUE,
+                "y_min": 0.0,
+                "y_max": MAX_XY_VALUE,
+                "z_min": 0.0,
+                "z_max": MAX_Z_VALUE,
+            },
+            "overflow_policy": "error",
+            "null_policy": "no_nulls",
+        }
+
+    @classmethod
     def _write_canonical_pbm(cls,
                              input_path: Path,
                              output_path: Path,
@@ -1373,15 +1493,27 @@ class ParquetBlockModel:
             output_cols = list(columns)
 
         has_block_id = "block_id" in src_cols
+        has_world_id = "world_id" in src_cols
         has_xyz = all(c in src_cols for c in ["x", "y", "z"])
         has_ijk = all(c in src_cols for c in ["i", "j", "k"])
 
-        if not any([has_block_id, has_ijk, has_xyz]):
-            raise ValueError("Cannot derive block_id from source parquet: requires block_id, ijk, or xyz columns.")
+        if not any([has_block_id, has_world_id, has_ijk, has_xyz]):
+            raise ValueError("Cannot derive block_id from source parquet: requires block_id, world_id, ijk, or xyz columns.")
 
-        read_cols = list(dict.fromkeys(output_cols + [c for c in ["block_id", "i", "j", "k", "x", "y", "z"] if c in src_cols]))
+        if geometry.world_id_encoding is None:
+            xmin, xmax, ymin, ymax, zmin, zmax = geometry.extents
+            geometry.world_id_encoding = cls._build_world_id_encoding_from_xyz(
+                np.array([xmin, xmax], dtype=float),
+                np.array([ymin, ymax], dtype=float),
+                np.array([zmin, zmax], dtype=float),
+            )
+        offset, scale = get_world_id_encoding_params(geometry.world_id_encoding)
+
+        read_cols = list(dict.fromkeys(output_cols + [c for c in ["block_id", "world_id", "i", "j", "k", "x", "y", "z"] if c in src_cols]))
         if "block_id" not in output_cols:
             output_cols = ["block_id"] + output_cols
+        if "world_id" not in output_cols:
+            output_cols = ["block_id", "world_id"] + [c for c in output_cols if c != "block_id"]
 
         with atomic_output_file(output_path) as tmp_path:
             writer = None
@@ -1390,20 +1522,34 @@ class ParquetBlockModel:
                     df_batch = pa.Table.from_batches([batch]).to_pandas(ignore_metadata=True)
 
                     if "block_id" in df_batch.columns:
-                        block_ids = df_batch["block_id"].to_numpy(dtype=np.int64)
+                        block_ids = df_batch["block_id"].to_numpy(dtype=np.uint32)
+                    elif "world_id" in df_batch.columns:
+                        world_ids = df_batch["world_id"].to_numpy(dtype=np.int64)
+                        xw, yw, zw = decode_world_coordinates(world_ids, offset=offset, scale=scale)
+                        block_ids = geometry.row_index_from_xyz(xw, yw, zw, tol=tol).astype(np.uint32)
                     elif {"x", "y", "z"}.issubset(df_batch.columns):
                         block_ids = geometry.row_index_from_xyz(
                             df_batch["x"].to_numpy(), df_batch["y"].to_numpy(), df_batch["z"].to_numpy(), tol=tol
-                        ).astype(np.int64)
+                        ).astype(np.uint32)
                     else:
                         block_ids = geometry.row_index_from_ijk(
                             df_batch["i"].to_numpy(), df_batch["j"].to_numpy(), df_batch["k"].to_numpy()
-                        ).astype(np.int64)
+                        ).astype(np.uint32)
 
-                    if np.any(block_ids < 0) or np.any(block_ids >= int(np.prod(geometry.shape))):
+                    if np.any(block_ids < 0) or np.any(block_ids >= int(np.prod(geometry.local.shape))):
                         raise ValueError("Source data contains positions outside geometry bounds.")
 
                     df_batch["block_id"] = block_ids
+                    if "world_id" not in df_batch.columns:
+                        if {"x", "y", "z"}.issubset(df_batch.columns):
+                            x = df_batch["x"].to_numpy(dtype=float)
+                            y = df_batch["y"].to_numpy(dtype=float)
+                            z = df_batch["z"].to_numpy(dtype=float)
+                        else:
+                            x, y, z = geometry.xyz_from_row_index(block_ids)
+                        df_batch["world_id"] = encode_world_coordinates(
+                            x, y, z, offset=offset, scale=scale
+                        ).astype(np.int64)
                     write_df = df_batch[output_cols]
 
                     table = pa.Table.from_pandas(write_df, preserve_index=False)

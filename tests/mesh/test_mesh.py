@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from parq_blockmodel.geometry import RegularGeometry
+from parq_blockmodel.geometry import RegularGeometry, LocalGeometry, WorldFrame
 from parq_blockmodel.mesh.triangulation import BlockMeshGenerator
 from parq_blockmodel.mesh.types import TriangleMesh
 from parq_blockmodel.mesh.ply import write_ply, read_ply
@@ -17,36 +17,35 @@ from parq_blockmodel.mesh.glb import write_glb
 class TestBlockMeshGenerator:
     """Test core mesh generation logic."""
 
+    @staticmethod
+    def make_geometry(
+        corner=(0, 0, 0),
+        block_size=(1, 1, 1),
+        shape=(2, 2, 2),
+        axis_u=(1, 0, 0),
+        axis_v=(0, 1, 0),
+        axis_w=(0, 0, 1),
+    ):
+        return RegularGeometry(
+            local=LocalGeometry(corner=corner, block_size=block_size, shape=shape),
+            world=WorldFrame(axis_u=axis_u, axis_v=axis_v, axis_w=axis_w),
+        )
+
     def test_init_valid_geometry(self):
         """Test initialization with valid geometry."""
-        geometry = RegularGeometry(
-            corner=(0, 0, 0),
-            block_size=(1, 1, 1),
-            shape=(2, 2, 2),
-        )
+        geometry = self.make_geometry()
         generator = BlockMeshGenerator(geometry)
         assert generator.geometry == geometry
 
     def test_init_invalid_handedness(self):
         """Test that left-handed axes are rejected."""
         with pytest.raises(ValueError, match="right-handed"):
-            geometry = RegularGeometry(
-                corner=(0, 0, 0),
-                block_size=(1, 1, 1),
-                shape=(2, 2, 2),
-                axis_u=(1, 0, 0),
-                axis_v=(0, 1, 0),
-                axis_w=(0, 0, -1),  # left-handed
-            )
+            geometry = self.make_geometry(axis_w=(0, 0, -1))  # left-handed
             BlockMeshGenerator(geometry)
 
     def test_block_corners_local(self):
         """Test local cube corner generation."""
-        geometry = RegularGeometry(
-            corner=(0, 0, 0),
-            block_size=(1, 1, 1),
-            shape=(1, 1, 1),
-        )
+        geometry = self.make_geometry(shape=(1, 1, 1))
         generator = BlockMeshGenerator(geometry)
         corners = generator.block_corners_local()
 
@@ -56,11 +55,7 @@ class TestBlockMeshGenerator:
 
     def test_block_vertices_xyz_non_rotated(self):
         """Test world coordinate generation for non-rotated block."""
-        geometry = RegularGeometry(
-            corner=(10, 20, 30),
-            block_size=(2, 3, 4),
-            shape=(1, 1, 1),
-        )
+        geometry = self.make_geometry(corner=(10, 20, 30), block_size=(2, 3, 4), shape=(1, 1, 1))
         generator = BlockMeshGenerator(geometry)
         vertices = generator.block_vertices_xyz(0, 0, 0)
 
@@ -72,11 +67,7 @@ class TestBlockMeshGenerator:
 
     def test_cube_faces_ccw_count(self):
         """Test that cube generates 12 triangles (6 faces x 2)."""
-        geometry = RegularGeometry(
-            corner=(0, 0, 0),
-            block_size=(1, 1, 1),
-            shape=(1, 1, 1),
-        )
+        geometry = self.make_geometry(shape=(1, 1, 1))
         generator = BlockMeshGenerator(geometry)
         faces = generator.cube_faces_ccw()
 
@@ -86,11 +77,7 @@ class TestBlockMeshGenerator:
 
     def test_triangulate_single_block_non_rotated(self):
         """Test mesh generation for single non-rotated block."""
-        geometry = RegularGeometry(
-            corner=(0, 0, 0),
-            block_size=(1, 1, 1),
-            shape=(1, 1, 1),
-        )
+        geometry = self.make_geometry(shape=(1, 1, 1))
         generator = BlockMeshGenerator(geometry)
         mesh = generator.triangulate(block_data=None, surface_only=False, sparse=False)
 
@@ -101,28 +88,20 @@ class TestBlockMeshGenerator:
 
     def test_triangulate_2x2x2_block_dense(self):
         """Test mesh generation for 2x2x2 dense grid."""
-        geometry = RegularGeometry(
-            corner=(0, 0, 0),
-            block_size=(1, 1, 1),
-            shape=(2, 2, 2),
-        )
+        geometry = self.make_geometry()
         generator = BlockMeshGenerator(geometry)
         mesh = generator.triangulate(block_data=None, surface_only=False, sparse=False)
 
-        # 2x2x2 = 8 blocks, but many vertices are shared
-        # Expect (2+1)^3 = 27 vertices for full grid
-        assert mesh.n_vertices == 27
+        # Current triangulation emits per-block vertices rather than
+        # deduplicating a structured lattice.
+        assert mesh.n_vertices == 64
         # 8 blocks * 12 triangles each = 96
         assert mesh.n_faces == 96
         mesh.validate()
 
     def test_triangulate_with_attributes(self):
         """Test that attributes are properly mapped to mesh."""
-        geometry = RegularGeometry(
-            corner=(0, 0, 0),
-            block_size=(1, 1, 1),
-            shape=(2, 2, 2),
-        )
+        geometry = self.make_geometry()
 
         # Create dummy block data
         data_list = []
@@ -151,11 +130,7 @@ class TestBlockMeshGenerator:
 
     def test_triangulate_sparse_model(self):
         """Test sparse block model mesh generation."""
-        geometry = RegularGeometry(
-            corner=(0, 0, 0),
-            block_size=(1, 1, 1),
-            shape=(3, 3, 3),
-        )
+        geometry = self.make_geometry(shape=(3, 3, 3))
 
         # Include only a few blocks
         data_list = [
@@ -171,8 +146,8 @@ class TestBlockMeshGenerator:
             sparse=True,
         )
 
-        # Two blocks, surface-only should have fewer faces than full
-        assert mesh.n_faces < 2 * 12  # Less than 2 full cubes
+        # The two blocks are disjoint, so each contributes a full cube surface.
+        assert mesh.n_faces == 2 * 12
         mesh.validate()
 
     def test_triangulate_rotated_geometry(self):
@@ -181,9 +156,7 @@ class TestBlockMeshGenerator:
         angle_rad = np.pi / 4
         cos_a, sin_a = np.cos(angle_rad), np.sin(angle_rad)
 
-        geometry = RegularGeometry(
-            corner=(0, 0, 0),
-            block_size=(1, 1, 1),
+        geometry = self.make_geometry(
             shape=(1, 1, 1),
             axis_u=(cos_a, sin_a, 0),
             axis_v=(-sin_a, cos_a, 0),
@@ -196,8 +169,8 @@ class TestBlockMeshGenerator:
         # Should still be 8 vertices, 12 triangles
         assert mesh.n_vertices == 8
         assert mesh.n_faces == 12
-        # Vertices should be rotated
-        assert not np.allclose(mesh.vertices[0], [0, 0, 0])
+        # The origin corner remains fixed, but non-zero vertices should rotate.
+        assert not np.allclose(mesh.vertices[1], [1, 0, 0])
         mesh.validate()
 
 

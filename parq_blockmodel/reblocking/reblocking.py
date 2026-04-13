@@ -17,7 +17,7 @@ from parq_blockmodel.reblocking.upsample import upsample_attributes
 
 if TYPE_CHECKING:
     from parq_blockmodel import ParquetBlockModel
-from parq_blockmodel.geometry import RegularGeometry
+from parq_blockmodel.geometry import RegularGeometry, LocalGeometry, WorldFrame
 
 
 def _validate_params(config, new_block_size):
@@ -50,8 +50,8 @@ def _prepare_arrays_and_index(blockmodel) -> tuple[dict[str, np.ndarray], dict[s
     return arrays, categories
 
 def _calculate_factors(blockmodel, new_block_size):
-    old_shape = blockmodel.geometry.shape
-    old_block_size = blockmodel.geometry.block_size
+    old_shape = blockmodel.geometry.local.shape
+    old_block_size = blockmodel.geometry.local.block_size
 
     factors = []
     for ob, nb in zip(old_block_size, new_block_size):
@@ -78,12 +78,19 @@ def _calculate_factors(blockmodel, new_block_size):
 
 def _build_new_geometry(blockmodel, new_block_size, new_shape) -> RegularGeometry:
     return RegularGeometry(
-        corner=blockmodel.geometry.corner,
-        block_size=new_block_size,
-        shape=new_shape,
-        axis_u=blockmodel.geometry.axis_u,
-        axis_v=blockmodel.geometry.axis_v,
-        axis_w=blockmodel.geometry.axis_w,
+        local=LocalGeometry(
+            corner=blockmodel.geometry.local.corner,
+            block_size=new_block_size,
+            shape=new_shape,
+        ),
+        world=WorldFrame(
+            world_origin=blockmodel.geometry.world.world_origin,
+            axis_u=blockmodel.geometry.world.axis_u,
+            axis_v=blockmodel.geometry.world.axis_v,
+            axis_w=blockmodel.geometry.world.axis_w,
+            srs=blockmodel.geometry.world.srs,
+        ),
+        world_id_encoding=blockmodel.geometry.world_id_encoding,
     )
 
 
@@ -146,11 +153,11 @@ def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "Pa
 
     # Linear index helpers following the same conventions as the demo
     # block model utilities (C-order index_c, F-order index_f).
-    N = int(np.prod(new_geometry.shape))
-    rows = np.arange(N)
+    N = int(np.prod(new_geometry.local.shape))
+    rows = np.arange(N, dtype=np.uint32)
     reblocked_df["block_id"] = rows
     reblocked_df["index_c"] = rows
-    reblocked_df["index_f"] = rows.reshape(new_geometry.shape, order="C").ravel(order="F")
+    reblocked_df["index_f"] = rows.reshape(new_geometry.local.shape, order="C").ravel(order="F")
 
     table = pa.Table.from_pandas(reblocked_df.reset_index(drop=True), preserve_index=False)
     meta = dict(table.schema.metadata or {})
@@ -220,11 +227,11 @@ def upsample_blockmodel(blockmodel, new_block_size, interpolation_config) -> "Pa
     reblocked_df["y"] = new_geometry.centroid_y
     reblocked_df["z"] = new_geometry.centroid_z
 
-    N = int(np.prod(new_geometry.shape))
-    rows = np.arange(N)
+    N = int(np.prod(new_geometry.local.shape))
+    rows = np.arange(N, dtype=np.uint32)
     reblocked_df["block_id"] = rows
     reblocked_df["index_c"] = rows
-    reblocked_df["index_f"] = rows.reshape(new_geometry.shape, order="C").ravel(order="F")
+    reblocked_df["index_f"] = rows.reshape(new_geometry.local.shape, order="C").ravel(order="F")
 
     table = pa.Table.from_pandas(reblocked_df.reset_index(drop=True), preserve_index=False)
     meta = dict(table.schema.metadata or {})

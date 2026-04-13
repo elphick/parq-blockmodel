@@ -15,20 +15,28 @@ from seaborn import axes_style
 
 from parq_blockmodel import ParquetBlockModel, RegularGeometry
 
+# sphinx_gallery_thumbnail_number = -1
+
 # %%
 # Create Geometry
 # ----------------
-# We RegularGeometry object (not a ParquetBlockModel).  The geometry knows nothing about attributes,
+# We create a RegularGeometry object (not a ParquetBlockModel). The geometry knows nothing about attributes,
 # it only knows about the underlying geometry of the block model.
+#
+# RegularGeometry can be created with either:
+# - Old style: keyword arguments (corner, block_size, shape, axis_u/v/w)
+# - New style: LocalGeometry and WorldFrame components
 
 corner: tuple[float, float, float] = (0.0, 0.0, 0.0)
 block_size: tuple[float, float, float] = (1.0, 1.0, 1.0)
 shape: tuple[int, int, int] = (2, 2, 2)
 
-geom: RegularGeometry = RegularGeometry(shape=shape,
-                                        block_size=block_size,
-                                        corner=corner
-                                        )
+# Old-style (backward compatible - recommended for most users)
+geom: RegularGeometry = RegularGeometry(
+    corner=corner,
+    block_size=block_size,
+    shape=shape,
+)
 
 geom
 

@@ -77,9 +77,9 @@ class BlockMeshGenerator:
         ValueError
             If the axes do not form a right-handed system.
         """
-        u = np.array(self.geometry.axis_u, dtype=float)
-        v = np.array(self.geometry.axis_v, dtype=float)
-        w = np.array(self.geometry.axis_w, dtype=float)
+        u = np.array(self.geometry.world.axis_u, dtype=float)
+        v = np.array(self.geometry.world.axis_v, dtype=float)
+        w = np.array(self.geometry.world.axis_w, dtype=float)
         
         cross = np.cross(u, v)
         if not np.allclose(cross, w, atol=1e-6):
@@ -123,8 +123,8 @@ class BlockMeshGenerator:
         np.ndarray
             Shape (8, 3), corner coordinates in world space.
         """
-        dx, dy, dz = self.geometry.block_size
-        cx, cy, cz = self.geometry.corner
+        dx, dy, dz = self.geometry.local.block_size
+        cx, cy, cz = self.geometry.local.corner
         
         # Local coordinates of block corners
         corners_local = self.block_corners_local()
@@ -140,9 +140,9 @@ class BlockMeshGenerator:
         corners_local[:, 2] += cz + k * dz
         
         # Apply rotation (axis transformation)
-        u = np.array(self.geometry.axis_u, dtype=float)
-        v = np.array(self.geometry.axis_v, dtype=float)
-        w = np.array(self.geometry.axis_w, dtype=float)
+        u = np.array(self.geometry.world.axis_u, dtype=float)
+        v = np.array(self.geometry.world.axis_v, dtype=float)
+        w = np.array(self.geometry.world.axis_w, dtype=float)
         R = np.column_stack([u, v, w])  # (3, 3) rotation matrix
         
         corners_world = corners_local @ R.T
@@ -247,14 +247,14 @@ class BlockMeshGenerator:
             If block_data is incompatible with the geometry.
         """
         if sparse is None:
-            sparse = block_data is None or len(block_data) < int(np.prod(self.geometry.shape))
+            sparse = block_data is None or len(block_data) < int(np.prod(self.geometry.local.shape))
         
         if sparse and block_data is not None:
             blocks_to_include = self._get_block_indices_from_data(block_data)
         elif sparse:
             blocks_to_include = None  # No data, return empty mesh
         else:
-            ni, nj, nk = self.geometry.shape
+            ni, nj, nk = self.geometry.local.shape
             blocks_to_include = [
                 (i, j, k)
                 for i in range(ni)
@@ -281,17 +281,17 @@ class BlockMeshGenerator:
         
         # Create metadata
         metadata = {
-            "corner": tuple(self.geometry.corner),
-            "block_size": tuple(self.geometry.block_size),
-            "shape": tuple(self.geometry.shape),
-            "axis_u": tuple(self.geometry.axis_u),
-            "axis_v": tuple(self.geometry.axis_v),
-            "axis_w": tuple(self.geometry.axis_w),
+            "corner": tuple(self.geometry.local.corner),
+            "block_size": tuple(self.geometry.local.block_size),
+            "shape": tuple(self.geometry.local.shape),
+            "axis_u": tuple(self.geometry.world.axis_u),
+            "axis_v": tuple(self.geometry.world.axis_v),
+            "axis_w": tuple(self.geometry.world.axis_w),
             "surface_only": surface_only,
             "sparse": sparse,
         }
-        if self.geometry.srs:
-            metadata["srs"] = self.geometry.srs
+        if self.geometry.world.srs:
+            metadata["srs"] = self.geometry.world.srs
         
         mesh = TriangleMesh(
             vertices=vertices,
@@ -367,7 +367,7 @@ class BlockMeshGenerator:
         vertex_map = {}  # (i, j, k, corner_idx) -> global_vertex_idx
         next_vertex_idx = 0
         
-        ni, nj, nk = self.geometry.shape
+        ni, nj, nk = self.geometry.local.shape
         
         for k in range(nk):
             for j in range(nj):

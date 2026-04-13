@@ -48,5 +48,4 @@ are encoded, see :ref:`geometry-metadata-design`.
    :hidden:
    :glob:
 
-   user_guide/geometry_coordinates
    user_guide/*

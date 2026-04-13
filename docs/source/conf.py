@@ -85,12 +85,28 @@ exclude_patterns = ['_build', '_templates']
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_book_theme"
+html_static_path = ["_static"]
+html_title = "parq-blockmodel Documentation"
 
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# Use project branding (icons) for the docs
+html_logo = "_static/branding/parq-blockmodel.svg"
+html_favicon = "_static/branding/parq-blockmodel.svg"
+
+html_theme_options = {
+    "repository_url": "https://github.com/elphick/parq-blockmodel",
+    "use_repository_button": True,
+    "use_issues_button": True,
+    "use_edit_page_button": True,
+    "path_to_docs": "docs",
+    "repository_branch": "main",
+    "logo": {
+        "image_light": "_static/branding/parq-blockmodel.svg",
+        "image_dark": "_static/branding/parq-blockmodel.svg",
+        "text": f"parq-blockmodel<br>({version})",  # shows version in the top-left
+
+    },
+}
 
 # to widen the page...
 html_css_files = [

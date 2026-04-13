@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Optional, Tuple, Union, Mapping, Any
+from typing import Optional, Mapping, Any
 
 import json
 import numpy as np
@@ -14,6 +14,145 @@ from parq_blockmodel.utils.geometry_utils import (
 
 
 @dataclass
+class LocalGeometry:
+    """Local dense grid geometry with C-order indexing.
+
+    This class models the logical/local lattice only:
+    - local corner/origin
+    - block size
+    - shape
+
+    It has no rotation, CRS, or world-frame meaning.
+    """
+
+    corner: Point
+    block_size: BlockSize
+    shape: Shape3D
+
+    def __post_init__(self):
+        corner = [float(v) for v in self.corner]
+        block_size = [float(v) for v in self.block_size]
+        shape = [int(v) for v in self.shape]
+
+        self.corner = (corner[0], corner[1], corner[2])
+        self.block_size = (block_size[0], block_size[1], block_size[2])
+        self.shape = (shape[0], shape[1], shape[2])
+
+    @property
+    def centroids_uvw(self) -> np.ndarray:
+        """Compute local centroids as a (3, N) array in C-order."""
+        dx, dy, dz = self.block_size
+        ni, nj, nk = self.shape
+        cu, cv, cw = self.corner
+
+        u = np.arange(cu + dx / 2, cu + dx * ni, dx)
+        v = np.arange(cv + dy / 2, cv + dy * nj, dy)
+        w = np.arange(cw + dz / 2, cw + dz * nk, dz)
+
+        uu, vv, ww = np.meshgrid(u, v, w, indexing="ij")
+        return np.vstack([uu.ravel("C"), vv.ravel("C"), ww.ravel("C")])
+
+    def ijk_from_row_index(self, rows):
+        """Convert row index/indices into (i, j, k) using C-order."""
+        return np.unravel_index(rows, self.shape, order="C")
+
+    def row_index_from_ijk(self, i, j, k):
+        """Convert (i, j, k) into row index using C-order."""
+        return np.ravel_multi_index((i, j, k), self.shape, order="C")
+
+    def uvw_from_ijk(self, i, j, k) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Convert logical indices to local centroid coordinates."""
+        i = np.asarray(i, dtype=float)
+        j = np.asarray(j, dtype=float)
+        k = np.asarray(k, dtype=float)
+
+        dx, dy, dz = self.block_size
+        cu, cv, cw = self.corner
+        u = cu + (i + 0.5) * dx
+        v = cv + (j + 0.5) * dy
+        w = cw + (k + 0.5) * dz
+        return u, v, w
+
+    def ijk_from_uvw(self, u, v, w, tol: float = 1e-6) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Map local centroid coordinates to integer logical ijk indices."""
+        u = np.asarray(u, dtype=float)
+        v = np.asarray(v, dtype=float)
+        w = np.asarray(w, dtype=float)
+
+        dx, dy, dz = self.block_size
+        cu, cv, cw = self.corner
+
+        fi = (u - (cu + 0.5 * dx)) / dx
+        fj = (v - (cv + 0.5 * dy)) / dy
+        fk = (w - (cw + 0.5 * dz)) / dz
+
+        i = np.rint(fi).astype(np.int64)
+        j = np.rint(fj).astype(np.int64)
+        k = np.rint(fk).astype(np.int64)
+
+        if not (
+            np.all(np.abs(fi - i) <= tol)
+            and np.all(np.abs(fj - j) <= tol)
+            and np.all(np.abs(fk - k) <= tol)
+        ):
+            raise ValueError("Centroid coordinates are not aligned to geometry centroid lattice.")
+
+        ni, nj, nk = self.shape
+        if not (
+            np.all((i >= 0) & (i < ni))
+            and np.all((j >= 0) & (j < nj))
+            and np.all((k >= 0) & (k < nk))
+        ):
+            raise ValueError("Centroid coordinates map outside geometry bounds.")
+
+        return i, j, k
+
+
+@dataclass
+class WorldFrame:
+    """World embedding for local geometry.
+
+    Holds world origin, orthonormal axes, and optional CRS. It is
+    responsible for local<->world coordinate transforms.
+    """
+
+    world_origin: Point = (0.0, 0.0, 0.0)
+    axis_u: Vector = (1.0, 0.0, 0.0)
+    axis_v: Vector = (0.0, 1.0, 0.0)
+    axis_w: Vector = (0.0, 0.0, 1.0)
+    srs: Optional[str] = None
+
+    def __post_init__(self):
+        if not validate_axes_orthonormal(self.axis_u, self.axis_v, self.axis_w):
+            raise ValueError("Axis vectors must be orthogonal and normalized.")
+
+        world_origin = [float(v) for v in self.world_origin]
+        axis_u = [float(v) for v in self.axis_u]
+        axis_v = [float(v) for v in self.axis_v]
+        axis_w = [float(v) for v in self.axis_w]
+
+        self.world_origin = (world_origin[0], world_origin[1], world_origin[2])
+        self.axis_u = (axis_u[0], axis_u[1], axis_u[2])
+        self.axis_v = (axis_v[0], axis_v[1], axis_v[2])
+        self.axis_w = (axis_w[0], axis_w[1], axis_w[2])
+
+    @property
+    def rotation_matrix(self) -> np.ndarray:
+        """Return matrix whose columns are world axes (u, v, w)."""
+        return np.array([self.axis_u, self.axis_v, self.axis_w], dtype=float).T
+
+    def local_to_world(self, local_points: np.ndarray) -> np.ndarray:
+        """Map local 3xN points into world coordinates."""
+        origin = np.asarray(self.world_origin, dtype=float).reshape(3, 1)
+        return origin + self.rotation_matrix @ local_points
+
+    def world_to_local(self, world_points: np.ndarray) -> np.ndarray:
+        """Map world 3xN points into local coordinates."""
+        origin = np.asarray(self.world_origin, dtype=float).reshape(3, 1)
+        # Axes are orthonormal, so inverse is transpose.
+        return self.rotation_matrix.T @ (world_points - origin)
+
+
 class RegularGeometry:
     """Dense, metadata‑defined block model geometry (C‑order canonical).
 
@@ -60,31 +199,123 @@ class RegularGeometry:
 
     ----------------------------------------------------------------------
 
-    Geometry metadata:
-        corner      (x0, y0, z0) of the (i=0, j=0, k=0) block *corner*
-        block_size  (dx, dy, dz)
+    Internal frame split:
+        LocalGeometry: local lattice (corner, block_size, shape, C-order)
+        WorldFrame:    world embedding (origin, axis_u/v/w, srs)
+
+    Geometry metadata (unchanged schema):
+        corner      local (u0, v0, w0) corner of the (i=0, j=0, k=0) block
+        block_size  (du, dv, dw)
         shape       (ni, nj, nk)
-        axis_u/v/w  orthonormal basis vectors (rotation)
-        srs         optional CRS
+        axis_u/v/w  orthonormal world basis vectors
+        srs         optional CRS for world coordinates
 
     """
 
-    corner: Point
-    block_size: BlockSize
-    shape: Shape3D
-    axis_u: Vector = (1.0, 0.0, 0.0)
-    axis_v: Vector = (0.0, 1.0, 0.0)
-    axis_w: Vector = (0.0, 0.0, 1.0)
-    srs: Optional[str] = None
+    local: LocalGeometry
+    world: WorldFrame
+    schema_version: str = "1.0"
+    world_id_encoding: Optional[dict[str, Any]] = None
 
     def __post_init__(self):
-        """Validate metadata after initialization."""
-        if not validate_axes_orthonormal(self.axis_u, self.axis_v, self.axis_w):
-            raise ValueError("Axis vectors must be orthogonal and normalized.")
+        """Validate and initialize geometry components."""
+        # No additional initialization needed; LocalGeometry and WorldFrame
+        # validate themselves via their own __post_init__ methods.
+        pass
 
-        self.corner = tuple(float(v) for v in self.corner)
-        self.block_size = tuple(float(v) for v in self.block_size)
-        self.shape = tuple(int(v) for v in self.shape)
+    @classmethod
+    def create(
+        cls,
+        corner: Point = (0.0, 0.0, 0.0),
+        block_size: BlockSize = (1.0, 1.0, 1.0),
+        shape: Shape3D = (1, 1, 1),
+        axis_u: Vector = (1.0, 0.0, 0.0),
+        axis_v: Vector = (0.0, 1.0, 0.0),
+        axis_w: Vector = (0.0, 0.0, 1.0),
+        srs: Optional[str] = None,
+    ) -> "RegularGeometry":
+        """Convenience factory for creating RegularGeometry with keyword arguments.
+
+        This is the recommended way to construct geometries when you have
+        individual parameters rather than pre-built LocalGeometry and WorldFrame.
+
+        Parameters
+        ----------
+        corner : Point, optional
+            Grid origin (x₀, y₀, z₀). Default: (0, 0, 0)
+        block_size : BlockSize, optional
+            Block dimensions (dx, dy, dz). Default: (1, 1, 1)
+        shape : Shape3D, optional
+            Number of blocks (nᵢ, nⱼ, nₖ). Default: (1, 1, 1)
+        axis_u, axis_v, axis_w : Vector, optional
+            Orthonormal basis vectors for world embedding. Default: identity orientation
+        srs : str, optional
+            Spatial reference system identifier
+
+        Returns
+        -------
+        RegularGeometry
+        """
+        return cls(
+            local=LocalGeometry(corner=corner, block_size=block_size, shape=shape),
+            world=WorldFrame(world_origin=corner, axis_u=axis_u, axis_v=axis_v, axis_w=axis_w, srs=srs),
+        )
+
+    def __init__(
+        self,
+        local: Optional[LocalGeometry] = None,
+        world: Optional[WorldFrame] = None,
+        schema_version: str = "1.0",
+        world_id_encoding: Optional[dict[str, Any]] = None,
+        # Backward-compatible keyword arguments
+        corner: Optional[Point] = None,
+        block_size: Optional[BlockSize] = None,
+        shape: Optional[Shape3D] = None,
+        axis_u: Optional[Vector] = None,
+        axis_v: Optional[Vector] = None,
+        axis_w: Optional[Vector] = None,
+        srs: Optional[str] = None,
+    ):
+        """Initialize RegularGeometry.
+
+        Can be called with either:
+        1. New style: RegularGeometry(local=..., world=...)
+        2. Old style: RegularGeometry(corner=..., block_size=..., shape=..., axis_u=...)
+        3. Or mix default parameters with keyword overrides
+        """
+        # If old-style parameters are provided, use them to construct local/world
+        if any(p is not None for p in [corner, block_size, shape, axis_u, axis_v, axis_w, srs]):
+            if local is not None or world is not None:
+                raise ValueError(
+                    "Cannot specify both new-style (local/world) and old-style "
+                    "(corner/block_size/shape/axis_*) parameters"
+                )
+            # Use old-style parameters
+            local = LocalGeometry(
+                corner=corner or (0.0, 0.0, 0.0),
+                block_size=block_size or (1.0, 1.0, 1.0),
+                shape=shape or (1, 1, 1),
+            )
+            world = WorldFrame(
+                world_origin=corner or (0.0, 0.0, 0.0),
+                axis_u=axis_u or (1.0, 0.0, 0.0),
+                axis_v=axis_v or (0.0, 1.0, 0.0),
+                axis_w=axis_w or (0.0, 0.0, 1.0),
+                srs=srs,
+            )
+        elif local is None or world is None:
+            # If neither new-style nor old-style provided, use defaults
+            local = local or LocalGeometry(
+                corner=(0.0, 0.0, 0.0),
+                block_size=(1.0, 1.0, 1.0),
+                shape=(1, 1, 1),
+            )
+            world = world or WorldFrame()
+
+        self.local = local
+        self.world = world
+        self.schema_version = schema_version
+        self.world_id_encoding = world_id_encoding
 
     # ----------------------------------------------------------------------
     # Centroid calculation (C‑order)
@@ -92,25 +323,14 @@ class RegularGeometry:
 
     @property
     def _centroids(self) -> np.ndarray:
-        """Compute XYZ centroids as a (3, N) array in **C‑order**.
+        """Compute world XYZ centroids as a (3, N) array in **C‑order**.
 
         Returns:
             np.ndarray: Array of shape (3, N), where N = ni*nj*nk.
                         First row = X, second = Y, third = Z.
         """
-        dx, dy, dz = self.block_size
-        ni, nj, nk = self.shape
-        cx, cy, cz = self.corner
-
-        u = np.arange(cx + dx/2, cx + dx*ni, dx)
-        v = np.arange(cy + dy/2, cy + dy*nj, dy)
-        w = np.arange(cz + dz/2, cz + dz*nk, dz)
-
-        uu, vv, ww = np.meshgrid(u, v, w, indexing="ij")
-        local = np.vstack([uu.ravel("C"), vv.ravel("C"), ww.ravel("C")])
-
-        R = np.array([self.axis_u, self.axis_v, self.axis_w]).T
-        return R @ local
+        local = self.local.centroids_uvw
+        return self.world.local_to_world(local)
 
     @property
     def centroid_x(self) -> NDArray[np.floating]:
@@ -130,28 +350,17 @@ class RegularGeometry:
 
     def ijk_from_row_index(self, rows):
         """Convert row index/indices into (i, j, k) using **C‑order**."""
-        return np.unravel_index(rows, self.shape, order="C")
+        return self.local.ijk_from_row_index(rows)
 
     def row_index_from_ijk(self, i, j, k):
         """Convert (i, j, k) into row index using **C‑order**."""
-        return np.ravel_multi_index((i, j, k), self.shape, order="C")
+        return self.local.row_index_from_ijk(i, j, k)
 
     def xyz_from_ijk(self, i, j, k) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """Convert logical indices to world-space centroid coordinates."""
-        i = np.asarray(i, dtype=float)
-        j = np.asarray(j, dtype=float)
-        k = np.asarray(k, dtype=float)
-
-        dx, dy, dz = self.block_size
-        cx, cy, cz = self.corner
-
-        local = np.vstack([
-            cx + (i + 0.5) * dx,
-            cy + (j + 0.5) * dy,
-            cz + (k + 0.5) * dz,
-        ])
-        R = np.array([self.axis_u, self.axis_v, self.axis_w], dtype=float).T
-        world = R @ local
+        u, v, w = self.local.uvw_from_ijk(i, j, k)
+        local = np.vstack([u, v, w])
+        world = self.world.local_to_world(local)
         return world[0], world[1], world[2]
 
     def xyz_from_row_index(self, rows) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -165,43 +374,14 @@ class RegularGeometry:
         y = np.asarray(y, dtype=float)
         z = np.asarray(z, dtype=float)
 
-        pts = np.vstack([x, y, z])
-        R = np.array([self.axis_u, self.axis_v, self.axis_w], dtype=float).T
-        # Axes are orthonormal, so inverse is transpose.
-        local = R.T @ pts
-
-        dx, dy, dz = self.block_size
-        cx, cy, cz = self.corner
-
-        fi = (local[0] - (cx + 0.5 * dx)) / dx
-        fj = (local[1] - (cy + 0.5 * dy)) / dy
-        fk = (local[2] - (cz + 0.5 * dz)) / dz
-
-        i = np.rint(fi).astype(np.int64)
-        j = np.rint(fj).astype(np.int64)
-        k = np.rint(fk).astype(np.int64)
-
-        if not (
-            np.all(np.abs(fi - i) <= tol)
-            and np.all(np.abs(fj - j) <= tol)
-            and np.all(np.abs(fk - k) <= tol)
-        ):
-            raise ValueError("Centroid coordinates are not aligned to geometry centroid lattice.")
-
-        ni, nj, nk = self.shape
-        if not (
-            np.all((i >= 0) & (i < ni))
-            and np.all((j >= 0) & (j < nj))
-            and np.all((k >= 0) & (k < nk))
-        ):
-            raise ValueError("Centroid coordinates map outside geometry bounds.")
-
-        return i, j, k
+        world = np.vstack([x, y, z])
+        local = self.world.world_to_local(world)
+        return self.local.ijk_from_uvw(local[0], local[1], local[2], tol=tol)
 
     def row_index_from_xyz(self, x, y, z, tol: float = 1e-6) -> np.ndarray:
         """Map world-space centroid coordinates directly to C-order row indices."""
         i, j, k = self.ijk_from_xyz(x, y, z, tol=tol)
-        return self.row_index_from_ijk(i, j, k)
+        return np.asarray(self.row_index_from_ijk(i, j, k), dtype=np.int64)
 
     # ----------------------------------------------------------------------
     # Convenience exports (not used internally)
@@ -222,7 +402,7 @@ class RegularGeometry:
 
     def to_multi_index_ijk(self) -> pd.MultiIndex:
         """Export (i, j, k) indices as a MultiIndex in **C‑order**."""
-        N = np.prod(self.shape)
+        N = np.prod(self.local.shape)
         rows = np.arange(N)
         i, j, k = self.ijk_from_row_index(rows)
         return pd.MultiIndex.from_arrays([i, j, k], names=["i", "j", "k"])
@@ -247,27 +427,37 @@ class RegularGeometry:
 
     def to_metadata_dict(self) -> dict:
         """Serialize geometry metadata for Parquet storage."""
-        return {
-            "corner": list(self.corner),
-            "block_size": list(self.block_size),
-            "shape": list(self.shape),
-            "axis_u": list(self.axis_u),
-            "axis_v": list(self.axis_v),
-            "axis_w": list(self.axis_w),
-            "srs": self.srs,
+        metadata = {
+            "schema_version": self.schema_version,
+            "corner": list(self.local.corner),
+            "block_size": list(self.local.block_size),
+            "shape": list(self.local.shape),
+            "axis_u": list(self.world.axis_u),
+            "axis_v": list(self.world.axis_v),
+            "axis_w": list(self.world.axis_w),
+            "srs": self.world.srs,
         }
+        if self.world_id_encoding is not None:
+            metadata["world_id_encoding"] = self.world_id_encoding
+        return metadata
 
     @classmethod
     def from_metadata(cls, meta: dict) -> "RegularGeometry":
         """Reconstruct geometry from stored metadata."""
         return cls(
-            corner=tuple(meta["corner"]),
-            block_size=tuple(meta["block_size"]),
-            shape=tuple(meta["shape"]),
-            axis_u=tuple(meta["axis_u"]),
-            axis_v=tuple(meta["axis_v"]),
-            axis_w=tuple(meta["axis_w"]),
-            srs=meta.get("srs"),
+            local=LocalGeometry(
+                corner=tuple(meta["corner"]),
+                block_size=tuple(meta["block_size"]),
+                shape=tuple(meta["shape"]),
+            ),
+            world=WorldFrame(
+                axis_u=tuple(meta["axis_u"]),
+                axis_v=tuple(meta["axis_v"]),
+                axis_w=tuple(meta["axis_w"]),
+                srs=meta.get("srs"),
+            ),
+            schema_version=str(meta.get("schema_version", "1.0")),
+            world_id_encoding=meta.get("world_id_encoding"),
         )
 
     # ------------------------------------------------------------------
@@ -383,10 +573,46 @@ class RegularGeometry:
     def is_rotated(self) -> bool:
         """Return True if axes differ from the identity orientation."""
         return not (
-            np.allclose(self.axis_u, (1.0, 0.0, 0.0))
-            and np.allclose(self.axis_v, (0.0, 1.0, 0.0))
-            and np.allclose(self.axis_w, (0.0, 0.0, 1.0))
+            np.allclose(self.world.axis_u, (1.0, 0.0, 0.0))
+            and np.allclose(self.world.axis_v, (0.0, 1.0, 0.0))
+            and np.allclose(self.world.axis_w, (0.0, 0.0, 1.0))
         )
+
+    # Backward-compatible property accessors
+    @property
+    def corner(self) -> Point:
+        """Backward-compatible access to local corner."""
+        return self.local.corner
+
+    @property
+    def block_size(self) -> BlockSize:
+        """Backward-compatible access to block size."""
+        return self.local.block_size
+
+    @property
+    def shape(self) -> Shape3D:
+        """Backward-compatible access to grid shape."""
+        return self.local.shape
+
+    @property
+    def axis_u(self) -> Vector:
+        """Backward-compatible access to U-axis."""
+        return self.world.axis_u
+
+    @property
+    def axis_v(self) -> Vector:
+        """Backward-compatible access to V-axis."""
+        return self.world.axis_v
+
+    @property
+    def axis_w(self) -> Vector:
+        """Backward-compatible access to W-axis."""
+        return self.world.axis_w
+
+    @property
+    def srs(self) -> Optional[str]:
+        """Backward-compatible access to spatial reference system."""
+        return self.world.srs
 
     @property
     def extents(self) -> tuple[float, float, float, float, float, float]:
@@ -398,9 +624,9 @@ class RegularGeometry:
         """
 
         if not self.is_rotated:
-            cx, cy, cz = self.corner
-            dx, dy, dz = self.block_size
-            ni, nj, nk = self.shape
+            cx, cy, cz = self.local.corner
+            dx, dy, dz = self.local.block_size
+            ni, nj, nk = self.local.shape
             xmin, ymin, zmin = cx, cy, cz
             xmax = cx + ni * dx
             ymax = cy + nj * dy
@@ -417,29 +643,43 @@ class RegularGeometry:
     # PyVista helper
     # ------------------------------------------------------------------
 
-    def to_pyvista(self):
+    def to_pyvista(self, *, frame: str = "world"):
         """Return a ``pyvista.ImageData`` representing the dense grid.
 
-        This constructs a uniform rectilinear grid whose cell centers match
-        the XYZ centroids defined by this geometry. Rotation (axis_u/v/w) is
-        applied to the local grid axes.
+        Parameters
+        ----------
+        frame : {"world", "local"}, optional
+            Coordinate frame used for the returned grid.
+            - ``"world"`` (default): apply world orientation from ``axis_u/v/w``.
+            - ``"local"``: return axis-aligned local grid (no rotation).
+
+        Notes
+        -----
+        In ``"world"`` mode, rotation is encoded using the ImageData
+        direction matrix, so plotting reflects geometry orientation.
         """
 
         import pyvista as pv
 
-        dx, dy, dz = self.block_size
-        ni, nj, nk = self.shape
-        cx, cy, cz = self.corner
+        if frame not in {"world", "local"}:
+            raise ValueError("frame must be one of {'world', 'local'}")
 
-        # Compute origin at the minimum corner of the grid
-        origin = (cx, cy, cz)
+        dx, dy, dz = self.local.block_size
+        ni, nj, nk = self.local.shape
+
         spacing = (dx, dy, dz)
 
         # Voxel dimensions: number of points = cells + 1 along each axis
         dimensions = (ni + 1, nj + 1, nk + 1)
 
         grid = pv.ImageData()
-        grid.origin = origin
+        if frame == "world":
+            local_origin = np.asarray(self.local.corner, dtype=float).reshape(3, 1)
+            origin = tuple(self.world.local_to_world(local_origin).ravel())
+            grid.origin = origin
+            grid.direction_matrix = self.world.rotation_matrix
+        else:
+            grid.origin = tuple(self.local.corner)
         grid.spacing = spacing
         grid.dimensions = dimensions
         return grid
@@ -525,11 +765,6 @@ class RegularGeometry:
 
 
         return cls(
-            corner=corner,
-            block_size=block_size,
-            shape=shape,
-            axis_u=axis_u,
-            axis_v=axis_v,
-            axis_w=axis_w,
+            local=LocalGeometry(corner=corner, block_size=block_size, shape=shape),
+            world=WorldFrame(axis_u=axis_u, axis_v=axis_v, axis_w=axis_w),
         )
-

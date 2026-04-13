@@ -10,6 +10,113 @@ ArrayOrFloat = Union[np.ndarray, float]
 MAX_XY_VALUE = 1677721.5  # Maximum value for x and y (2^24 - 1) / 10
 MAX_Z_VALUE = 6553.5  # Maximum value for z (2^16 - 1) / 10
 
+WORLD_ID_X_BITS = 24
+WORLD_ID_Y_BITS = 24
+WORLD_ID_Z_BITS = 16
+WORLD_ID_X_SHIFT = 40
+WORLD_ID_Y_SHIFT = 16
+WORLD_ID_Z_SHIFT = 0
+WORLD_ID_X_MAX_INT = (1 << WORLD_ID_X_BITS) - 1
+WORLD_ID_Y_MAX_INT = (1 << WORLD_ID_Y_BITS) - 1
+WORLD_ID_Z_MAX_INT = (1 << WORLD_ID_Z_BITS) - 1
+
+
+def get_id_encoding_params(
+    id_encoding: dict | None,
+) -> tuple[tuple[float, float, float], float]:
+    """Return (offset_xyz, scale) from a metadata-like encoding payload."""
+    if not id_encoding:
+        return (0.0, 0.0, 0.0), 10.0
+
+    offset_payload = id_encoding.get("offset", {})
+    offset = (
+        float(offset_payload.get("x", 0.0)),
+        float(offset_payload.get("y", 0.0)),
+        float(offset_payload.get("z", 0.0)),
+    )
+
+    quant = id_encoding.get("quantization", {})
+    scale_payload = quant.get("scale", 10.0)
+    if isinstance(scale_payload, (list, tuple)):
+        # Current implementation uses a shared scale for all axes.
+        scale = float(scale_payload[0])
+    else:
+        scale = float(scale_payload)
+
+    return offset, scale
+
+
+def get_world_id_encoding_params(
+    world_id_encoding: dict | None,
+) -> tuple[tuple[float, float, float], float]:
+    """Backward-compatible alias for :func:`get_id_encoding_params`."""
+    return get_id_encoding_params(world_id_encoding)
+
+
+def encode_frame_coordinates(
+    x: ArrayOrFloat,
+    y: ArrayOrFloat,
+    z: ArrayOrFloat,
+    offset: Point = (0.0, 0.0, 0.0),
+    scale: float = 10.0,
+) -> Union[np.ndarray, int]:
+    """Encode xyz-like coordinates into uint64-compatible integers using offset+scale quantization."""
+    x_arr = np.asarray(x, dtype=float)
+    y_arr = np.asarray(y, dtype=float)
+    z_arr = np.asarray(z, dtype=float)
+
+    ox, oy, oz = offset
+    x_q = np.rint((x_arr - ox) * scale).astype(np.int64)
+    y_q = np.rint((y_arr - oy) * scale).astype(np.int64)
+    z_q = np.rint((z_arr - oz) * scale).astype(np.int64)
+
+    if np.any(x_q < 0) or np.any(y_q < 0) or np.any(z_q < 0):
+        raise ValueError("Encoding produced negative quantized values. Check offsets.")
+    if np.any(x_q > WORLD_ID_X_MAX_INT) or np.any(y_q > WORLD_ID_Y_MAX_INT) or np.any(z_q > WORLD_ID_Z_MAX_INT):
+        raise ValueError("Encoding overflow. Check offsets, scale, or coordinate extents.")
+
+    encoded = (x_q << WORLD_ID_X_SHIFT) | (y_q << WORLD_ID_Y_SHIFT) | z_q
+    if np.isscalar(x) and np.isscalar(y) and np.isscalar(z):
+        return int(np.asarray(encoded).item())
+    return encoded
+
+
+def encode_world_coordinates(
+    x: ArrayOrFloat,
+    y: ArrayOrFloat,
+    z: ArrayOrFloat,
+    offset: Point = (0.0, 0.0, 0.0),
+    scale: float = 10.0,
+) -> Union[np.ndarray, int]:
+    """Backward-compatible alias for :func:`encode_frame_coordinates`."""
+    return encode_frame_coordinates(x=x, y=y, z=z, offset=offset, scale=scale)
+
+
+def decode_frame_coordinates(
+    encoded: Union[np.ndarray, int],
+    offset: Point = (0.0, 0.0, 0.0),
+    scale: float = 10.0,
+) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Point]:
+    """Decode uint64-compatible ids back to xyz-like coordinates using offset+scale."""
+    x_int = (encoded >> WORLD_ID_X_SHIFT) & WORLD_ID_X_MAX_INT
+    y_int = (encoded >> WORLD_ID_Y_SHIFT) & WORLD_ID_Y_MAX_INT
+    z_int = encoded & WORLD_ID_Z_MAX_INT
+
+    ox, oy, oz = offset
+    x = x_int / scale + ox
+    y = y_int / scale + oy
+    z = z_int / scale + oz
+    return x, y, z
+
+
+def decode_world_coordinates(
+    encoded: Union[np.ndarray, int],
+    offset: Point = (0.0, 0.0, 0.0),
+    scale: float = 10.0,
+) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Point]:
+    """Backward-compatible alias for :func:`decode_frame_coordinates`."""
+    return decode_frame_coordinates(encoded=encoded, offset=offset, scale=scale)
+
 
 def is_integer(value):
     return np.floor(value) == value

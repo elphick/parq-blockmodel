@@ -54,6 +54,7 @@ coverage = "^7.8.0"
 trame = "^3.10.2"
 trame-vtk = "^2.9.0"
 trame-vuetify = "^3.0.1"
+sphinx-book-theme = "^1.2.0"
 
 [build-system]
 requires = ["poetry-core"]

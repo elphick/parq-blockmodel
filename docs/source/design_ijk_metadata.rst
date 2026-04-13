@@ -56,7 +56,46 @@ Design Steps
   considered the primary key for block identity.
 
 
-2. Geometry metadata layout
+2. Internal architecture: LocalGeometry and WorldFrame
+-----------------------------------------------------
+
+The **public** :class:`~parq_blockmodel.geometry.RegularGeometry` is composed of two
+internal components that separate concerns:
+
+**LocalGeometry** (local lattice, no rotation/CRS)
+
+- Represents the logical (i, j, k) indexing grid
+- Stores: ``corner``, ``block_size``, ``shape``
+- Provides: C-order conversion methods (``ijk_from_row_index``, ``row_index_from_ijk``)
+- Computes: local centroid coordinates (u, v, w)
+- **No rotation, no world frame, no CRS**
+
+**WorldFrame** (world embedding)
+
+- Represents the spatial reference system and orientation
+- Stores: ``world_origin``, ``axis_u``, ``axis_v``, ``axis_w``, ``srs``
+- Provides: orthonormal rotation matrix and transform methods
+- Maps: local (u, v, w) ↔ world (x, y, z) coordinates
+- Ensures: axes are orthonormal (enforced in ``__post_init__``)
+- Handles: inverse transformations via transpose (since axes are orthonormal)
+
+**RegularGeometry** (public composite)
+
+- Combines ``LocalGeometry`` and ``WorldFrame``
+- Provides the complete grid definition and coordinate transformation API
+- Delegates to components internally
+- Exposes high-level methods like ``xyz_from_ijk``, ``ijk_from_xyz``, etc.
+- Users typically interact only with ``RegularGeometry``; ``LocalGeometry`` and
+  ``WorldFrame`` are available for advanced use cases but not required
+
+This separation enables:
+
+- Clean separation of concerns (local indexing vs. world embedding)
+- Simpler testing and validation of each component
+- Clear data flow through coordinate transformations
+- Transparent internal refactoring without affecting the public API
+
+3. Geometry metadata layout
 ---------------------------
 
 ``RegularGeometry`` defines a compact, JSON-serialisable metadata payload
@@ -65,6 +104,7 @@ via ``to_metadata_dict`` and ``from_metadata``.
 - The **canonical geometry payload** is a plain ``dict``::
 
     {
+        "schema_version": "1.0",
         "corner": [x0, y0, z0],
         "block_size": [dx, dy, dz],
         "shape": [ni, nj, nk],
@@ -74,16 +114,24 @@ via ``to_metadata_dict`` and ``from_metadata``.
         "srs": "EPSG:XXXX" or None,
     }
 
-- A future-proof extension is to include a small schema version, e.g.::
+- The payload includes a schema version and may include optional
+  ``world_id`` encoding metadata::
 
     {
-        "schema_version": 1,
-        ...  # fields as above
+        "schema_version": "1.0",
+        ...,
+        "world_id_encoding": {
+            "enabled": true,
+            "column": "world_id",
+            "frame": "world_xyz",
+            "axis_order": ["x", "y", "z"],
+            "quantization": {"scale": 10.0},
+            "offset": {"x": 500000.0, "y": 7000000.0, "z": 0.0}
+        }
     }
 
-  For now, ``to_metadata_dict``/``from_metadata`` operate on the
-  minimal dict shown first; a version field can be added in a
-  backwards-compatible way later.
+  ``world_id_encoding`` is optional and used only when ``world_id``
+  columns are present/required.
 
 - This payload is designed to be stored:
 
@@ -91,7 +139,7 @@ via ``to_metadata_dict`` and ``from_metadata``.
   - JSON-encoded under a reserved key in Parquet file metadata.
 
 
-3. Reserved key: ``"parq-blockmodel"``
+4. Reserved key: ``"parq-blockmodel"``
 --------------------------------------
 
 A single, namespaced key is used to avoid collisions with other tools
@@ -124,7 +172,7 @@ unpacking the appropriate sub-dict before delegating to
 ``RegularGeometry.from_metadata``.
 
 
-4. New constructors on ``RegularGeometry``
+5. New constructors on ``RegularGeometry``
 -----------------------------------------
 
 Two new class methods are introduced to reconstruct a
@@ -205,7 +253,7 @@ geometry from a Parquet file that carries compliant metadata.
 
 
 5. Behaviour of ``ParquetBlockModel``
--------------------------------------
+--------------------------------------
 
 The :class:`~parq_blockmodel.blockmodel.ParquetBlockModel` class is
 responsible for reading/writing block model data in Parquet format while
@@ -290,7 +338,7 @@ Examples:
 
 
 6. Backward compatibility
--------------------------
+--------------------------
 
 - Existing pbm files and raw Parquet files that:
 
@@ -328,8 +376,69 @@ additional fields (e.g. alternative rotation encodings, anisotropic
 cells) in a controlled way.
 
 
+8. Terminology: block_id, world_id, and ijk
+--------------------------------------------
+
+To avoid confusion, terminology is used precisely:
+
+**ijk (or i, j, k)**
+    - Logical block indices: ``0 ≤ i < nᵢ, 0 ≤ j < nⱼ, 0 ≤ k < nₖ``
+    - Canonical indexing scheme for ``parq-blockmodel``
+    - **No separate "block_id" column** – ijk is the primary key
+    - Can be reconstructed from row index using C-order formula
+
+**block_id** (if used externally)
+    - May refer to ijk-based encoding in external systems
+    - In ``parq-blockmodel``, we use ijk directly, not a composite "block_id"
+    - Row index (flat, C-order) is used internally for DataFrame operations
+
+**world_id**
+    - Stable 64-bit positional identifier derived from world (x, y, z) centroids
+    - Unique within a CRS and encoding contract
+    - Useful for cross-model joins when models share the same SRS
+    - Generated by ``encode_world_coordinates`` using quantization + offset
+    - **Not a spatial index** – should not be used for range queries
+
+The distinction is important:
+
+- Use **ijk** for logical block queries and geometric operations
+- Use **world_id** for stable cross-model references and external joins
+- Use row index (flat, C-order) for internal DataFrame/Parquet operations
 Summary
 =======
+
+Key concepts to remember:
+
+- ``RegularGeometry`` is the public interface; ``LocalGeometry`` + ``WorldFrame``
+  are internal components that handle the coordinate transformation pipeline.
+- **LocalGeometry** = indexing + local grid (no rotation/CRS)
+- **WorldFrame** = world embedding + axis orientation + optional SRS
+- **ijk** is canonical indexing (not "block_id"); row index is the flat C-order version
+- **world_id** is a stable 64-bit position key, useful for cross-model joins
+- Geometry metadata is compact, versioned, and stored in Parquet key-value pairs
+
+Decode ``world_id`` from ``DataFrame.attrs``
+--------------------------------------------
+
+Consumers that only have a DataFrame (no ``ParquetBlockModel`` instance)
+can still decode ``world_id`` values using the attached metadata payload:
+
+.. code-block:: python
+
+    from parq_blockmodel.utils import get_id_encoding_params, decode_frame_coordinates
+
+    meta = df.attrs["parq-blockmodel"]
+    encoding = meta["world_id_encoding"]
+
+    offset, scale = get_id_encoding_params(encoding)
+    x, y, z = decode_frame_coordinates(
+        df["world_id"].to_numpy(dtype="int64"),
+        offset=offset,
+        scale=scale,
+    )
+
+Cross-model uniqueness depends on shared encoding policy and non-overlapping
+centroid positions within the same SRS.
 
 - ``RegularGeometry`` is the single, dense description of block model
   geometry using C-order and ijk as canonical indexing.

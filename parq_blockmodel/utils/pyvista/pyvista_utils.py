@@ -7,6 +7,7 @@ import numpy as np
 from scipy.stats import mode
 
 from parq_blockmodel import RegularGeometry
+from parq_blockmodel.geometry import LocalGeometry, WorldFrame
 
 import pyvista as pv
 
@@ -50,7 +51,7 @@ def df_to_pv_image_data(df: pd.DataFrame,
         dense_index = dense_index.set_names(["x", "y", "z"])
     dense_index = dense_index.sort_values()
     dense_df = df.reindex(dense_index)
-    shape = geometry.shape
+    shape = geometry.local.shape
 
     grid: pv.ImageData = geometry.to_pyvista()
 
@@ -240,7 +241,6 @@ def df_to_poly_data(df: pd.DataFrame) -> pv.PolyData:
 
     Args:
         df: DataFrame with MultiIndex (x, y, z) or columns x, y, z.
-        geometry: RegularGeometry instance (provides shape, spacing, origin).
 
     Returns:
         pv.PolyData: PyVista PolyData object with point data.
@@ -296,10 +296,17 @@ def calculate_spacing(grid: pv.UnstructuredGrid) -> tuple[float, float, float]:
     y_coords = np.unique(grid.points[:, 1])
     z_coords = np.unique(grid.points[:, 2])
 
-    # Calculate differences and find the mode
-    dx = mode(np.diff(x_coords)).mode
-    dy = mode(np.diff(y_coords)).mode
-    dz = mode(np.diff(z_coords)).mode
+    def modal_diff(values: np.ndarray) -> float:
+        diffs = np.diff(values)
+        if diffs.size == 0:
+            return 1.0
+        unique, counts = np.unique(diffs, return_counts=True)
+        return float(unique[np.argmax(counts)])
+
+    # Calculate differences and find the modal spacing.
+    dx = modal_diff(x_coords)
+    dy = modal_diff(y_coords)
+    dz = modal_diff(z_coords)
 
     return dx, dy, dz
 
@@ -328,7 +335,10 @@ def infer_regular_geometry_from_df(df: pd.DataFrame):
         np.diff(z).mean() if len(z) > 1 else 1.0,
     )
     origin = (x[0] - spacing[0] / 2, y[0] - spacing[1] / 2, z[0] - spacing[2] / 2)
-    return RegularGeometry(shape=shape, block_size=spacing, corner=origin)
+    return RegularGeometry(
+        local=LocalGeometry(shape=shape, block_size=spacing, corner=origin),
+        world=WorldFrame(),
+    )
 
 
 def _get_geometry_from_df(df):
