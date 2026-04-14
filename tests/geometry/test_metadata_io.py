@@ -10,7 +10,7 @@ from parq_blockmodel.geometry import RegularGeometry, LocalGeometry, WorldFrame
 def make_geometry():
     return RegularGeometry(
         local=LocalGeometry(corner=(0.0, 0.0, 0.0), block_size=(1.0, 2.0, 3.0), shape=(2, 2, 2)),
-        world=WorldFrame(),
+        world=WorldFrame(origin=(100.0, 200.0, 300.0)),
     )
 
 
@@ -29,6 +29,7 @@ def test_roundtrip_via_attrs():
     assert geom2.world.axis_u == geom.world.axis_u
     assert geom2.world.axis_v == geom.world.axis_v
     assert geom2.world.axis_w == geom.world.axis_w
+    assert geom2.world.origin == geom.world.origin
     assert geom2.world.srs == geom.world.srs
 
 
@@ -53,6 +54,7 @@ def test_roundtrip_via_parquet_metadata(tmp_path):
     assert geom2.world.axis_u == geom.world.axis_u
     assert geom2.world.axis_v == geom.world.axis_v
     assert geom2.world.axis_w == geom.world.axis_w
+    assert geom2.world.origin == geom.world.origin
     assert geom2.world.srs == geom.world.srs
 
 

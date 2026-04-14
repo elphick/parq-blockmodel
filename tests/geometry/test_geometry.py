@@ -30,7 +30,7 @@ def test_local_geometry_c_order_centroids():
 
 def test_world_frame_translation_and_rotation_roundtrip():
     frame = WorldFrame(
-        world_origin=(10.0, 0.0, 0.0),
+        origin=(10.0, 0.0, 0.0),
         axis_u=(0.0, 1.0, 0.0),
         axis_v=(-1.0, 0.0, 0.0),
         axis_w=(0.0, 0.0, 1.0),
@@ -62,14 +62,10 @@ def test_regular_geometry_composition_init():
     assert geom.world.srs == "EPSG:4326"
 
 
-def test_regular_geometry_has_no_flat_legacy_properties():
+def test_regular_geometry_exposes_flat_legacy_properties():
     geom = make_geometry()
-
-    with pytest.raises(AttributeError):
-        _ = geom.corner
-
-    with pytest.raises(AttributeError):
-        _ = geom.axis_u
+    assert geom.corner == geom.local.corner
+    assert geom.axis_u == geom.world.axis_u
 
 
 def test_centroid_properties():
@@ -246,5 +242,17 @@ def test_metadata_roundtrip():
     assert geom2.world.axis_u == geom.world.axis_u
     assert geom2.world.axis_v == geom.world.axis_v
     assert geom2.world.axis_w == geom.world.axis_w
+    assert geom2.world.origin == geom.world.origin
     assert geom2.world.srs == geom.world.srs
+
+
+def test_old_style_corner_not_double_translated():
+    geom = RegularGeometry(corner=(10.0, 20.0, 30.0), block_size=(2.0, 4.0, 6.0), shape=(1, 1, 1))
+    np.testing.assert_allclose([geom.centroid_x[0], geom.centroid_y[0], geom.centroid_z[0]], [11.0, 22.0, 33.0])
+
+
+def test_create_corner_not_double_translated():
+    geom = RegularGeometry.create(corner=(10.0, 20.0, 30.0), block_size=(2.0, 4.0, 6.0), shape=(1, 1, 1))
+    np.testing.assert_allclose([geom.centroid_x[0], geom.centroid_y[0], geom.centroid_z[0]], [11.0, 22.0, 33.0])
+
 

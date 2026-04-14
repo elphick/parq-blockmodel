@@ -7,7 +7,6 @@ from sphinx_gallery.sorting import FileNameSortKey
 from parq_blockmodel.utils.plotly_scraper import autoset_plotly_browser
 
 sys.path.insert(0, os.path.abspath('..'))
-sys.path.insert(0, os.path.abspath('../..'))
 
 import parq_blockmodel
 import pyvista
@@ -65,7 +64,7 @@ autosummary_generate = True
 sphinx_gallery_conf = {
     'filename_pattern': r'\.py',
     'ignore_pattern': r'(__init__)|(05_trame_webserver)|(xx.*)\.py',
-    'examples_dirs': '../../examples',  # path to your example scripts
+    'examples_dirs': '../examples',  # path to your example scripts
     'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
     'within_subsection_order': FileNameSortKey,
     'capture_repr': ('_repr_html_', '__repr__'),

@@ -27,7 +27,6 @@ import tempfile
 
 from pathlib import Path
 
-import pandas as pd
 import pyvista as pv
 
 from parq_blockmodel import ParquetBlockModel, RegularGeometry
@@ -69,7 +68,7 @@ print("Block Model Path:", pbm.blockmodel_path)
 print("Name:", pbm.name)
 print("Shape (ijk):", pbm.geometry.shape)
 print("Corner:", pbm.geometry.corner)
-print("Block size:", pbm.geometry.block_size)
+print("Block size (local i/j/k spacing):", pbm.geometry.block_size)
 print("Axis U:", pbm.geometry.axis_u)
 print("Axis V:", pbm.geometry.axis_v)
 print("Axis W:", pbm.geometry.axis_w)

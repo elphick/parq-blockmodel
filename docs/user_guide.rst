@@ -30,9 +30,9 @@ The geometry metadata encodes a regular logical grid in terms of
 This ijk grid is the **single source of truth** for the model layout:
 
 * ``shape`` gives the number of blocks along each axis,
-* ``block_size`` and ``corner`` describe where the grid sits in world
-  coordinates, and
-* optional axis vectors (``axis_u``, ``axis_v``, ``axis_w``) define the
+* ``block_size`` and ``corner`` describe the local lattice (with ``block_size``
+  giving spacing along the local ``i/j/k`` axes, not necessarily world X/Y/Z), and
+* ``origin`` plus optional axis vectors (``axis_u``, ``axis_v``, ``axis_w``) define the
   orientation of the logical axes in 3D space.
 
 World coordinates ``(x, y, z)`` are therefore a **derived view** of

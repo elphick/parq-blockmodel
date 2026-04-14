@@ -46,8 +46,10 @@ Design Steps
 - ``RegularGeometry`` is responsible for converting between
   ``(i, j, k)`` and ``(x, y, z)`` using geometry metadata:
 
-  - ``corner``: origin of block ``(i=0, j=0, k=0)`` (corner coordinates)
-  - ``block_size``: block dimensions ``(dx, dy, dz)``
+  - ``corner``: local corner of block ``(i=0, j=0, k=0)`` in ``(u, v, w)``
+  - ``origin``: world position of local ``(0, 0, 0)``
+  - ``block_size``: block dimensions ``(dx, dy, dz)`` along the local
+    ``i/j/k`` (``u/v/w``) axes
   - ``shape``: number of blocks ``(ni, nj, nk)``
   - ``axis_u``, ``axis_v``, ``axis_w``: orthonormal basis vectors
   - ``srs``: optional spatial reference system identifier
@@ -73,7 +75,7 @@ internal components that separate concerns:
 **WorldFrame** (world embedding)
 
 - Represents the spatial reference system and orientation
-- Stores: ``world_origin``, ``axis_u``, ``axis_v``, ``axis_w``, ``srs``
+- Stores: ``origin``, ``axis_u``, ``axis_v``, ``axis_w``, ``srs``
 - Provides: orthonormal rotation matrix and transform methods
 - Maps: local (u, v, w) ↔ world (x, y, z) coordinates
 - Ensures: axes are orthonormal (enforced in ``__post_init__``)
@@ -105,7 +107,8 @@ via ``to_metadata_dict`` and ``from_metadata``.
 
     {
         "schema_version": "1.0",
-        "corner": [x0, y0, z0],
+        "corner": [u0, v0, w0],
+        "origin": [x0, y0, z0],
         "block_size": [dx, dy, dz],
         "shape": [ni, nj, nk],
         "axis_u": [ux, uy, uz],
@@ -351,8 +354,16 @@ Examples:
 - New code paths will prefer metadata-based reconstruction when
   available, but will fall back gracefully for old files.
 
-- No public API signatures need to change; new behaviour is introduced
-  via:
+- ``RegularGeometry`` constructor semantics intentionally changed to
+  separate local and world frames (breaking change).
+
+- ``WorldFrame`` now uses ``origin`` instead of ``world_origin``
+  (breaking rename).
+
+- Existing files without ``origin`` in geometry metadata are still
+  readable; ``from_metadata`` falls back to ``origin = (0, 0, 0)``.
+
+- New behaviour is introduced via:
 
   - the additional class methods on ``RegularGeometry``, and
   - internal changes to how ``ParquetBlockModel`` resolves geometry.

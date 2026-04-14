@@ -2,7 +2,7 @@
 Welcome to parq-blockmodel's documentation!
 ===========================================
 
-.. include:: ../../README.md
+.. include:: ../README.md
    :parser: myst_parser.sphinx_
 
 .. toctree::

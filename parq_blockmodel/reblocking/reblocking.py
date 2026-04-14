@@ -84,7 +84,7 @@ def _build_new_geometry(blockmodel, new_block_size, new_shape) -> RegularGeometr
             shape=new_shape,
         ),
         world=WorldFrame(
-            world_origin=blockmodel.geometry.world.world_origin,
+            origin=blockmodel.geometry.world.origin,
             axis_u=blockmodel.geometry.world.axis_u,
             axis_v=blockmodel.geometry.world.axis_v,
             axis_w=blockmodel.geometry.world.axis_w,

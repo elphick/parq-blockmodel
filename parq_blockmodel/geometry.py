@@ -17,12 +17,14 @@ from parq_blockmodel.utils.geometry_utils import (
 class LocalGeometry:
     """Local dense grid geometry with C-order indexing.
 
-    This class models the logical/local lattice only:
-    - local corner/origin
-    - block size
-    - shape
+    This class models the logical/local lattice only (local corner/origin,
+    block size, shape). It has no rotation, CRS, or world-frame meaning.
 
-    It has no rotation, CRS, or world-frame meaning.
+    Attributes:
+        corner (Point): Local (u0, v0, w0) corner of the (i=0, j=0, k=0) block.
+        block_size (BlockSize): Block dimensions ``(dx, dy, dz)`` along the
+            local ``i/j/k`` (``u/v/w``) axes.
+        shape (Shape3D): Grid shape (ni, nj, nk) - number of blocks along each axis.
     """
 
     corner: Point
@@ -114,9 +116,16 @@ class WorldFrame:
 
     Holds world origin, orthonormal axes, and optional CRS. It is
     responsible for local<->world coordinate transforms.
+
+    Attributes:
+        origin (Point): World origin coordinates (x0, y0, z0).
+        axis_u (Vector): Unit vector for U-axis in world coordinates.
+        axis_v (Vector): Unit vector for V-axis in world coordinates.
+        axis_w (Vector): Unit vector for W-axis in world coordinates.
+        srs (str, optional): Spatial reference system (CRS) identifier.
     """
 
-    world_origin: Point = (0.0, 0.0, 0.0)
+    origin: Point = (0.0, 0.0, 0.0)
     axis_u: Vector = (1.0, 0.0, 0.0)
     axis_v: Vector = (0.0, 1.0, 0.0)
     axis_w: Vector = (0.0, 0.0, 1.0)
@@ -126,12 +135,12 @@ class WorldFrame:
         if not validate_axes_orthonormal(self.axis_u, self.axis_v, self.axis_w):
             raise ValueError("Axis vectors must be orthogonal and normalized.")
 
-        world_origin = [float(v) for v in self.world_origin]
+        origin = [float(v) for v in self.origin]
         axis_u = [float(v) for v in self.axis_u]
         axis_v = [float(v) for v in self.axis_v]
         axis_w = [float(v) for v in self.axis_w]
 
-        self.world_origin = (world_origin[0], world_origin[1], world_origin[2])
+        self.origin = (origin[0], origin[1], origin[2])
         self.axis_u = (axis_u[0], axis_u[1], axis_u[2])
         self.axis_v = (axis_v[0], axis_v[1], axis_v[2])
         self.axis_w = (axis_w[0], axis_w[1], axis_w[2])
@@ -143,73 +152,55 @@ class WorldFrame:
 
     def local_to_world(self, local_points: np.ndarray) -> np.ndarray:
         """Map local 3xN points into world coordinates."""
-        origin = np.asarray(self.world_origin, dtype=float).reshape(3, 1)
+        origin = np.asarray(self.origin, dtype=float).reshape(3, 1)
         return origin + self.rotation_matrix @ local_points
 
     def world_to_local(self, world_points: np.ndarray) -> np.ndarray:
         """Map world 3xN points into local coordinates."""
-        origin = np.asarray(self.world_origin, dtype=float).reshape(3, 1)
+        origin = np.asarray(self.origin, dtype=float).reshape(3, 1)
         # Axes are orthonormal, so inverse is transpose.
         return self.rotation_matrix.T @ (world_points - origin)
 
 
 class RegularGeometry:
-    """Dense, metadata‑defined block model geometry (C‑order canonical).
+    """Dense, metadata-defined block model geometry (C-order canonical).
 
-    This class describes *all* block model geometry in parq‑blockmodel.
+    This class describes *all* block model geometry in parq-blockmodel.
     It does **not** store x, y, z or i, j, k per block. All coordinates
     are derived from metadata + implicit row ordering.
 
-    ---------------------------------------
-    🧭 IMPORTANT, INTERNAL STORAGE ORDERING
-    ---------------------------------------
+    Attributes:
+        local (LocalGeometry): The local lattice geometry (corner, block_size, shape, C-order).
+        world (WorldFrame): The world embedding with origin, axes, and CRS.
+        schema_version (str): Version of the metadata schema. Default: "1.0"
+        world_id_encoding (dict, optional): Encoding for world IDs.
 
-    parq‑blockmodel uses **NumPy C‑order** as its canonical definition of
-    block ordering.
+    Note:
+        **Internal Storage Ordering (C-order canonical)**
 
-    ✔ **C‑order flattening (NumPy default):**
-        i varies fastest  
-        j varies next  
-        k varies slowest
+        parq-blockmodel uses **NumPy C-order** as its canonical definition of
+        block ordering:
 
-        r = i + ni * (j + nj * k)
+        - i varies fastest
+        - j varies next
+        - k varies slowest
+        - r = i + ni * (j + nj * k)
 
-    ✔ This matches:
-        - Parquet row‑oriented storage naturally  
-        - NumPy operations (ravel, reshape)  
-        - Efficient dense arrays  
-        - Our new metadata‑based geometry model  
+        This matches:
 
-    ✔ This does *NOT* match lexicographic MultiIndex sorting:
-        .sort_index(["x", "y", "z"])
-        which yields:
-            x slowest  
-            y middle  
-            z fastest  
-        ❌ This is **NOT** C‑order.
-        ❌ This must NOT define canonical storage.
+        - Parquet row-oriented storage naturally
+        - NumPy operations (ravel, reshape)
+        - Efficient dense arrays
+        - Our metadata-based geometry model
 
-    ❌ **F‑order NOT used** (even though OMF/VTK are sometimes described
-       this way). PyVista accepts C‑order 1D arrays perfectly fine, and
-       VTK data is exposed to Python as C‑order NumPy arrays anyway.
+        This does **NOT** match lexicographic MultiIndex sorting
+        (`.sort_index(["x", "y", "z"])`) which yields x slowest, z fastest.
+        MultiIndex lexicographic sorting must NOT define canonical storage.
 
-    Summary:
-        **Canonical = C‑order. Do not switch to F‑order.**
-        **Do not rely on MultiIndex lexicographic XYZ sorting.**
+        F-order is NOT used (even though OMF/VTK are sometimes described this way).
+        PyVista accepts C-order 1D arrays perfectly fine.
 
-    ----------------------------------------------------------------------
-
-    Internal frame split:
-        LocalGeometry: local lattice (corner, block_size, shape, C-order)
-        WorldFrame:    world embedding (origin, axis_u/v/w, srs)
-
-    Geometry metadata (unchanged schema):
-        corner      local (u0, v0, w0) corner of the (i=0, j=0, k=0) block
-        block_size  (du, dv, dw)
-        shape       (ni, nj, nk)
-        axis_u/v/w  orthonormal world basis vectors
-        srs         optional CRS for world coordinates
-
+        **Canonical = C-order. Do not switch to F-order.**
     """
 
     local: LocalGeometry
@@ -239,26 +230,24 @@ class RegularGeometry:
         This is the recommended way to construct geometries when you have
         individual parameters rather than pre-built LocalGeometry and WorldFrame.
 
-        Parameters
-        ----------
-        corner : Point, optional
-            Grid origin (x₀, y₀, z₀). Default: (0, 0, 0)
-        block_size : BlockSize, optional
-            Block dimensions (dx, dy, dz). Default: (1, 1, 1)
-        shape : Shape3D, optional
-            Number of blocks (nᵢ, nⱼ, nₖ). Default: (1, 1, 1)
-        axis_u, axis_v, axis_w : Vector, optional
-            Orthonormal basis vectors for world embedding. Default: identity orientation
-        srs : str, optional
-            Spatial reference system identifier
+        Args:
+            corner (Point, optional): Local corner ``(u₀, v₀, w₀)`` of block
+                ``(i=0, j=0, k=0)``. Defaults to ``(0, 0, 0)``.
+            block_size (BlockSize, optional): Block dimensions ``(dx, dy, dz)``
+                along the local ``i/j/k`` (``u/v/w``) axes. Defaults to
+                ``(1, 1, 1)``.
+            shape (Shape3D, optional): Number of blocks (nᵢ, nⱼ, nₖ). Defaults to (1, 1, 1).
+            axis_u (Vector, optional): Orthonormal U-axis for world embedding. Defaults to (1, 0, 0).
+            axis_v (Vector, optional): Orthonormal V-axis for world embedding. Defaults to (0, 1, 0).
+            axis_w (Vector, optional): Orthonormal W-axis for world embedding. Defaults to (0, 0, 1).
+            srs (str, optional): Spatial reference system identifier.
 
-        Returns
-        -------
-        RegularGeometry
+        Returns:
+            RegularGeometry: New geometry instance.
         """
         return cls(
             local=LocalGeometry(corner=corner, block_size=block_size, shape=shape),
-            world=WorldFrame(world_origin=corner, axis_u=axis_u, axis_v=axis_v, axis_w=axis_w, srs=srs),
+            world=WorldFrame(origin=(0.0, 0.0, 0.0), axis_u=axis_u, axis_v=axis_v, axis_w=axis_w, srs=srs),
         )
 
     def __init__(
@@ -297,7 +286,7 @@ class RegularGeometry:
                 shape=shape or (1, 1, 1),
             )
             world = WorldFrame(
-                world_origin=corner or (0.0, 0.0, 0.0),
+                origin=(0.0, 0.0, 0.0),
                 axis_u=axis_u or (1.0, 0.0, 0.0),
                 axis_v=axis_v or (0.0, 1.0, 0.0),
                 axis_w=axis_w or (0.0, 0.0, 1.0),
@@ -432,6 +421,7 @@ class RegularGeometry:
             "corner": list(self.local.corner),
             "block_size": list(self.local.block_size),
             "shape": list(self.local.shape),
+            "origin": list(self.world.origin),
             "axis_u": list(self.world.axis_u),
             "axis_v": list(self.world.axis_v),
             "axis_w": list(self.world.axis_w),
@@ -451,6 +441,7 @@ class RegularGeometry:
                 shape=tuple(meta["shape"]),
             ),
             world=WorldFrame(
+                origin=tuple(meta.get("origin", (0.0, 0.0, 0.0))),
                 axis_u=tuple(meta["axis_u"]),
                 axis_v=tuple(meta["axis_v"]),
                 axis_w=tuple(meta["axis_w"]),
@@ -497,28 +488,22 @@ class RegularGeometry:
     ) -> "RegularGeometry":
         """Reconstruct geometry from Parquet file metadata.
 
-        Parameters
-        ----------
-        metadata:
-            Either a ``pyarrow.parquet.FileMetaData`` instance or a
-            mapping of key-value metadata (usually ``dict[str, str]``).
-        key:
-            Metadata key under which the geometry payload is stored.
+        Args:
+            metadata: Either a ``pyarrow.parquet.FileMetaData`` instance or a
+                mapping of key-value metadata (usually ``dict[str, str]``).
+            key: Metadata key under which the geometry payload is stored.
 
-        Returns
-        -------
-        RegularGeometry
+        Returns:
+            RegularGeometry: The reconstructed geometry.
 
-        Raises
-        ------
-        KeyError
-            If the key is not present in the provided metadata.
-        TypeError, ValueError
-            If the payload cannot be interpreted as valid geometry
-            metadata.
+        Raises:
+            KeyError: If the key is not present in the provided metadata.
+            TypeError: If metadata is not a valid type.
+            ValueError: If the payload cannot be interpreted as valid geometry
+                metadata.
         """
 
-        # Normalise to a simple dict[str, Any]
+        # ...existing code...
         meta_dict: dict[str, Any]
         if hasattr(metadata, "metadata"):
             # Likely a pyarrow.parquet.FileMetaData
@@ -586,7 +571,7 @@ class RegularGeometry:
 
     @property
     def block_size(self) -> BlockSize:
-        """Backward-compatible access to block size."""
+        """Backward-compatible access to local-axis block spacing ``(dx, dy, dz)``."""
         return self.local.block_size
 
     @property
@@ -646,17 +631,17 @@ class RegularGeometry:
     def to_pyvista(self, *, frame: str = "world"):
         """Return a ``pyvista.ImageData`` representing the dense grid.
 
-        Parameters
-        ----------
-        frame : {"world", "local"}, optional
-            Coordinate frame used for the returned grid.
-            - ``"world"`` (default): apply world orientation from ``axis_u/v/w``.
-            - ``"local"``: return axis-aligned local grid (no rotation).
+        Args:
+            frame (str, optional): Coordinate frame used for the returned grid.
+                - ``"world"`` (default): apply world orientation from ``axis_u/v/w``.
+                - ``"local"``: return axis-aligned local grid (no rotation).
 
-        Notes
-        -----
-        In ``"world"`` mode, rotation is encoded using the ImageData
-        direction matrix, so plotting reflects geometry orientation.
+        Returns:
+            pyvista.ImageData: The grid representation.
+
+        Note:
+            In ``"world"`` mode, rotation is encoded using the ImageData
+            direction matrix, so plotting reflects geometry orientation.
         """
 
         import pyvista as pv

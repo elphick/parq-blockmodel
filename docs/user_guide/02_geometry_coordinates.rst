@@ -35,11 +35,17 @@ the internal split is transparent for most use cases.
 
 Key metadata fields:
 
-**corner** ``(x₀, y₀, z₀)``
-    The world-space position of the (i=0, j=0, k=0) block corner (managed by ``LocalGeometry``).
+**corner** ``(u₀, v₀, w₀)``
+    The local-space position of the (i=0, j=0, k=0) block corner (managed by ``LocalGeometry``).
+
+**origin** ``(x₀, y₀, z₀)``
+    The world-space position of local coordinate ``(0, 0, 0)`` (managed by ``WorldFrame``).
 
 **block_size** ``(dx, dy, dz)``
-    The size of each block along the logical u, v, w axes (managed by ``LocalGeometry``).
+    The size of each block along the logical/local axes. The public tuple is written as
+    ``(dx, dy, dz)``, but for rotated geometries these are spacings along local
+    ``i/j/k`` (equivalently ``u/v/w``), not fixed world X/Y/Z dimensions
+    (managed by ``LocalGeometry``).
 
 **shape** ``(nᵢ, nⱼ, nₖ)``
     The number of blocks along each logical axis (managed by ``LocalGeometry``).
@@ -90,11 +96,18 @@ Given logical indices (i, j, k), the **local grid position** is computed as:
 
 .. math::
 
-    u &= x_0 + (i + 0.5) \cdot dx \\
-    v &= y_0 + (j + 0.5) \cdot dy \\
-    w &= z_0 + (k + 0.5) \cdot dz
+    u &= u_0 + (i + 0.5) \cdot dx \\
+    v &= v_0 + (j + 0.5) \cdot dy \\
+    w &= w_0 + (k + 0.5) \cdot dz
 
 The offset 0.5 positions each coordinate at the **block centroid** (not corner).
+
+.. note::
+
+    Keeping the familiar names ``dx``, ``dy``, and ``dz`` is intentional: they represent
+    physical spacing values, but they belong to the local lattice. Rotation via
+    ``axis_u``, ``axis_v``, and ``axis_w`` determines how those local spacings appear in
+    world coordinates.
 
 Axis Orientation and Rotation
 ------------------------------
@@ -113,12 +126,12 @@ The world coordinates are then:
 
 .. math::
 
-    \begin{bmatrix} x \\ y \\ z \end{bmatrix} = R \cdot \begin{bmatrix} u \\ v \\ w \end{bmatrix}
+    \begin{bmatrix} x \\ y \\ z \end{bmatrix} = \begin{bmatrix} o_x \\ o_y \\ o_z \end{bmatrix} + R \cdot \begin{bmatrix} u \\ v \\ w \end{bmatrix}
 
 **Key properties:**
 
 - Since axis vectors are **orthonormal**, the matrix is orthogonal: :math:`R^{-1} = R^T`
-- The inverse transformation (world → local) is: :math:`\begin{bmatrix} u \\ v \\ w \end{bmatrix} = R^T \cdot \begin{bmatrix} x \\ y \\ z \end{bmatrix}`
+- The inverse transformation (world → local) is: :math:`\begin{bmatrix} u \\ v \\ w \end{bmatrix} = R^T \cdot (\begin{bmatrix} x \\ y \\ z \end{bmatrix} - \begin{bmatrix} o_x \\ o_y \\ o_z \end{bmatrix})`
 - For unrotated geometries, R is the identity matrix (no rotation applied)
 
 Once centroid coordinates are available in world space, they can also be converted into
@@ -230,6 +243,7 @@ Metadata is serialized as JSON and stored in the Parquet file's key-value metada
     {
       "schema_version": "1.0",
       "corner": [100.0, 200.0, 300.0],
+      "origin": [0.0, 0.0, 0.0],
       "block_size": [10.0, 10.0, 5.0],
       "shape": [50, 50, 20],
       "axis_u": [1.0, 0.0, 0.0],
@@ -261,7 +275,7 @@ Create a regular (unrotated) geometry:
             block_size=(10.0, 10.0, 5.0),
             shape=(50, 50, 20),
         ),
-        world=WorldFrame()  # Default: no rotation, world origin at (0, 0, 0)
+        world=WorldFrame(origin=(0.0, 0.0, 0.0))
     )
 
     # Or more simply, using keyword arguments (backward compatible):

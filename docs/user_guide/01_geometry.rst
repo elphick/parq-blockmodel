@@ -34,8 +34,10 @@ Canonical Representation: RegularGeometry
 The geometry is defined by a small set of metadata parameters:
 
 - **shape**: Number of blocks along each axis (nᵢ, nⱼ, nₖ)
-- **block_size**: Size of each block (dₓ, dᵧ, dᵧ)
-- **corner**: World-space origin of the grid
+- **block_size**: Size of each block ``(dx, dy, dz)`` along the local logical axes
+  ``(i, j, k)`` / ``(u, v, w)``
+- **corner**: Local-space corner of block (i=0, j=0, k=0)
+- **origin**: World-space position of local (0, 0, 0)
 - **axis_u, axis_v, axis_w**: Orthonormal vectors defining orientation (optional rotation)
 
 Creating Geometry
@@ -49,11 +51,13 @@ The simplest case (unrotated grid at origin):
 
     geom = RegularGeometry(
         corner=(0.0, 0.0, 0.0),        # Grid origin
-        block_size=(10.0, 10.0, 5.0),  # Uniform block size
+        block_size=(10.0, 10.0, 5.0),  # Uniform spacing along local i/j/k axes
         shape=(50, 50, 20),            # 50 × 50 × 20 blocks
     )
 
-For rotated geometries, add axis vectors:
+For rotated geometries, add axis vectors. The ``block_size=(dx, dy, dz)`` tuple still
+describes spacing along the local grid axes; the axis vectors define how that grid is
+embedded in world space.
 
 .. code-block:: python
 

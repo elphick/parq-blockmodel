@@ -69,39 +69,33 @@ if typing.TYPE_CHECKING:
 class ParquetBlockModel:
     """A class to represent a **regular** Parquet block model.
 
-    Canonical on-disk representation
-    -------------------------------
+    **Canonical on-disk representation:**
 
     We treat ``.pbm`` files as ParquetBlockModel containers:
 
-    * The *extension* must be ``.pbm``.
-    * The *content* is a Parquet table with embedded geometry metadata
+    - The *extension* must be ``.pbm``.
+    - The *content* is a Parquet table with embedded geometry metadata
       under the ``"parq-blockmodel"`` key, describing a regular
       :class:`parq_blockmodel.geometry.RegularGeometry` grid.
 
-    The geometry is ijk‑first: logical indices ``(i, j, k)`` enumerate
+    The geometry is ijk-first: logical indices ``(i, j, k)`` enumerate
     the dense grid, and centroid coordinates ``(x, y, z)`` are derived
     from those indices plus geometry (corner, block size, axis
-    orientation). In non‑rotated models the grid axes align with the
+    orientation). In non-rotated models the grid axes align with the
     global X, Y, Z directions; in rotated models they do not.
 
-    Parquet storage order follows NumPy C‑order with respect to ijk:
-
+    Parquet storage order follows NumPy C-order with respect to ijk:
     ``i`` varies fastest, then ``j``, then ``k``. This aligns with
     ``numpy.ravel(order="C")`` and how :class:`RegularGeometry`
-    computes row indices. For xyz-defined, non‑rotated models this
+    computes row indices. For xyz-defined, non-rotated models this
     corresponds to an increasing lexicographic ordering in ``(x, y, z)``,
     but callers should treat ijk + geometry as the canonical view.
 
-    Attributes
-    ----------
-    blockmodel_path : Path
-        Path to the canonical ``.pbm`` file backing this block model.
-    name : str
-        The name of the block model, derived from the file name.
-    geometry : RegularGeometry
-        Geometry of the block model, loaded from Parquet metadata or
-        inferred from centroid columns.
+    Attributes:
+        blockmodel_path (Path): Path to the canonical ``.pbm`` file backing this block model.
+        name (str): The name of the block model, derived from the file name.
+        geometry (RegularGeometry): Geometry of the block model, loaded from Parquet metadata or
+            inferred from centroid columns.
     """
 
     # Positional columns describe geometry/placement and are excluded from
@@ -152,24 +146,20 @@ class ParquetBlockModel:
 
     @property
     def centroid_index(self) -> pd.MultiIndex:
-        """
-        Get the centroid index of the block model as ``(x, y, z)``.
+        """Get the centroid index of the block model as ``(x, y, z)``.
 
         This index is built from the centroid columns ``x``, ``y``, ``z``
         stored in the underlying ``.pbm`` Parquet file. It is primarily
-        a **backwards‑compatibility view** for xyz‑first workflows which
-        treat world‑space centroids as the primary index.
+        a **backwards-compatibility view** for xyz-first workflows which
+        treat world-space centroids as the primary index.
 
-        Canonical ordering is defined by the C‑order ijk layout in
+        Canonical ordering is defined by the C-order ijk layout in
         :class:`RegularGeometry`, not by lexicographic sorting of
         ``(x, y, z)``. We therefore require this index to be **unique**
         but do not enforce global monotonicity in xyz.
 
-        Returns
-        -------
-        pd.MultiIndex
-            The MultiIndex representing centroid coordinates
-            ``(x, y, z)``.
+        Returns:
+            pd.MultiIndex: The MultiIndex representing centroid coordinates ``(x, y, z)``.
         """
 
         if self._centroid_index is None:
@@ -306,7 +296,7 @@ class ParquetBlockModel:
         """Create a :class:`ParquetBlockModel` from a source Parquet file.
 
         This helper promotes a *source* ``.parquet`` file (typically
-        xyz‑centric) into a canonical ``.pbm`` container with embedded
+        xyz-centric) into a canonical ``.pbm`` container with embedded
         :class:`RegularGeometry` metadata.
 
         The input Parquet is expected to contain centroid columns
@@ -317,31 +307,26 @@ class ParquetBlockModel:
         authoritative description of the dense ijk grid; xyz centroids
         are treated as a derived view.
 
-        Parameters
-        ----------
-        parquet_path : Path
-            Path to the *source* Parquet file. If the suffix is
-            ``.pbm`` and ``overwrite`` is False, a :class:`ValueError`
-            is raised to avoid mutating an existing canonical container.
-        columns : list[str], optional
-            Optional subset of columns to copy from the source file into
-            the resulting ``.pbm`` file. If ``None``, all columns are
-            copied.
-        overwrite : bool, default False
-            If True, allows overwriting an existing ``.pbm`` file at the
-            target location.
-        axis_azimuth, axis_dip, axis_plunge : float, default 0.0
-            Optional rotation angles used by
-            :meth:`RegularGeometry.from_parquet` to define the
-            orientation of the logical ijk axes in world coordinates
-            when inferring geometry. In the common case geometry is read
-            directly from existing metadata and these parameters are 0.
+        Args:
+            parquet_path (Path): Path to the *source* Parquet file. If the suffix is
+                ``.pbm`` and ``overwrite`` is False, a :class:`ValueError`
+                is raised to avoid mutating an existing canonical container.
+            columns (list[str], optional): Optional subset of columns to copy from the source file into
+                the resulting ``.pbm`` file. If ``None``, all columns are copied.
+            overwrite (bool, default False): If True, allows overwriting an existing ``.pbm`` file at the
+                target location.
+            axis_azimuth (float, default 0.0): Optional rotation angle used by
+                :meth:`RegularGeometry.from_parquet` to define the
+                orientation of the logical ijk axes in world coordinates
+                when inferring geometry. In the common case geometry is read
+                directly from existing metadata and this parameter is 0.
+            axis_dip (float, default 0.0): Optional rotation angle. See ``axis_azimuth``.
+            axis_plunge (float, default 0.0): Optional rotation angle. See ``axis_azimuth``.
+            chunk_size (int, default 1_000_000): Batch size for reading Parquet data.
 
-        Returns
-        -------
-        ParquetBlockModel
-            A block model backed by a newly written ``.pbm`` file
-            located alongside ``parquet_path``.
+        Returns:
+            ParquetBlockModel: A block model backed by a newly written ``.pbm`` file
+                located alongside ``parquet_path``.
         """
         if parquet_path.suffix == ".pbm":
             if not overwrite:
@@ -382,7 +367,7 @@ class ParquetBlockModel:
                        ) -> "ParquetBlockModel":
         """Create a :class:`ParquetBlockModel` from a pandas DataFrame.
 
-        This constructor is oriented towards xyz‑indexed
+        This constructor is oriented towards xyz-indexed
         DataFrames, where the index is a centroid MultiIndex with levels
         ``("x", "y", "z")`` in world coordinates.
 
@@ -392,41 +377,34 @@ class ParquetBlockModel:
         explicitly or inferred from the xyz centroids via
         :meth:`RegularGeometry.from_multi_index`.
 
-        Parameters
-        ----------
-        dataframe : pandas.DataFrame
-            Block model data indexed by centroid coordinates with
-            ``dataframe.index.names == ["x", "y", "z"]``.
-        filename : Path
-            Path to the *source* ``.parquet`` file which will be used as
-            the basis for the sibling ``.pbm`` container.
-        geometry : RegularGeometry, optional
-            Geometry of the logical ijk grid. If omitted, it is inferred
-            from the centroid MultiIndex, using the optional rotation
-            angles to define the ijk axis orientation.
-        name : str, optional
-            Optional name for the resulting :class:`ParquetBlockModel`.
-            Defaults to ``filename.stem``.
-        overwrite : bool, default False
-            If True, allows overwriting an existing ``.pbm`` file at the
-            derived path.
-        axis_azimuth, axis_dip, axis_plunge : float, default 0.0
-            Optional rotation angles used when inferring geometry from
-            the xyz centroids. They define the orientation of the
-            logical ijk axes relative to the world coordinate frame.
+        Args:
+            dataframe (pandas.DataFrame): Block model data indexed by centroid coordinates with
+                ``dataframe.index.names == ["x", "y", "z"]``.
+            filename (Path): Path to the *source* ``.parquet`` file which will be used as
+                the basis for the sibling ``.pbm`` container.
+            geometry (RegularGeometry, optional): Geometry of the logical ijk grid. If omitted, it is inferred
+                from the centroid MultiIndex, using the optional rotation
+                angles to define the ijk axis orientation.
+            name (str, optional): Optional name for the resulting :class:`ParquetBlockModel`.
+                Defaults to ``filename.stem``.
+            overwrite (bool, default False): If True, allows overwriting an existing ``.pbm`` file at the
+                derived path.
+            axis_azimuth (float, default 0.0): Optional rotation angle used when inferring geometry from
+                the xyz centroids. Defines the orientation of the
+                logical ijk axes relative to the world coordinate frame.
+            axis_dip (float, default 0.0): Optional rotation angle. See ``axis_azimuth``.
+            axis_plunge (float, default 0.0): Optional rotation angle. See ``axis_azimuth``.
+            chunk_size (int, default 1_000_000): Batch size for writing Parquet data.
 
-        Returns
-        -------
-        ParquetBlockModel
-            A block model backed by the newly written ``.pbm`` file.
+        Returns:
+            ParquetBlockModel: A block model backed by the newly written ``.pbm`` file.
 
-        Notes
-        -----
-        New ijk‑first workflows are encouraged to construct a
-        :class:`RegularGeometry` explicitly and use
-        :meth:`ParquetBlockModel.from_geometry` or
-        :meth:`ParquetBlockModel.from_parquet`. This helper remains for
-        backwards compatibility with xyz‑indexed DataFrames.
+        Note:
+            New ijk-first workflows are encouraged to construct a
+            :class:`RegularGeometry` explicitly and use
+            :meth:`ParquetBlockModel.from_geometry` or
+            :meth:`ParquetBlockModel.from_parquet`. This helper remains for
+            backwards compatibility with xyz-indexed DataFrames.
         """
         # Ensure MultiIndex
         if dataframe.index.names != ["x", "y", "z"]:
