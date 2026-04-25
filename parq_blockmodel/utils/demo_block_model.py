@@ -14,7 +14,7 @@ def create_demo_blockmodel(shape: tuple[int, int, int] = (3, 3, 3),
                            dip: float = 0.0,
                            plunge: float = 0.0,
                            parquet_filepath: Path = None,
-                           index_type: Literal["block_index", "world_centroids", "range"] = "block_index",
+                           index_type: Literal["block_index", "world_centroids", "block_id"] = "block_index",
                            ) -> pd.DataFrame | Path:
 
     """
@@ -36,17 +36,11 @@ def create_demo_blockmodel(shape: tuple[int, int, int] = (3, 3, 3),
         This ordering is *purely logical* and independent of how NumPy stores
         the data in memory.
 
-    Linear index columns (optional helpers for reproducibility and debugging):
-        - linear_index_c:
-            Linear index obtained by flattening an (i,j,k) array using
-            NumPy C‑order (row‑major)   → last axis (k) varies fastest.
-
-        - linear_index_f:
-            Linear index obtained by flattening an (i,j,k) array using
-            NumPy F‑order (column‑major) → first axis (i) varies fastest.
-
-        These linear indices describe NumPy memory flattening conventions only.
-        They do *not* imply anything about logical block order.
+    Canonical block id:
+        - block_id:
+            Canonical linear id obtained by flattening logical (i,j,k)
+            coordinates in NumPy C-order. This is frame-invariant and remains
+            stable regardless of world-space rotation.
 
     ─────────────────────────────────────────────────────────────────────────────
     WORLD COORDINATES
@@ -73,7 +67,7 @@ def create_demo_blockmodel(shape: tuple[int, int, int] = (3, 3, 3),
     index_type:
         - "block_index": the DataFrame is indexed by (i, j, k).
         - "world_centroids": indexed by (x, y, z).
-        - "range": uses a default RangeIndex; no special indexing is applied.
+        - "block_id": indexed by canonical block_id.
 
     ─────────────────────────────────────────────────────────────────────────────
     ATTRIBUTES
@@ -85,6 +79,7 @@ def create_demo_blockmodel(shape: tuple[int, int, int] = (3, 3, 3),
             "corner": (corner_x, corner_y, corner_z),
             "rotation": { "azimuth": ..., "dip": ..., "plunge": ... },
             "geometry_type": "rectilinear_blockmodel",
+            "canonical_identity": "block_id",
             "index_type": index_type
         }
 
@@ -109,7 +104,7 @@ def create_demo_blockmodel(shape: tuple[int, int, int] = (3, 3, 3),
     parquet_filepath : Path | None
         If supplied, the DataFrame is written to Parquet.
 
-    index_type : {"block_index", "world_centroids", "range"}
+    index_type : {"block_index", "world_centroids", "block_id"}
         Specifies which index is assigned to the returned DataFrame.
 
     ─────────────────────────────────────────────────────────────────────────────
@@ -145,24 +140,20 @@ def create_demo_blockmodel(shape: tuple[int, int, int] = (3, 3, 3),
         rotated = rotate_points(points=coords, azimuth=azimuth, dip=dip, plunge=plunge)
         x, y, z = rotated[:, 0], rotated[:, 1], rotated[:, 2]
 
-    # ------------------------------------------------------------------
-    # Linear index helpers (C- and F-order views)
-    # ------------------------------------------------------------------
-    index_c = rows
-    index_f = rows.reshape(shape, order="C").ravel(order="F")
+    # Canonical block id from logical indices in C-order.
+    block_id = rows
 
     # ------------------------------------------------------------------
     # Build DataFrame with canonical logical + world coordinates
     # ------------------------------------------------------------------
     df = pd.DataFrame({
+        "block_id": block_id,
         "i": i,
         "j": j,
         "k": k,
         "x": x,
         "y": y,
         "z": z,
-        "index_c": index_c,
-        "index_f": index_f,
     })
 
     # Depth information (using world Z)
@@ -182,9 +173,8 @@ def create_demo_blockmodel(shape: tuple[int, int, int] = (3, 3, 3),
         df.set_index(["i", "j", "k"], inplace=True)
     elif index_type == "world_centroids":
         df.set_index(["x", "y", "z"], inplace=True)
-    elif index_type == "range":
-        # Leave as default RangeIndex (0..N-1)
-        pass
+    elif index_type == "block_id":
+        df.set_index("block_id", inplace=True)
     else:
         raise ValueError(f"Unknown index_type: {index_type}")
 
@@ -196,6 +186,7 @@ def create_demo_blockmodel(shape: tuple[int, int, int] = (3, 3, 3),
         "corner": tuple(corner),
         "rotation": {"azimuth": azimuth, "dip": dip, "plunge": plunge},
         "geometry_type": "rectilinear_blockmodel",
+        "canonical_identity": "block_id",
         "index_type": index_type,
     })
 
@@ -216,7 +207,8 @@ def add_gradient_ellipsoid_grade(
         dip: float = 0.0,
         plunge: float = 0,
         column_name: str = 'grade',
-        noise_std: float = 0.1
+        noise_std: float = 0.1,
+        noise_seed: int | None = None,
 ) -> pd.DataFrame:
     """Add a gradient ellipsoid grade to the block model DataFrame."""
     if df.index.names == ['x', 'y', 'z']:
@@ -235,7 +227,8 @@ def add_gradient_ellipsoid_grade(
     grad = np.full_like(norm, grade_min, dtype=float)
     grad[inside] = grade_max - (grade_max - grade_min) * np.sqrt(norm[inside])
     if noise_std > 0.0:
-        grad += np.random.normal(0, noise_std, size=grad.shape)
+        rng = np.random.default_rng(noise_seed)
+        grad += rng.normal(0, noise_std, size=grad.shape)
     df[column_name] = grad
     return df
 
@@ -256,6 +249,8 @@ def create_toy_blockmodel(
         deposit_center=(10.0, 7.5, 5.0),
         deposit_radii=(8.0, 5.0, 3.0),
         noise_std: float = 0.0,
+        noise_rel: float | None = None,
+        noise_seed: int | None = None,
         parquet_filepath: Path = None
 ) -> pd.DataFrame | Path:
     """Create a toy blockmodel with a gradient ellipsoid grade.
@@ -274,13 +269,25 @@ def create_toy_blockmodel(
         grade_max: The maximum grade value.
         deposit_center: The center of the deposit (x, y, z).
         deposit_radii: The radii of the deposit (rx, ry, rz).
-        noise_std: Standard deviation of the noise to add to the grade values.
+        noise_std: Absolute standard deviation of Gaussian noise added to grades.
+        noise_rel: Relative standard deviation expressed as a fraction of
+            ``(grade_max - grade_min)``. Mutually exclusive with ``noise_std``.
+        noise_seed: Optional random seed for reproducible Gaussian noise.
         parquet_filepath: The file path to save the DataFrame as a Parquet file. If None, returns a DataFrame.
 
     Returns:
         pd.DataFrame if parquet_filepath is None, else Path to the Parquet file.
     """
+    if noise_rel is not None:
+        if noise_rel < 0.0:
+            raise ValueError("noise_rel must be >= 0.0")
+        if noise_std not in (0.0, 0):
+            raise ValueError("Specify only one of noise_std or noise_rel")
+        noise_std = float(noise_rel) * float(grade_max - grade_min)
+
     df = create_demo_blockmodel(shape, block_size, corner, axis_azimuth, axis_dip, axis_plunge)
+    if not isinstance(df, pd.DataFrame):
+        raise TypeError("create_demo_blockmodel returned a path unexpectedly")
     df = add_gradient_ellipsoid_grade(df=df,
                                       center=deposit_center,
                                       radii=deposit_radii,
@@ -290,7 +297,8 @@ def create_toy_blockmodel(
                                       dip=deposit_dip,
                                       plunge=deposit_plunge,
                                       column_name=grade_name,
-                                      noise_std=noise_std)
+                                      noise_std=noise_std,
+                                      noise_seed=noise_seed)
     if parquet_filepath is not None:
         df.to_parquet(parquet_filepath)
         return parquet_filepath

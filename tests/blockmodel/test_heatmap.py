@@ -12,8 +12,8 @@ def test_heatmap_array(tmpdir):
     pbm: ParquetBlockModel = ParquetBlockModel.create_demo_block_model(filename=parquet_filepath,
                                                                        shape=shape,
                                                                        )
-    heatmap: np.ndarray = pbm.create_heatmap_from_threshold(attribute='index_c',
-                                                            threshold=4,
+    heatmap: np.ndarray = pbm.create_heatmap_from_threshold(attribute='depth',
+                                                            threshold=1,
                                                             axis='z',
                                                             return_array=True)
 
@@ -29,8 +29,8 @@ def test_heatmap_plot(tmpdir):
     pbm: ParquetBlockModel = ParquetBlockModel.create_demo_block_model(filename=parquet_filepath,
                                                                        shape=shape,
                                                                        )
-    fig = pbm.plot_heatmap(attribute='index_c',
-                           threshold=4,
+    fig = pbm.plot_heatmap(attribute='depth',
+                           threshold=1,
                            axis='z')
 
     assert fig is not None, "Heatmap figure is None."

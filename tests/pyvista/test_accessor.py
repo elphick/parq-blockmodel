@@ -53,12 +53,22 @@ def test_df_to_image_data_categorical():
 
 
 
-@pytest.mark.skip
+@pytest.mark.skip(reason="Quarantined: StructuredGrid path in to_pyvista() not yet implemented; "
+                   "unquarantine once grid_type='structured' is supported for sparse models")
 def test_df_to_structured_grid():
     df = create_demo_blockmodel()
     # remove some cells to make it non-image
-    df = df[df['index_c'] % 2 == 0].copy()
+    df = df[df['block_id'] % 2 == 0].copy()
     mesh: pv.ImageData = df.to_pyvista(grid_type='structured')
     assert isinstance(mesh, pv.StructuredGrid)
     assert df.shape[0] == mesh.n_cells
     assert df.columns.tolist() == list(mesh.cell_data.keys())
+
+def test_df_to_image_data_frame_local_vs_world():
+    df = create_demo_blockmodel(azimuth=30.0)
+
+    local_mesh: pv.ImageData = df.to_pyvista(grid_type='image', frame='local')
+    world_mesh: pv.ImageData = df.to_pyvista(grid_type='image', frame='world')
+
+    np.testing.assert_allclose(np.asarray(local_mesh.direction_matrix), np.eye(3))
+    assert not np.allclose(np.asarray(world_mesh.direction_matrix), np.eye(3))

@@ -5,7 +5,8 @@ import pandas as pd
 import pytest
 from parq_blockmodel.reblocking.downsample import downsample_attributes
 from parq_blockmodel.reblocking.upsample import upsample_attributes
-from parq_blockmodel.reblocking.conversion import tabular_to_3d_dict, dict_3d_to_tabular
+from parq_blockmodel.reblocking.conversion import tabular_to_3d_dict, dict_3d_to_tabular, to_numeric
+from parq_blockmodel.reblocking.reblocking import _calculate_factors
 
 def test_downsample_attributes_mean():
     arr = np.arange(8).reshape(2,2,2)
@@ -102,3 +103,71 @@ def test_upsample_and_downsample_mixed_types():
     assert downsampled['cat_val'][0,0,0] in [0, 1]  #['dog', 'cat']  # using codes
     assert downsampled['nullable_int'][0,0,0] in [1, 3, 4]
     assert np.isclose(downsampled['float_val'][0,0,0], np.mean([0.5, 1.5, 2.5]))
+
+
+def test_downsample_attributes_fill_ratio_must_be_single_variable():
+    arr = np.ones((2, 2, 2), dtype=float)
+    attrs = {
+        "a": arr,
+        "b": arr,
+        "fill_a": arr,
+        "fill_b": arr,
+    }
+    config = {
+        "a": {"method": "sum", "fill_ratio": "fill_a"},
+        "b": {"method": "sum", "fill_ratio": "fill_b"},
+    }
+
+    with pytest.raises(ValueError, match="Only one fill_ratio is supported"):
+        downsample_attributes(attrs, 2, 2, 2, config)
+
+
+def test_downsample_attributes_replace_requires_mapping():
+    arr = np.arange(8, dtype=float).reshape(2, 2, 2)
+    attrs = {"value": arr}
+    config = {"value": {"method": "sum", "replace": "nan"}}
+
+    with pytest.raises(ValueError, match="replace value must be a dictionary"):
+        downsample_attributes(attrs, 2, 2, 2, config)
+
+
+def test_downsample_attributes_weighted_mean_requires_weight_array():
+    arr = np.arange(8, dtype=float).reshape(2, 2, 2)
+    attrs = {"grade": arr}
+    config = {"grade": {"method": "weighted_mean"}}
+
+    with pytest.raises(ValueError, match="Missing weight array"):
+        downsample_attributes(attrs, 2, 2, 2, config)
+
+
+def test_tabular_to_3d_dict_requires_ijk_index_names():
+    df = pd.DataFrame({"x": [0], "y": [0], "z": [0], "value": [1]}).set_index(["x", "y", "z"])
+    with pytest.raises(ValueError, match="DataFrame index must be a MultiIndex"):
+        tabular_to_3d_dict(df)
+
+
+def test_dict_3d_to_tabular_rejects_shape_mismatch():
+    arrays = {
+        "a": np.zeros((2, 2, 2)),
+        "b": np.zeros((2, 2, 1)),
+    }
+    with pytest.raises(ValueError, match="Shape mismatch"):
+        dict_3d_to_tabular(arrays)
+
+
+def test_to_numeric_preserves_nullable_integer_dtype():
+    arr = pd.array([1, None, 3], dtype="Int64")
+    numeric, restore = to_numeric(arr)
+    restored = restore(numeric)
+
+    assert numeric.dtype.kind == "f"
+    assert str(restored.dtype) == "Int64"
+
+
+def test_calculate_factors_rejects_mixed_up_and_downsampling(tmp_path):
+    from parq_blockmodel import ParquetBlockModel
+
+    pbm = ParquetBlockModel.create_demo_block_model(tmp_path / "factor_mixed.parquet", shape=(4, 4, 4))
+    with pytest.raises(ValueError, match="Cannot mix upsampling and downsampling"):
+        _calculate_factors(pbm, (2.0, 0.5, 2.0))
+

@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 
 import numpy as np
@@ -18,8 +17,7 @@ def test_toy_blockmodel():
                                                      grade_max=grade_max)
     assert isinstance(toy_blocks, pd.DataFrame), "The result should be a pandas DataFrame."
     assert not toy_blocks.empty, "The DataFrame should not be empty."
-    assert 'index_c' in toy_blocks.columns, "The DataFrame should contain 'index_c' column."
-    assert 'index_f' in toy_blocks.columns, "The DataFrame should contain 'index_f' column."
+    assert 'block_id' in toy_blocks.columns, "The DataFrame should contain 'block_id' column."
     assert 'depth' in toy_blocks.columns, "The DataFrame should contain 'depth' column."
     assert grade_name in toy_blocks.columns, "The DataFrame should contain 'grade' column."
     assert toy_blocks[grade_name].mean() >= grade_min, \
@@ -46,7 +44,39 @@ def test_toy_blockmodel_parquet(tmpdir):
     assert not toy_blocks.empty, "The DataFrame should not be empty."
     assert 'fe' in toy_blocks.columns, "The DataFrame should contain 'fe' column."
 
-@pytest.mark.skipif(os.getenv('CI') == 'true', reason="Requires display")
+
+def test_toy_blockmodel_relative_noise_is_reproducible_and_breaks_ties():
+    grade_name = "fe"
+    kwargs = dict(
+        shape=(20, 15, 10),
+        block_size=(1.0, 1.0, 1.0),
+        corner=(0.0, 0.0, 0.0),
+        axis_azimuth=0.0,
+        axis_dip=0.0,
+        axis_plunge=0.0,
+        deposit_bearing=0.0,
+        deposit_dip=0.0,
+        deposit_plunge=0.0,
+        grade_name=grade_name,
+        grade_min=45.0,
+        grade_max=70.0,
+        deposit_center=(10.0, 7.5, 5.0),
+        deposit_radii=(8.0, 5.0, 3.0),
+        noise_rel=1e-3,
+        noise_seed=42,
+    )
+    df_a = create_toy_blockmodel(**kwargs)
+    df_b = create_toy_blockmodel(**kwargs)
+
+    pd.testing.assert_series_equal(df_a[grade_name], df_b[grade_name], check_names=False)
+    assert int((df_a[grade_name] == float(df_a[grade_name].max())).sum()) == 1
+
+
+def test_toy_blockmodel_rejects_both_noise_std_and_noise_rel():
+    with pytest.raises(ValueError, match="noise_std or noise_rel"):
+        create_toy_blockmodel(noise_std=0.1, noise_rel=1e-3)
+
+@pytest.mark.gui
 def test_class_method(tmpdir):
 
     parquet_filepath = Path(tmpdir) / 'toy_blockmodel.parquet'

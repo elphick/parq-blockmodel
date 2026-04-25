@@ -17,6 +17,7 @@ def df_to_pv_image_data(df: pd.DataFrame,
                         fill_value=np.nan,
                         categorical_encode: bool = False,
                         categorical_mappings: dict[str, dict] = None,
+                        frame: str = "world",
                         ) -> pv.ImageData:
     """
     Convert a DataFrame to a PyVista ImageData object for a dense regular grid.
@@ -27,33 +28,45 @@ def df_to_pv_image_data(df: pd.DataFrame,
         fill_value: Value to use for missing cells.
         categorical_encode: Whether to encode categorical columns.
         categorical_mappings: Mapping of categorical column names to integers.  If None, will auto-generate.
+        frame: Coordinate frame for the output grid. ``"world"`` applies geometry orientation;
+            ``"local"`` uses axis-aligned local ijk orientation.
 
     Returns:
         pv.ImageData: PyVista ImageData object with cell data.
     """
 
-    # Ensure index is MultiIndex (x, y, z)
-    if not isinstance(df.index, pd.MultiIndex):
-        df = df.set_index(['x', 'y', 'z'])
-
-    # Sort index to match PyVista's Fortran order (z, y, x)
-    df = df.sort_index(level=['z', 'y', 'x'])
-
-    # Create dense index and reindex. RegularGeometry exposes XYZ centroids
-    # via ``to_multi_index_xyz`` in C-order. We sort this index by z, y, x
-    # to match the ordering expected later when reshaping with order='F'.
-    dense_index = geometry.to_multi_index_xyz()
-    # Ensure we have a proper MultiIndex with named levels and sort by
-    # z, then y, then x to match PyVista's expected ordering.
-    if not isinstance(dense_index, pd.MultiIndex):
-        dense_index = pd.MultiIndex.from_tuples(list(dense_index), names=["x", "y", "z"])
-    else:
-        dense_index = dense_index.set_names(["x", "y", "z"])
-    dense_index = dense_index.sort_values()
-    dense_df = df.reindex(dense_index)
     shape = geometry.local.shape
+    grid: pv.ImageData = geometry.to_pyvista(frame=frame)
 
-    grid: pv.ImageData = geometry.to_pyvista()
+    # ------------------------------------------------------------------
+    # Normalise the DataFrame to canonical C-order ijk layout.
+    #
+    # PyVista ImageData expects cell_data in Fortran (i-fastest) order.
+    # The safe, rotation-invariant path is:
+    #   1. Bring data into canonical C-order ijk (k fastest, i slowest).
+    #   2. reshape(shape, order='C').ravel(order='F') → i-fastest for PV.
+    #
+    # If the caller already provides an ijk-indexed DataFrame (from
+    # ``ParquetBlockModel.read(index="ijk", dense=True)``) we use it
+    # directly.  For backwards-compat the old xyz-sorted path is kept
+    # for xyz-indexed DataFrames, but it only works correctly for
+    # axis-aligned (non-rotated) models.
+    # ------------------------------------------------------------------
+    if isinstance(df.index, pd.MultiIndex) and list(df.index.names) == ["i", "j", "k"]:
+        # ijk-indexed: already in canonical C-order from geometry.to_multi_index_ijk().
+        dense_df = df
+    else:
+        # xyz-indexed legacy path (non-rotated models only).
+        if not isinstance(df.index, pd.MultiIndex):
+            df = df.set_index(['x', 'y', 'z'])
+        df = df.sort_index(level=['z', 'y', 'x'])
+        dense_index = geometry.to_multi_index_xyz()
+        if not isinstance(dense_index, pd.MultiIndex):
+            dense_index = pd.MultiIndex.from_tuples(list(dense_index), names=["x", "y", "z"])
+        else:
+            dense_index = dense_index.set_names(["x", "y", "z"])
+        dense_index = dense_index.sort_values()
+        dense_df = df.reindex(dense_index)
 
     for attr in df.columns:
         col = dense_df[attr]

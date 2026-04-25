@@ -65,6 +65,7 @@ def test_regular_geometry_composition_init():
 def test_regular_geometry_exposes_flat_legacy_properties():
     geom = make_geometry()
     assert geom.corner == geom.local.corner
+    assert geom.origin == geom.world.origin
     assert geom.axis_u == geom.world.axis_u
 
 

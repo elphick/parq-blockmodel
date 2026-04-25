@@ -503,7 +503,6 @@ class RegularGeometry:
                 metadata.
         """
 
-        # ...existing code...
         meta_dict: dict[str, Any]
         if hasattr(metadata, "metadata"):
             # Likely a pyarrow.parquet.FileMetaData
@@ -568,6 +567,11 @@ class RegularGeometry:
     def corner(self) -> Point:
         """Backward-compatible access to local corner."""
         return self.local.corner
+
+    @property
+    def origin(self) -> Point:
+        """Backward-compatible access to world origin."""
+        return self.world.origin
 
     @property
     def block_size(self) -> BlockSize:
@@ -745,6 +749,76 @@ class RegularGeometry:
         # Corner is half a block before the minimum centroid along each axis.
         corner = (float(ux.min() - dx / 2), float(uy.min() - dy / 2), float(uz.min() - dz / 2))
 
+        block_size: BlockSize = (dx, dy, dz)
+        shape: Shape3D = (ni, nj, nk)
+
+
+        return cls(
+            local=LocalGeometry(corner=corner, block_size=block_size, shape=shape),
+            world=WorldFrame(axis_u=axis_u, axis_v=axis_v, axis_w=axis_w),
+        )
+
+    @classmethod
+    def from_multi_index(
+        cls,
+        index: "pd.MultiIndex",
+        axis_azimuth: float = 0.0,
+        axis_dip: float = 0.0,
+        axis_plunge: float = 0.0,
+    ) -> "RegularGeometry":
+        """Infer geometry from an xyz centroid MultiIndex.
+
+        Convenience constructor used by :meth:`ParquetBlockModel.from_dataframe`
+        when no explicit geometry is provided. The index must have levels
+        ``("x", "y", "z")`` in world coordinates.
+
+        Parameters
+        ----------
+        index : pd.MultiIndex
+            Centroid coordinates with names ``["x", "y", "z"]``.
+        axis_azimuth, axis_dip, axis_plunge : float
+            Optional rotation angles (degrees) defining the orientation of
+            the logical ijk axes in world space.
+
+        Returns
+        -------
+        RegularGeometry
+        """
+        import pandas as pd
+        from parq_blockmodel.utils.geometry_utils import angles_to_axes
+
+        if not isinstance(index, pd.MultiIndex) or index.names != ["x", "y", "z"]:
+            raise ValueError("index must be a pd.MultiIndex with names ['x', 'y', 'z'].")
+
+        axis_u, axis_v, axis_w = angles_to_axes(
+            axis_azimuth=axis_azimuth,
+            axis_dip=axis_dip,
+            axis_plunge=axis_plunge,
+        )
+        R = np.array([axis_u, axis_v, axis_w], dtype=float).T
+
+        x = np.asarray(index.get_level_values("x"), dtype=float)
+        y = np.asarray(index.get_level_values("y"), dtype=float)
+        z = np.asarray(index.get_level_values("z"), dtype=float)
+        pts = np.vstack([x, y, z])
+        local = R.T @ pts
+
+        ux = np.array(sorted(set(np.unique(local[0]).tolist())), dtype=float)
+        uy = np.array(sorted(set(np.unique(local[1]).tolist())), dtype=float)
+        uz = np.array(sorted(set(np.unique(local[2]).tolist())), dtype=float)
+
+        if ux.size < 2 or uy.size < 2 or uz.size < 2:
+            raise ValueError("Cannot infer block size/shape from degenerate centroid coordinates.")
+
+        dx = float(np.diff(ux).min())
+        dy = float(np.diff(uy).min())
+        dz = float(np.diff(uz).min())
+
+        ni = int(round((ux.max() - ux.min()) / dx)) + 1
+        nj = int(round((uy.max() - uy.min()) / dy)) + 1
+        nk = int(round((uz.max() - uz.min()) / dz)) + 1
+
+        corner = (float(ux.min() - dx / 2), float(uy.min() - dy / 2), float(uz.min() - dz / 2))
         block_size: BlockSize = (dx, dy, dz)
         shape: Shape3D = (ni, nj, nk)
 

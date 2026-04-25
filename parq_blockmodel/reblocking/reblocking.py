@@ -41,9 +41,9 @@ def _prepare_arrays_and_index(blockmodel) -> tuple[dict[str, np.ndarray], dict[s
     # already returns a C-order (i, j, k) MultiIndex when ``index="ijk"``,
     # which is exactly what ``tabular_to_3d_dict`` expects.
     #
-    # Only load true attributes; drop geometry/linear-index helpers which
+    # Only load true attributes; drop geometry/identity columns which
     # will be regenerated for the reblocked grid.
-    geometry_cols = {"x", "y", "z", "i", "j", "k", "index_c", "index_f"}
+    geometry_cols = {"block_id", "world_id", "x", "y", "z", "i", "j", "k"}
     cols = [c for c in blockmodel.columns if c not in geometry_cols]
     df: pd.DataFrame = blockmodel.read(columns=cols, index="ijk", dense=True)
     arrays, categories = tabular_to_3d_dict(df)
@@ -151,13 +151,10 @@ def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "Pa
     reblocked_df["y"] = new_geometry.centroid_y
     reblocked_df["z"] = new_geometry.centroid_z
 
-    # Linear index helpers following the same conventions as the demo
-    # block model utilities (C-order index_c, F-order index_f).
+    # Canonical linear id in C-order of local (i, j, k).
     N = int(np.prod(new_geometry.local.shape))
     rows = np.arange(N, dtype=np.uint32)
     reblocked_df["block_id"] = rows
-    reblocked_df["index_c"] = rows
-    reblocked_df["index_f"] = rows.reshape(new_geometry.local.shape, order="C").ravel(order="F")
 
     table = pa.Table.from_pandas(reblocked_df.reset_index(drop=True), preserve_index=False)
     meta = dict(table.schema.metadata or {})
@@ -230,8 +227,6 @@ def upsample_blockmodel(blockmodel, new_block_size, interpolation_config) -> "Pa
     N = int(np.prod(new_geometry.local.shape))
     rows = np.arange(N, dtype=np.uint32)
     reblocked_df["block_id"] = rows
-    reblocked_df["index_c"] = rows
-    reblocked_df["index_f"] = rows.reshape(new_geometry.local.shape, order="C").ravel(order="F")
 
     table = pa.Table.from_pandas(reblocked_df.reset_index(drop=True), preserve_index=False)
     meta = dict(table.schema.metadata or {})

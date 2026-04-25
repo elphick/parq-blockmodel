@@ -26,3 +26,4 @@ Welcome to parq-blockmodel's documentation!
    :caption: Developer docs:
 
    design_ijk_metadata
+   developer_testing

@@ -117,11 +117,35 @@ class ParquetBlockModel:
         self.attributes: list[str] = [col for col in self.columns if col not in self.POSITION_COLUMNS]
         self._extract_column_dtypes()
         self._logger = logging.getLogger(__name__)
+        self._assert_canonical_block_id_invariant()
 
         if self.is_sparse:
             if not self.validate_sparse():
                 raise ValueError("The sparse ParquetBlockModel is invalid. "
                                  "Sparse centroids must be a subset of the dense grid.")
+
+    def _assert_canonical_block_id_invariant(self) -> None:
+        """Enforce mandatory canonical identity invariant for `.pbm` files."""
+        if "block_id" not in self.columns:
+            raise ValueError("Canonical .pbm requires a 'block_id' column.")
+
+        dense_count = int(np.prod(self.geometry.local.shape))
+        seen: set[int] = set()
+        total = 0
+        for batch in self._iter_batches(["block_id"]):
+            block_ids = np.asarray(batch.column(0), dtype=np.int64)
+            if np.any(block_ids < 0) or np.any(block_ids >= dense_count):
+                raise ValueError("Canonical .pbm has block_id values outside geometry bounds.")
+            if np.unique(block_ids).size != block_ids.size:
+                raise ValueError("Canonical .pbm requires unique block_id values.")
+            seen_before = len(seen)
+            seen.update(block_ids.tolist())
+            if len(seen) - seen_before != block_ids.size:
+                raise ValueError("Canonical .pbm requires unique block_id values.")
+            total += int(block_ids.size)
+
+        if total != int(self.pf.metadata.num_rows):
+            raise ValueError("Canonical .pbm block_id validation could not cover all rows.")
 
     def __repr__(self):
         return f"ParquetBlockModel(name={self.name}, path={self.blockmodel_path})"
@@ -143,6 +167,16 @@ class ParquetBlockModel:
     @property
     def column_categorical_ordered(self) -> dict[str, bool]:
         return self._column_categorical_ordered.copy()
+
+    @property
+    def corner(self) -> Point:
+        """Backward-compatible access to the local grid corner."""
+        return self.geometry.corner
+
+    @property
+    def origin(self) -> Point:
+        """Backward-compatible access to the world-frame origin."""
+        return self.geometry.origin
 
     @property
     def centroid_index(self) -> pd.MultiIndex:
@@ -530,7 +564,9 @@ class ParquetBlockModel:
                               grade_max: float = 65.0,
                               deposit_center=(10.0, 7.5, 5.0),
                               deposit_radii=(8.0, 5.0, 3.0),
-                              noise_std: float = 0.2,
+                              noise_std: float = 0.0,
+                              noise_rel: float | None = None,
+                              noise_seed: int | None = None,
                               ) -> "ParquetBlockModel":
         """Create a synthetic toy block model.
 
@@ -568,8 +604,14 @@ class ParquetBlockModel:
             Center of the ellipsoidal deposit in world xyz coordinates.
         deposit_radii : tuple of float
             Semi‑axes of the deposit ellipsoid in world units.
-        noise_std : float, default 0.2
-            Standard deviation of Gaussian noise added to grades.
+        noise_std : float, default 0.0
+            Absolute standard deviation of Gaussian noise added to grades.
+        noise_rel : float, optional
+            Relative standard deviation expressed as a fraction of
+            ``(grade_max - grade_min)``. Mutually exclusive with
+            ``noise_std``.
+        noise_seed : int, optional
+            Seed used for reproducible Gaussian noise.
 
         Returns
         -------
@@ -591,7 +633,8 @@ class ParquetBlockModel:
                               deposit_bearing=deposit_bearing, deposit_dip=deposit_dip, deposit_plunge=deposit_plunge,
                               grade_name=grade_name, grade_min=grade_min, grade_max=grade_max,
                               deposit_center=deposit_center, deposit_radii=deposit_radii,
-                              noise_std=noise_std, parquet_filepath=filename,
+                              noise_std=noise_std, noise_rel=noise_rel,
+                              noise_seed=noise_seed, parquet_filepath=filename,
                               )
         # get the orientation of the axes
         axis_u, axis_v, axis_w = angles_to_axes(
@@ -859,6 +902,7 @@ class ParquetBlockModel:
 
     def plot(self, scalar: str,
              grid_type: typing.Literal["image", "structured", "unstructured"] = "image",
+             frame: typing.Literal["world", "local"] = "world",
              threshold: bool = True, show_edges: bool = True,
              show_axes: bool = True, enable_picking: bool = False,
              picked_attributes: Optional[list[str]] = None) -> 'pv.Plotter':
@@ -867,6 +911,8 @@ class ParquetBlockModel:
         Args:
             scalar: The name of the scalar attribute to visualize.
             grid_type: The type of grid to use for plotting. Options are "image", "structured", or "unstructured".
+            frame: Coordinate frame for image grids. ``"world"`` applies geometry axis vectors;
+                ``"local"`` uses axis-aligned local ijk orientation. Only supported for ``grid_type="image"``.
             threshold: The thresholding option for the mesh. If True, applies a threshold to the scalar values.
             show_edges: Show edges of the mesh.
             show_axes: Show the axes in the plot.
@@ -893,7 +939,7 @@ class ParquetBlockModel:
                 attributes = picked_attributes
             if scalar not in attributes:
                 attributes.append(scalar)
-        mesh = self.to_pyvista(grid_type=grid_type, attributes=attributes)
+        mesh = self.to_pyvista(grid_type=grid_type, attributes=attributes, frame=frame)
 
         # Add a thresholded mesh to the plotter
         if threshold:
@@ -1010,11 +1056,24 @@ class ParquetBlockModel:
                 block_ids = self.geometry.row_index_from_xyz(
                     df["x"].to_numpy(), df["y"].to_numpy(), df["z"].to_numpy()
                 ).astype(np.uint32)
-            elif int(self.pf.metadata.num_rows) == int(np.prod(self.geometry.local.shape)):
-                block_ids = np.arange(len(df), dtype=np.uint32)
             else:
-                ids_df = pq.read_table(self.blockmodel_path, columns=["block_id"]).to_pandas()
-                block_ids = ids_df["block_id"].to_numpy(dtype=np.uint32)
+                # Requested columns may omit positional fields (block_id/world_id/ijk/xyz).
+                # Recover row ids from the backing dataset to preserve correct mapping even
+                # when on-disk row order is not canonical ijk C-order.
+                block_id_batches = [ids for ids in self._iter_block_ids()]
+                if not block_id_batches:
+                    derived_block_ids = np.empty(0, dtype=np.uint32)
+                else:
+                    derived_block_ids = np.concatenate(block_id_batches).astype(np.uint32, copy=False)
+                block_ids = derived_block_ids
+                if len(derived_block_ids) != len(df):
+                    raise ValueError(
+                        "Unable to align requested columns with positional rows: "
+                        f"loaded {len(df)} data rows but derived {len(derived_block_ids)} block ids."
+                    )
+
+        if index in {"ijk", "xyz"} and block_ids is None:
+            raise RuntimeError("Failed to derive block ids for requested indexed read.")
 
         if index == "xyz":
             if {"x", "y", "z"}.issubset(df.columns):
@@ -1254,7 +1313,8 @@ class ParquetBlockModel:
         return Path(output_path)
 
     def to_pyvista(self, grid_type: typing.Literal["image", "structured", "unstructured"] = "structured",
-                   attributes: Optional[list[str]] = None
+                   attributes: Optional[list[str]] = None,
+                   frame: typing.Literal["world", "local"] = "world"
                    ) -> Union['pv.ImageData', 'pv.StructuredGrid', 'pv.UnstructuredGrid']:
 
         if attributes is None:
@@ -1262,28 +1322,59 @@ class ParquetBlockModel:
 
         if grid_type == "image":
             from parq_blockmodel.utils.pyvista.pyvista_utils import df_to_pv_image_data
-            # For image grids we always enable categorical encoding so that
-            # object/category columns (e.g. depth_category) are mapped to
-            # integer codes suitable for PyVista colour mapping. Numeric
-            # columns are unaffected by this flag.
-            df = self.read(columns=attributes, dense=False)
-            grid = df_to_pv_image_data(df=df,
-                                       geometry=self.geometry,
-                                       categorical_encode=True)
+            # Read in canonical ijk order (rotation-invariant) so values map
+            # to cells correctly for both local and world frames.
+            df = self.read(columns=attributes, index="ijk", dense=True)
+            grid = df_to_pv_image_data(
+                df=df,
+                geometry=self.geometry,
+                categorical_encode=True,
+                frame=frame,
+            )
         elif grid_type == "structured":
+            if frame != "world":
+                raise ValueError("frame='local' is only supported for grid_type='image'.")
             from parq_blockmodel.utils.pyvista.pyvista_utils import df_to_pv_structured_grid
-            grid = df_to_pv_structured_grid(df=self.read(columns=attributes, dense=False),
-                                            validate_block_size=True)
+            grid = df_to_pv_structured_grid(
+                df=self.read(columns=attributes, dense=False),
+                validate_block_size=True,
+            )
         elif grid_type == "unstructured":
+            if frame != "world":
+                raise ValueError("frame='local' is only supported for grid_type='image'.")
             from parq_blockmodel.utils.pyvista.pyvista_utils import df_to_pv_unstructured_grid
-            grid = df_to_pv_unstructured_grid(df=self.read(columns=attributes, dense=False),
-                                              block_size=self.geometry.local.block_size,
-                                              validate_block_size=True)
+            grid = df_to_pv_unstructured_grid(
+                df=self.read(columns=attributes, dense=False),
+                block_size=self.geometry.local.block_size,
+                validate_block_size=True,
+            )
         else:
             raise ValueError(f"Invalid grid type: {grid_type}. "
                              "Choose from 'image', 'structured', or 'unstructured'.")
 
         return grid
+
+    @staticmethod
+    def _assert_block_id_xyz_consistent(
+        block_ids: np.ndarray,
+        x: np.ndarray,
+        y: np.ndarray,
+        z: np.ndarray,
+        geometry: RegularGeometry,
+        tol: float,
+        context: str,
+    ) -> None:
+        """Raise if provided block_id values do not match xyz-derived ids."""
+        expected = geometry.row_index_from_xyz(x, y, z, tol=tol).astype(np.uint32)
+        actual = np.asarray(block_ids, dtype=np.uint32)
+        mismatch = actual != expected
+        if np.any(mismatch):
+            first = int(np.flatnonzero(mismatch)[0])
+            raise ValueError(
+                "Inconsistent positional columns: provided block_id does not match "
+                f"xyz-derived block_id ({context}, first mismatch at batch offset {first}: "
+                f"provided={int(actual[first])}, expected={int(expected[first])})."
+            )
 
     @staticmethod
     def _validate_geometry(filepath: Path,
@@ -1339,7 +1430,9 @@ class ParquetBlockModel:
         seen: set[int] = set()
 
         pf = pq.ParquetFile(filepath)
-        if has_block_id:
+        if has_block_id and has_xyz:
+            columns_to_read = ["block_id", "x", "y", "z"]
+        elif has_block_id:
             columns_to_read = ["block_id"]
         elif has_world_id:
             columns_to_read = ["world_id"]
@@ -1349,7 +1442,21 @@ class ParquetBlockModel:
             columns_to_read = ["i", "j", "k"]
 
         for batch in pf.iter_batches(columns=columns_to_read, batch_size=chunk_size):
-            if has_block_id:
+            if has_block_id and has_xyz:
+                block_ids = np.asarray(batch.column(0), dtype=np.uint32)
+                x = np.asarray(batch.column(1), dtype=float)
+                y = np.asarray(batch.column(2), dtype=float)
+                z = np.asarray(batch.column(3), dtype=float)
+                ParquetBlockModel._assert_block_id_xyz_consistent(
+                    block_ids=block_ids,
+                    x=x,
+                    y=y,
+                    z=z,
+                    geometry=geometry,
+                    tol=tol,
+                    context=f"validation for {filepath}",
+                )
+            elif has_block_id:
                 block_ids = np.asarray(batch.column(0), dtype=np.uint32)
             elif has_world_id:
                 if not geometry.world_id_encoding:
@@ -1495,9 +1602,21 @@ class ParquetBlockModel:
 
         with atomic_output_file(output_path) as tmp_path:
             writer = None
+            seen_block_ids: set[int] = set()
             try:
                 for batch in pf.iter_batches(columns=read_cols, batch_size=chunk_size):
                     df_batch = pa.Table.from_batches([batch]).to_pandas(ignore_metadata=True)
+
+                    if "block_id" in df_batch.columns and {"x", "y", "z"}.issubset(df_batch.columns):
+                        cls._assert_block_id_xyz_consistent(
+                            block_ids=df_batch["block_id"].to_numpy(dtype=np.uint32),
+                            x=df_batch["x"].to_numpy(dtype=float),
+                            y=df_batch["y"].to_numpy(dtype=float),
+                            z=df_batch["z"].to_numpy(dtype=float),
+                            geometry=geometry,
+                            tol=tol,
+                            context=f"canonical write for {input_path}",
+                        )
 
                     if "block_id" in df_batch.columns:
                         block_ids = df_batch["block_id"].to_numpy(dtype=np.uint32)
@@ -1516,6 +1635,12 @@ class ParquetBlockModel:
 
                     if np.any(block_ids < 0) or np.any(block_ids >= int(np.prod(geometry.local.shape))):
                         raise ValueError("Source data contains positions outside geometry bounds.")
+                    if np.unique(block_ids).size != block_ids.size:
+                        raise ValueError("Canonical .pbm requires unique block_id values.")
+                    seen_before = len(seen_block_ids)
+                    seen_block_ids.update(block_ids.tolist())
+                    if len(seen_block_ids) - seen_before != block_ids.size:
+                        raise ValueError("Canonical .pbm requires unique block_id values.")
 
                     df_batch["block_id"] = block_ids
                     if "world_id" not in df_batch.columns:
@@ -1542,6 +1667,13 @@ class ParquetBlockModel:
             finally:
                 if writer is not None:
                     writer.close()
+                # On Windows, os.replace (used by atomic_output_file) fails if
+                # input_path == output_path and pf still holds a read handle.
+                # Explicitly close pf here, before atomic_output_file renames.
+                try:
+                    pf.close()
+                except Exception:
+                    pass
 
     @staticmethod
     def _validate_and_load_data(df, expected_num_blocks):
@@ -1634,3 +1766,5 @@ def _create_demo_blockmodel(*args, **kwargs):
     """
 
     return create_demo_blockmodel(*args, **kwargs)
+
+

@@ -8,21 +8,21 @@ import pytest
 from parq_blockmodel import ParquetBlockModel
 
 
+@pytest.mark.integration
 class TestParquetBlockModelMesh:
     """Test mesh export methods on ParquetBlockModel."""
 
     @pytest.fixture
-    def sample_pbm(self):
+    def sample_pbm(self, tmp_path):
         """Create a sample block model for testing."""
-        with tempfile.TemporaryDirectory() as tmpdir:
-            pbm_path = Path(tmpdir) / "test.pbm"
-            pbm = ParquetBlockModel.create_toy_blockmodel(
-                filename=pbm_path,
-                shape=(3, 3, 3),
-                block_size=(1.0, 1.0, 1.0),
-                corner=(0.0, 0.0, 0.0),
-            )
-            yield pbm
+        pbm_path = tmp_path / "test.pbm"
+        pbm = ParquetBlockModel.create_toy_blockmodel(
+            filename=pbm_path,
+            shape=(3, 3, 3),
+            block_size=(1.0, 1.0, 1.0),
+            corner=(0.0, 0.0, 0.0),
+        )
+        yield pbm
 
     def test_triangulate_basic(self, sample_pbm):
         """Test basic mesh generation."""
@@ -89,7 +89,7 @@ class TestParquetBlockModelMesh:
         """Test that invalid texture attributes are rejected."""
         with tempfile.TemporaryDirectory() as tmpdir:
             glb_path = Path(tmpdir) / "test.glb"
-            with pytest.raises(ValueError, match="not in mesh"):
+            with pytest.raises(ValueError, match="not found"):
                 sample_pbm.to_glb(glb_path, texture_attribute="nonexistent")
 
     def test_surface_only_flag(self, sample_pbm):

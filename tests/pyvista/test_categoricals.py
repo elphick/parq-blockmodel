@@ -9,7 +9,8 @@ from parq_blockmodel.utils.pyvista.categorical_utils import load_mapping_dict
 
 def test_df_to_pv_image_data_categorical_encoding():
     df = create_demo_blockmodel()  # includes a categorical called 'depth_category'
-    geometry = RegularGeometry.from_multi_index(df.index)
+    from parq_blockmodel.utils.pandas_accessors import _geometry_from_df
+    geometry = _geometry_from_df(df)
     grid = df_to_pv_image_data(df, geometry, categorical_encode=True)
 
     # Check that the categorical column is encoded as integers
