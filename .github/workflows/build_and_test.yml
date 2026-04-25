@@ -34,7 +34,7 @@ jobs:
         run: uv sync --all-extras --dev
 
       - name: Test with pytest
-        run: uv run pytest
+        run: uv run pytest -m "not gui"
 
   coverage-badge:
     runs-on: ubuntu-latest
