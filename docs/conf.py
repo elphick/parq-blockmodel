@@ -7,7 +7,6 @@ from sphinx_gallery.sorting import FileNameSortKey
 from parq_blockmodel.utils.plotly_scraper import autoset_plotly_browser
 
 sys.path.insert(0, os.path.abspath('..'))
-sys.path.insert(0, os.path.abspath('../..'))
 
 import parq_blockmodel
 import pyvista
@@ -52,8 +51,12 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary',  # to document the
               'sphinx_gallery.gen_gallery',  # to generate a gallery of examples
               'sphinx_autodoc_typehints',
               'myst_parser',  # for parsing md files
-              'sphinx.ext.todo'
+              'sphinx.ext.todo',
+              'sphinx.ext.graphviz'  # for rendering graphviz diagrams
               ]
+
+graphviz_dot = r'C:\Program Files\Graphviz\bin\dot.exe'
+graphviz_output_format = 'svg'
 
 todo_include_todos = True
 autosummary_generate = True
@@ -61,7 +64,7 @@ autosummary_generate = True
 sphinx_gallery_conf = {
     'filename_pattern': r'\.py',
     'ignore_pattern': r'(__init__)|(05_trame_webserver)|(xx.*)\.py',
-    'examples_dirs': '../../examples',  # path to your example scripts
+    'examples_dirs': '../examples',  # path to your example scripts
     'gallery_dirs': 'auto_examples',  # path to where to save gallery generated output
     'within_subsection_order': FileNameSortKey,
     'capture_repr': ('_repr_html_', '__repr__'),
@@ -81,12 +84,28 @@ exclude_patterns = ['_build', '_templates']
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'sphinx_rtd_theme'
+html_theme = "sphinx_book_theme"
+html_static_path = ["_static"]
+html_title = "parq-blockmodel Documentation"
 
-# Add any paths that contain custom static files (such as style sheets) here,
-# relative to this directory. They are copied after the builtin static files,
-# so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+# Use project branding (icons) for the docs
+html_logo = "_static/branding/parq-blockmodel.svg"
+html_favicon = "_static/branding/parq-blockmodel.svg"
+
+html_theme_options = {
+    "repository_url": "https://github.com/elphick/parq-blockmodel",
+    "use_repository_button": True,
+    "use_issues_button": True,
+    "use_edit_page_button": True,
+    "path_to_docs": "docs",
+    "repository_branch": "main",
+    "logo": {
+        "image_light": "_static/branding/parq-blockmodel.svg",
+        "image_dark": "_static/branding/parq-blockmodel.svg",
+        "text": f"parq-blockmodel<br>({version})",  # shows version in the top-left
+
+    },
+}
 
 # to widen the page...
 html_css_files = [

@@ -1,4 +1,4 @@
-name: "Run Tests with Poetry"
+name: "Run Tests with uv"
 
 permissions:
   contents: write
@@ -25,74 +25,60 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install Poetry
-        run: |
-          pip install poetry==2.1.3
-      - name: Clean Poetry Virtualenv Cache
-        run: poetry cache clear --all pypi
-
-#      - name: Load cached venv
-#        id: cached-poetry-dependencies
-#        uses: actions/cache@v4
-#        with:
-#          path: ~/.cache/pypoetry/virtualenvs
-#          key: ${{ runner.os }}-poetry-${{ hashFiles('**/poetry.lock') }}
-#          restore-keys: |
-#            ${{ runner.os }}-poetry-
-
       - name: Install dependencies
-        #        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: |
-          poetry install --no-cache --all-extras --no-interaction
+        run: uv sync --all-extras --dev
 
       - name: Test with pytest
-        run: |
-          poetry run pytest
+        run: uv run pytest -m "not gui"
 
   coverage-badge:
     runs-on: ubuntu-latest
     needs: build
     steps:
       - uses: actions/checkout@v4
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
         with:
-          python-version: 3.12
-      - name: Install Poetry
-        run: pip install poetry==1.5.0
+          python-version: "3.12"
+
       - name: Install dependencies
-        run: poetry install --all-extras --no-interaction
+        run: uv sync --all-extras --dev
+
       - name: Generate coverage report
         run: |
-          poetry run pip install coverage
-          poetry run coverage run -m pytest
-          poetry run coverage xml
+          uv run coverage run -m pytest -m "not gui"
+          uv run coverage report --fail-under=60
+          uv run coverage xml
+
       - name: Generate coverage badge
         uses: tj-actions/coverage-badge-py@v2
         with:
           output: badges/coverage.svg
+
       - name: Ensure destination directory and copy badge
         run: |
-          mkdir -p docs/source/_static/badges
-          cp badges/coverage.svg docs/source/_static/badges/coverage.svg
+          mkdir -p docs/_static/badges
+          cp badges/coverage.svg docs/_static/badges/coverage.svg
+
       - name: Upload coverage badge
         uses: actions/upload-artifact@v4
         with:
           name: coverage-badge
           path: docs/source/_static/badges/coverage.svg
+
       - name: Commit and push coverage badge
         if: github.event_name == 'push'
         run: |
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/source/_static/badges/coverage.svg
+          git add docs/_static/badges/coverage.svg
           git commit -m "Update coverage badge [skip ci]" || echo "No changes to commit"
           git push
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          path: badges/coverage.svg

@@ -1,12 +1,31 @@
-"""
-blockmodel.py
+"""blockmodel.py
 
-This module defines the ParquetBlockModel class, which represents a block model stored in a Parquet file.
+High-level API for working with regular 3D block models backed by Parquet.
 
-Main API:
+Main entry point
+----------------
 
-- ParquetBlockModel: Class for representing a block model stored in a Parquet file.
+``ParquetBlockModel`` is a convenience wrapper around a **canonical**
+``.pbm`` Parquet file. A ``.pbm`` file is just a Parquet table with:
 
+* arbitrary attribute columns (grades, density, rock type, ...),
+* optional centroid columns ``x``, ``y``, ``z`` (for backwards
+  compatibility and interoperability), and
+* embedded geometry metadata under the ``"parq-blockmodel"`` key.
+
+The geometry metadata encodes a regular logical grid in terms of
+``(i, j, k)`` indices via :class:`parq_blockmodel.geometry.RegularGeometry`.
+That geometry is the **single source of truth** for the grid:
+
+* ``shape`` (number of blocks along each logical axis),
+* ``block_size`` and ``corner`` in world coordinates,
+* ``axis_u``, ``axis_v``, ``axis_w`` as an orthonormal basis describing
+  the orientation of the logical ``i, j, k`` axes in world space.
+
+Centroid coordinates ``(x, y, z)`` are therefore a **derived view** of
+``(i, j, k) + geometry``. They may still be persisted as columns in the
+Parquet file today, but the long‑term design treats them as secondary to
+the ijk‑first representation.
 """
 import logging
 import math
@@ -14,7 +33,8 @@ import shutil
 import typing
 import warnings
 from pathlib import Path
-from typing import Union, Optional
+from typing import Union, Optional, Iterator
+import json
 
 import numpy as np
 import pandas as pd
@@ -23,53 +43,109 @@ import pyarrow.parquet as pq
 
 from parq_blockmodel.types import Shape3D, Point, BlockSize
 from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel, create_toy_blockmodel
-from parq_blockmodel.utils.geometry_utils import rotation_to_axis_orientation
-from parq_tools.lazy_parquet import LazyParquetDataFrame
+from parq_blockmodel.utils.geometry_utils import angles_to_axes
+from parq_blockmodel.utils.spatial_encoding import (
+    MAX_XY_VALUE,
+    MAX_Z_VALUE,
+    decode_world_coordinates,
+    encode_world_coordinates,
+    get_world_id_encoding_params,
+)
 from pyarrow.parquet import ParquetFile
 from tqdm import tqdm
 
-from parq_tools import ParquetProfileReport, filter_parquet_file
+from parq_tools import ParquetProfileReport, filter_parquet_file, LazyParquetDF
 from parq_tools.utils import atomic_output_file
 
-from parq_blockmodel.geometry import RegularGeometry
+from parq_blockmodel.geometry import RegularGeometry, LocalGeometry, WorldFrame
 from parq_blockmodel.reblocking.reblocking import downsample_blockmodel, upsample_blockmodel
 
 if typing.TYPE_CHECKING:
     import pyvista as pv  # type: ignore[import]
     import plotly.graph_objects as go
+    import parq_blockmodel.mesh  # type: ignore[import]
 
 
 class ParquetBlockModel:
-    """
-    A class to represent a **regular** Parquet block model.
+    """A class to represent a **regular** Parquet block model.
 
-    Block ordering is c-style, ordered by x, y, z coordinates.
+    **Canonical on-disk representation:**
+
+    We treat ``.pbm`` files as ParquetBlockModel containers:
+
+    - The *extension* must be ``.pbm``.
+    - The *content* is a Parquet table with embedded geometry metadata
+      under the ``"parq-blockmodel"`` key, describing a regular
+      :class:`parq_blockmodel.geometry.RegularGeometry` grid.
+
+    The geometry is ijk-first: logical indices ``(i, j, k)`` enumerate
+    the dense grid, and centroid coordinates ``(x, y, z)`` are derived
+    from those indices plus geometry (corner, block size, axis
+    orientation). In non-rotated models the grid axes align with the
+    global X, Y, Z directions; in rotated models they do not.
+
+    Parquet storage order follows NumPy C-order with respect to ijk:
+    ``i`` varies fastest, then ``j``, then ``k``. This aligns with
+    ``numpy.ravel(order="C")`` and how :class:`RegularGeometry`
+    computes row indices. For xyz-defined, non-rotated models this
+    corresponds to an increasing lexicographic ordering in ``(x, y, z)``,
+    but callers should treat ijk + geometry as the canonical view.
 
     Attributes:
-        blockmodel_path (Path): The file path to the blockmodel Parquet file.  This file is the source of the 
-            block model data.  Consider a .pbm.parquet extension to imply a ParquetBlockModel file.
+        blockmodel_path (Path): Path to the canonical ``.pbm`` file backing this block model.
         name (str): The name of the block model, derived from the file name.
-        geometry (RegularGeometry): The geometry of the block model, derived from the Parquet file.
+        geometry (RegularGeometry): Geometry of the block model, loaded from Parquet metadata or
+            inferred from centroid columns.
     """
 
+    # Positional columns describe geometry/placement and are excluded from
+    # ``self.attributes``. Keep linear index helpers (index_c/index_f) as
+    # attributes for debug/visual validation workflows.
+    POSITION_COLUMNS = {"block_id", "world_id", "i", "j", "k", "x", "y", "z"}
+
     def __init__(self, blockmodel_path: Path, name: Optional[str] = None, geometry: Optional[RegularGeometry] = None):
-        if blockmodel_path.suffixes[-2:] != [".pbm", ".parquet"]:
-            raise ValueError("The provided file must have a '.pbm.parquet' extension.")
+        if blockmodel_path.suffix != ".pbm":
+            raise ValueError("The provided file must have a '.pbm' extension.")
         self.blockmodel_path = blockmodel_path
-        self.name = name or blockmodel_path.stem.strip('.pbm')
+        self.name = name or blockmodel_path.stem
         self.geometry = geometry or RegularGeometry.from_parquet(self.blockmodel_path)
         self.pf: ParquetFile = ParquetFile(blockmodel_path)
-        self.data: LazyParquetDataFrame = LazyParquetDataFrame(self.blockmodel_path)
+        # Lazy view over the backing Parquet file for large models.
+        self.data: LazyParquetDF = LazyParquetDF(self.blockmodel_path)
         self.columns: list[str] = pq.read_schema(self.blockmodel_path).names
         self._centroid_index: Optional[pd.MultiIndex] = None
-        self.attributes: list[str] = [col for col in self.columns if col not in ["x", "y", "z"]]
+        self.attributes: list[str] = [col for col in self.columns if col not in self.POSITION_COLUMNS]
         self._extract_column_dtypes()
         self._logger = logging.getLogger(__name__)
+        self._assert_canonical_block_id_invariant()
 
         if self.is_sparse:
             if not self.validate_sparse():
                 raise ValueError("The sparse ParquetBlockModel is invalid. "
                                  "Sparse centroids must be a subset of the dense grid.")
+
+    def _assert_canonical_block_id_invariant(self) -> None:
+        """Enforce mandatory canonical identity invariant for `.pbm` files."""
+        if "block_id" not in self.columns:
+            raise ValueError("Canonical .pbm requires a 'block_id' column.")
+
+        dense_count = int(np.prod(self.geometry.local.shape))
+        seen: set[int] = set()
+        total = 0
+        for batch in self._iter_batches(["block_id"]):
+            block_ids = np.asarray(batch.column(0), dtype=np.int64)
+            if np.any(block_ids < 0) or np.any(block_ids >= dense_count):
+                raise ValueError("Canonical .pbm has block_id values outside geometry bounds.")
+            if np.unique(block_ids).size != block_ids.size:
+                raise ValueError("Canonical .pbm requires unique block_id values.")
+            seen_before = len(seen)
+            seen.update(block_ids.tolist())
+            if len(seen) - seen_before != block_ids.size:
+                raise ValueError("Canonical .pbm requires unique block_id values.")
+            total += int(block_ids.size)
+
+        if total != int(self.pf.metadata.num_rows):
+            raise ValueError("Canonical .pbm block_id validation could not cover all rows.")
 
     def __repr__(self):
         return f"ParquetBlockModel(name={self.name}, path={self.blockmodel_path})"
@@ -93,61 +169,154 @@ class ParquetBlockModel:
         return self._column_categorical_ordered.copy()
 
     @property
+    def corner(self) -> Point:
+        """Backward-compatible access to the local grid corner."""
+        return self.geometry.corner
+
+    @property
+    def origin(self) -> Point:
+        """Backward-compatible access to the world-frame origin."""
+        return self.geometry.origin
+
+    @property
     def centroid_index(self) -> pd.MultiIndex:
-        """
-        Get the centroid index of the block model.
+        """Get the centroid index of the block model as ``(x, y, z)``.
+
+        This index is built from the centroid columns ``x``, ``y``, ``z``
+        stored in the underlying ``.pbm`` Parquet file. It is primarily
+        a **backwards-compatibility view** for xyz-first workflows which
+        treat world-space centroids as the primary index.
+
+        Canonical ordering is defined by the C-order ijk layout in
+        :class:`RegularGeometry`, not by lexicographic sorting of
+        ``(x, y, z)``. We therefore require this index to be **unique**
+        but do not enforce global monotonicity in xyz.
 
         Returns:
-            pd.MultiIndex: The MultiIndex representing the centroid coordinates (x, y, z).
+            pd.MultiIndex: The MultiIndex representing centroid coordinates ``(x, y, z)``.
         """
 
         if self._centroid_index is None:
             centroid_cols = ["x", "y", "z"]
-            centroids: pd.DataFrame = pq.read_table(self.blockmodel_path, columns=centroid_cols).to_pandas()
-
-            if centroids.index.names == centroid_cols:
-                index = centroids.index
+            if all(col in self.columns for col in centroid_cols):
+                centroids: pd.DataFrame = pq.read_table(self.blockmodel_path, columns=centroid_cols).to_pandas()
+                if centroids.index.names == centroid_cols:
+                    index = centroids.index
+                else:
+                    if centroids.empty:
+                        raise ValueError("Parquet file is empty or does not contain valid centroid data.")
+                    index = centroids.set_index(["x", "y", "z"]).index
             else:
-                if centroids.empty:
-                    raise ValueError("Parquet file is empty or does not contain valid centroid data.")
-                index = centroids.set_index(["x", "y", "z"]).index
+                block_ids = np.concatenate([ids for ids in self._iter_block_ids()])
+                x, y, z = self.geometry.xyz_from_row_index(block_ids)
+                index = pd.MultiIndex.from_arrays([x, y, z], names=centroid_cols)
+
+            # Centroid coordinates must be unique, but ordering is defined
+            # by the geometry's ijk grid rather than lexicographic xyz.
             if not index.is_unique:
                 raise ValueError("The index of the Parquet file is not unique. "
                                  "Ensure that the centroid coordinates (x, y, z) are unique.")
 
-            # Only check monotonicity if axes are aligned (not rotated)
-            if not self.geometry.is_rotated and not index.is_monotonic_increasing:
-                raise ValueError("The index of the Parquet file is not sorted in ascending order. "
-                                 "Ensure that the centroid coordinates (x, y, z) are sorted.")
             self._centroid_index = index
         return self._centroid_index
 
     @property
     def is_sparse(self) -> bool:
-        dense_index = self.geometry.to_multi_index()
-        return len(self.centroid_index) < len(dense_index)
+        dense_count = int(np.prod(self.geometry.local.shape))
+        return int(self.pf.metadata.num_rows) < dense_count
 
     @property
     def sparsity(self) -> float:
-        dense_index = self.geometry.to_multi_index()
-        return 1.0 - (len(self.centroid_index) / len(dense_index))
+        dense_count = int(np.prod(self.geometry.local.shape))
+        return 1.0 - (int(self.pf.metadata.num_rows) / dense_count)
 
     @property
     def index_c(self) -> np.ndarray:
-        """Zero-based C-order (x, y, z) indices for the dense grid."""
-        shape = self.geometry.shape
+        """Zero-based C-order indices for the **dense ijk grid**.
+
+        The returned array has length ``ni * nj * nk`` and corresponds to
+        linearised logical indices ``(i, j, k)`` using NumPy C‑order:
+
+        ``r = i + ni * (j + nj * k)``.
+
+        This is mainly a low‑level helper for downstream APIs that need a
+        stable mapping between a flat row index and ijk; most callers
+        should use :meth:`read` with ``index="ijk"`` instead.
+        """
+        shape = self.geometry.local.shape
         return np.arange(np.prod(shape)).reshape(shape, order='C').ravel(order='C')
 
     @property
     def index_f(self) -> np.ndarray:
-        """Zero-based F-order (z, y, x) indices for the dense grid."""
-        shape = self.geometry.shape
+        """Zero-based Fortran-order indices for the **dense ijk grid**.
+
+        Uses the same ijk logical grid as :pyattr:`index_c`, but flattened
+        with ``order="F"``. This is useful when interacting with tools
+        (such as some VTK/PyVista paths) that expect F‑order layouts.
+        """
+        shape = self.geometry.local.shape
         return np.arange(np.prod(shape)).reshape(shape, order='C').ravel(order='F')
 
     def validate_sparse(self) -> bool:
-        dense_index = self.geometry.to_multi_index()
-        # All sparse centroids must be in the dense grid
-        return self.centroid_index.isin(dense_index).all()
+        dense_count = int(np.prod(self.geometry.local.shape))
+        seen: set[int] = set()
+        total = 0
+        for block_ids in self._iter_block_ids():
+            total += len(block_ids)
+            if np.any(block_ids < 0) or np.any(block_ids >= dense_count):
+                return False
+            seen.update(block_ids.tolist())
+        return len(seen) == total
+
+    def _iter_batches(self, columns: list[str], batch_size: int = 1_000_000) -> Iterator[pa.RecordBatch]:
+        pf = pq.ParquetFile(self.blockmodel_path)
+        for batch in pf.iter_batches(columns=columns, batch_size=batch_size):
+            yield batch
+
+    def _iter_block_ids(self, batch_size: int = 1_000_000) -> Iterator[np.ndarray]:
+        cols = set(self.columns)
+        if "block_id" in cols:
+            for batch in self._iter_batches(["block_id"], batch_size=batch_size):
+                block_ids = np.asarray(batch.column(0), dtype=np.uint32)
+                yield block_ids
+            return
+
+        if "world_id" in cols:
+            if not self.geometry.world_id_encoding:
+                raise ValueError("world_id column present but metadata has no world_id_encoding payload.")
+            offset, scale = get_world_id_encoding_params(self.geometry.world_id_encoding)
+            for batch in self._iter_batches(["world_id"], batch_size=batch_size):
+                world_ids = np.asarray(batch.column(0), dtype=np.int64)
+                x, y, z = decode_world_coordinates(world_ids, offset=offset, scale=scale)
+                yield self.geometry.row_index_from_xyz(x, y, z).astype(np.uint32)
+            return
+
+        if {"x", "y", "z"}.issubset(cols):
+            for batch in self._iter_batches(["x", "y", "z"], batch_size=batch_size):
+                x = np.asarray(batch.column(0), dtype=float)
+                y = np.asarray(batch.column(1), dtype=float)
+                z = np.asarray(batch.column(2), dtype=float)
+                yield self.geometry.row_index_from_xyz(x, y, z).astype(np.uint32)
+            return
+
+        if {"i", "j", "k"}.issubset(cols):
+            for batch in self._iter_batches(["i", "j", "k"], batch_size=batch_size):
+                i = np.asarray(batch.column(0), dtype=np.int64)
+                j = np.asarray(batch.column(1), dtype=np.int64)
+                k = np.asarray(batch.column(2), dtype=np.int64)
+                yield self.geometry.row_index_from_ijk(i, j, k).astype(np.uint32)
+            return
+
+        dense_count = int(np.prod(self.geometry.local.shape))
+        if int(self.pf.metadata.num_rows) != dense_count:
+            raise ValueError("Sparse model requires block_id, world_id, ijk, or xyz positional columns.")
+
+        offset = 0
+        for rg in range(self.pf.metadata.num_row_groups):
+            n_rows = self.pf.metadata.row_group(rg).num_rows
+            ids = np.arange(offset, offset + n_rows, dtype=np.uint32)
+            offset += n_rows
+            yield ids
 
     @classmethod
     def from_parquet(cls, parquet_path: Path,
@@ -155,38 +324,68 @@ class ParquetBlockModel:
                      overwrite: bool = False,
                      axis_azimuth: float = 0.0,
                      axis_dip: float = 0.0,
-                     axis_plunge: float = 0.0
+                     axis_plunge: float = 0.0,
+                     chunk_size: int = 1_000_000,
                      ) -> "ParquetBlockModel":
-        """ Create a ParquetBlockModel instance from a Parquet file.
+        """Create a :class:`ParquetBlockModel` from a source Parquet file.
+
+        This helper promotes a *source* ``.parquet`` file (typically
+        xyz-centric) into a canonical ``.pbm`` container with embedded
+        :class:`RegularGeometry` metadata.
+
+        The input Parquet is expected to contain centroid columns
+        ``x``, ``y``, ``z`` describing block centroids in world
+        coordinates. :class:`RegularGeometry` is reconstructed from those
+        centroids and/or any existing ``"parq-blockmodel"`` metadata via
+        :meth:`RegularGeometry.from_parquet`. Geometry becomes the
+        authoritative description of the dense ijk grid; xyz centroids
+        are treated as a derived view.
 
         Args:
-            parquet_path (Path): The path to the Parquet file.
-            columns (Optional[list[str]]): The list of columns to extract from the Parquet file.
-            overwrite (bool): If True, allows overwriting an existing ParquetBlockModel file. Defaults to False.
-            axis_azimuth (float): The azimuth angle in degrees for rotation. Defaults to 0.0.
-            axis_dip (float): The dip angle in degrees for rotation. Defaults to 0.0.
-            axis_plunge (float): The plunge angle in degrees for rotation. Defaults to 0.0.
+            parquet_path (Path): Path to the *source* Parquet file. If the suffix is
+                ``.pbm`` and ``overwrite`` is False, a :class:`ValueError`
+                is raised to avoid mutating an existing canonical container.
+            columns (list[str], optional): Optional subset of columns to copy from the source file into
+                the resulting ``.pbm`` file. If ``None``, all columns are copied.
+            overwrite (bool, default False): If True, allows overwriting an existing ``.pbm`` file at the
+                target location.
+            axis_azimuth (float, default 0.0): Optional rotation angle used by
+                :meth:`RegularGeometry.from_parquet` to define the
+                orientation of the logical ijk axes in world coordinates
+                when inferring geometry. In the common case geometry is read
+                directly from existing metadata and this parameter is 0.
+            axis_dip (float, default 0.0): Optional rotation angle. See ``axis_azimuth``.
+            axis_plunge (float, default 0.0): Optional rotation angle. See ``axis_azimuth``.
+            chunk_size (int, default 1_000_000): Batch size for reading Parquet data.
 
+        Returns:
+            ParquetBlockModel: A block model backed by a newly written ``.pbm`` file
+                located alongside ``parquet_path``.
         """
-        if parquet_path.suffixes[-2:] == [".pbm", ".parquet"]:
+        if parquet_path.suffix == ".pbm":
             if not overwrite:
                 raise ValueError(
                     f"File {parquet_path} appears to be a compliant ParquetBlockModel file. "
                     f"Use the constructor directly, or pass overwrite=True to allow mutation."
                 )
 
-        geometry = RegularGeometry.from_parquet(filepath=parquet_path, axis_azimuth=axis_azimuth, axis_dip=axis_dip,
-                                                axis_plunge=axis_plunge)
+        geometry = RegularGeometry.from_parquet(filepath=parquet_path,
+                                                axis_azimuth=axis_azimuth,
+                                                axis_dip=axis_dip,
+                                                axis_plunge=axis_plunge,
+                                                chunk_size=chunk_size)
 
-        cls._validate_geometry(parquet_path)
+        cls._validate_geometry(parquet_path, geometry=geometry, chunk_size=chunk_size)
 
-        new_filepath: Path = parquet_path.resolve().with_suffix(".pbm.parquet")
-        if columns is None:
-            new_filepath = shutil.copy(parquet_path, new_filepath)
-        else:
-            filter_parquet_file(input_path=parquet_path,
-                                output_path=new_filepath,
-                                columns=columns)
+        # Canonical ParquetBlockModel files use a single ``.pbm`` suffix. We
+        # write the PBM file alongside the source Parquet file by replacing
+        # only the final extension.
+        new_filepath: Path = parquet_path.resolve().with_suffix(".pbm")
+        cls._write_canonical_pbm(input_path=parquet_path,
+                                 output_path=new_filepath,
+                                 geometry=geometry,
+                                 columns=columns,
+                                 chunk_size=chunk_size)
         return cls(blockmodel_path=new_filepath, geometry=geometry)
 
     @classmethod
@@ -197,20 +396,49 @@ class ParquetBlockModel:
                        overwrite: bool = False,
                        axis_azimuth: float = 0.0,
                        axis_dip: float = 0.0,
-                       axis_plunge: float = 0.0
+                       axis_plunge: float = 0.0,
+                       chunk_size: int = 1_000_000,
                        ) -> "ParquetBlockModel":
-        """Create a ParquetBlockModel from a Pandas DataFrame.
+        """Create a :class:`ParquetBlockModel` from a pandas DataFrame.
+
+        This constructor is oriented towards xyz-indexed
+        DataFrames, where the index is a centroid MultiIndex with levels
+        ``("x", "y", "z")`` in world coordinates.
+
+        The DataFrame is written to a sibling ``.pbm`` file (replacing
+        the ``.parquet`` suffix of ``filename``) with embedded
+        :class:`RegularGeometry` metadata. Geometry is either supplied
+        explicitly or inferred from the xyz centroids via
+        :meth:`RegularGeometry.from_multi_index`.
+
         Args:
-            dataframe (pd.DataFrame): The DataFrame containing block model data.
-            filename (Path): The file path where the Parquet file will be saved.
-            geometry (Optional[RegularGeometry]): The geometry of the block model. If None, it will be inferred from the DataFrame.
-            name (Optional[str]): The name of the block model. If None, the name will be derived from the filename.
-            overwrite (bool): If True, allows overwriting an existing ParquetBlockModel file. Defaults to False.
-            axis_azimuth (float): The azimuth angle in degrees for rotation. Defaults to 0.0.
-            axis_dip (float): The dip angle in degrees for rotation. Defaults to 0.0.
-            axis_plunge (float): The plunge angle in degrees for rotation. Defaults to 0.0.
+            dataframe (pandas.DataFrame): Block model data indexed by centroid coordinates with
+                ``dataframe.index.names == ["x", "y", "z"]``.
+            filename (Path): Path to the *source* ``.parquet`` file which will be used as
+                the basis for the sibling ``.pbm`` container.
+            geometry (RegularGeometry, optional): Geometry of the logical ijk grid. If omitted, it is inferred
+                from the centroid MultiIndex, using the optional rotation
+                angles to define the ijk axis orientation.
+            name (str, optional): Optional name for the resulting :class:`ParquetBlockModel`.
+                Defaults to ``filename.stem``.
+            overwrite (bool, default False): If True, allows overwriting an existing ``.pbm`` file at the
+                derived path.
+            axis_azimuth (float, default 0.0): Optional rotation angle used when inferring geometry from
+                the xyz centroids. Defines the orientation of the
+                logical ijk axes relative to the world coordinate frame.
+            axis_dip (float, default 0.0): Optional rotation angle. See ``axis_azimuth``.
+            axis_plunge (float, default 0.0): Optional rotation angle. See ``axis_azimuth``.
+            chunk_size (int, default 1_000_000): Batch size for writing Parquet data.
+
         Returns:
-            ParquetBlockModel: An instance of ParquetBlockModel created from the DataFrame.
+            ParquetBlockModel: A block model backed by the newly written ``.pbm`` file.
+
+        Note:
+            New ijk-first workflows are encouraged to construct a
+            :class:`RegularGeometry` explicitly and use
+            :meth:`ParquetBlockModel.from_geometry` or
+            :meth:`ParquetBlockModel.from_parquet`. This helper remains for
+            backwards compatibility with xyz-indexed DataFrames.
         """
         # Ensure MultiIndex
         if dataframe.index.names != ["x", "y", "z"]:
@@ -220,10 +448,11 @@ class ParquetBlockModel:
         if not dataframe.index.is_monotonic_increasing:
             warnings.warn("DataFrame index is not sorted in ascending order.")
 
-        # Ensure correct filename extension
+        # Ensure correct filename extension for the *source* Parquet; the
+        # canonical ParquetBlockModel lives in a sibling ``.pbm`` file.
         if not filename.suffix == ".parquet":
             raise ValueError(f"Filename {filename} must have a '.parquet' extension.")
-        pbm_path = filename.with_suffix(".pbm.parquet")
+        pbm_path = filename.with_suffix(".pbm")
         if pbm_path.exists() and not overwrite:
             raise FileExistsError(f"File {pbm_path} already exists. Use overwrite=True to allow mutation.")
 
@@ -233,56 +462,91 @@ class ParquetBlockModel:
         if not isinstance(geometry, RegularGeometry):
             raise TypeError("geometry must be a RegularGeometry instance.")
 
-        # Save DataFrame to Parquet
-        dataframe.to_parquet(pbm_path, index=True)
+        dataframe = dataframe.copy()
+
+        if "block_id" not in dataframe.columns:
+            if dataframe.index.names == ["x", "y", "z"]:
+                x = dataframe.index.get_level_values("x").to_numpy()
+                y = dataframe.index.get_level_values("y").to_numpy()
+                z = dataframe.index.get_level_values("z").to_numpy()
+                dataframe["block_id"] = geometry.row_index_from_xyz(x, y, z).astype(np.uint32)
+            elif {"x", "y", "z"}.issubset(dataframe.columns):
+                dataframe["block_id"] = geometry.row_index_from_xyz(
+                    dataframe["x"].to_numpy(), dataframe["y"].to_numpy(), dataframe["z"].to_numpy()
+                ).astype(np.uint32)
+            elif {"i", "j", "k"}.issubset(dataframe.columns):
+                dataframe["block_id"] = geometry.row_index_from_ijk(
+                    dataframe["i"].to_numpy(), dataframe["j"].to_numpy(), dataframe["k"].to_numpy()
+                ).astype(np.uint32)
+            elif len(dataframe) == int(np.prod(geometry.local.shape)):
+                dataframe["block_id"] = np.arange(len(dataframe), dtype=np.uint32)
+            else:
+                raise ValueError("Unable to derive block_id: provide xyz or ijk coordinates.")
+
+        if "world_id" not in dataframe.columns:
+            if dataframe.index.names == ["x", "y", "z"]:
+                x = dataframe.index.get_level_values("x").to_numpy(dtype=float)
+                y = dataframe.index.get_level_values("y").to_numpy(dtype=float)
+                z = dataframe.index.get_level_values("z").to_numpy(dtype=float)
+            elif {"x", "y", "z"}.issubset(dataframe.columns):
+                x = dataframe["x"].to_numpy(dtype=float)
+                y = dataframe["y"].to_numpy(dtype=float)
+                z = dataframe["z"].to_numpy(dtype=float)
+            else:
+                x, y, z = geometry.xyz_from_row_index(dataframe["block_id"].to_numpy(dtype=np.uint32))
+
+            if geometry.world_id_encoding is None:
+                geometry.world_id_encoding = cls._build_world_id_encoding_from_xyz(x, y, z)
+            offset, scale = get_world_id_encoding_params(geometry.world_id_encoding)
+            dataframe["world_id"] = encode_world_coordinates(x, y, z, offset=offset, scale=scale).astype(np.int64)
+
+        # Attach geometry metadata to attrs for completeness
+        dataframe.attrs["parq-blockmodel"] = geometry.to_metadata_dict()
+
+        # Save DataFrame to Parquet and embed geometry metadata
+        table = pa.Table.from_pandas(dataframe)
+        meta = table.schema.metadata or {}
+        meta = dict(meta)
+        meta[b"parq-blockmodel"] = json.dumps(geometry.to_metadata_dict()).encode("utf-8")
+        table = table.replace_schema_metadata(meta)
+        pq.write_table(table, pbm_path)
 
         # Validate geometry
-        cls._validate_geometry(pbm_path, geometry)
+        cls._validate_geometry(pbm_path, geometry, chunk_size=chunk_size)
 
         return cls(blockmodel_path=pbm_path, name=name, geometry=geometry)
 
-
     @classmethod
-    def create_demo_block_model(cls, filename: Path,
-                                shape: Shape3D = (3, 3, 3),
-                                block_size: BlockSize = (1, 1, 1),
-                                corner: Point = (-0.5, -0.5, -0.5),
-                                axis_azimuth: float = 0.0,
-                                axis_dip: float = 0.0,
-                                axis_plunge: float = 0.0
-                                ) -> "ParquetBlockModel":
+    def create_demo_block_model(cls, filename: Path, **demo_kwargs) -> "ParquetBlockModel":
+        """Convenience helper used in tests to write a demo Parquet file and
+        wrap it as a ParquetBlockModel.
+
+        Parameters
+        ----------
+        filename : Path
+            Target ``.parquet`` file to hold the raw demo data. The canonical
+            blockmodel file will be written alongside it with a ``.pbm``
+            suffix via :meth:`from_parquet`.
+        **demo_kwargs
+            Additional keyword arguments forwarded to
+            :func:`parq_blockmodel.utils.demo_block_model.create_demo_blockmodel`,
+            for example ``shape`` or ``block_size``. This allows tests and
+            examples to control the logical grid used for the demo model.
         """
-        Create a demo block model with specified parameters.
+        from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel as _create_demo_df
 
-        Args:
-            filename (Path): The file path where the Parquet file will be saved.
-            shape (tuple): The shape of the block model.
-            block_size (tuple): The size of each block.
-            corner (tuple): The coordinates of the corner of the block model.
-            axis_azimuth (float): The azimuth angle in degrees for rotation.
-            axis_dip (float): The dip angle in degrees for rotation.
-            axis_plunge (float): The plunge angle in degrees for rotation.
+        # Write the demo DataFrame to the requested Parquet file.
+        df = _create_demo_blockmodel(parquet_filepath=filename, **demo_kwargs)
+        if isinstance(df, Path):
+            # The helper already wrote the Parquet file and returned the path.
+            parquet_path = df
+        else:
+            # Defensive: if the helper returned a DataFrame, persist it now.
+            parquet_path = filename
+            df.to_parquet(parquet_path)
 
-        Returns:
-            ParquetBlockModel: An instance of ParquetBlockModel with demo data.
-        """
-        create_demo_blockmodel(shape=shape, block_size=block_size, corner=corner,
-                               azimuth=axis_azimuth, dip=axis_dip, plunge=axis_plunge,
-                               parquet_filepath=filename)
-
-        # get the orientation of the axes
-        axis_u, axis_v, axis_w = rotation_to_axis_orientation(axis_azimuth=axis_azimuth, axis_dip=axis_dip,
-                                                              axis_plunge=axis_plunge)
-        # create geometry that aligns with the demo block model
-        geometry = RegularGeometry(block_size=block_size, corner=corner, shape=shape,
-                                   axis_u=axis_u, axis_v=axis_v, axis_w=axis_w)
-
-        if not geometry.is_rotated:
-            cls._validate_geometry(filename)
-
-        new_filepath = shutil.copy(filename, filename.resolve().with_suffix(".pbm.parquet"))
-
-        return cls(blockmodel_path=new_filepath, geometry=geometry)
+        # Promote the raw parquet into a canonical .pbm ParquetBlockModel.
+        return cls.from_parquet(parquet_path)
 
     @classmethod
     def create_toy_blockmodel(cls, filename: Path,
@@ -300,30 +564,68 @@ class ParquetBlockModel:
                               grade_max: float = 65.0,
                               deposit_center=(10.0, 7.5, 5.0),
                               deposit_radii=(8.0, 5.0, 3.0),
-                              noise_std: float = 0.2,
+                              noise_std: float = 0.0,
+                              noise_rel: float | None = None,
+                              noise_seed: int | None = None,
                               ) -> "ParquetBlockModel":
-        """
-        Create a toy block model with specified parameters.
+        """Create a synthetic toy block model.
 
-        Args:
-            filename (Path): The file path where the Parquet file will be saved.
-            shape (tuple): The shape of the block model.
-            block_size (tuple): The size of each block.
-            corner (tuple): The coordinates of the corner of the block model.
-            axis_azimuth (float): The azimuth angle in degrees for rotation.
-            axis_dip (float): The dip angle in degrees for rotation.
-            axis_plunge (float): The plunge angle in degrees for rotation.
-            deposit_bearing (float): The azimuth angle of the deposit in degrees.
-            deposit_dip (float): The dip angle of the deposit in degrees.
-            deposit_plunge (float): The plunge angle of the deposit in degrees.
-            grade_name (str): The name of the column to store the grade values.
-            grade_min (float): The minimum grade value.
-            grade_max (float): The maximum grade value.
-            deposit_center (tuple): The center of the deposit (x, y, z).
-            deposit_radii (tuple): The radii of the deposit (rx, ry, rz).
-            noise_std: (float):
-        Returns:
-            ParquetBlockModel: An instance of ParquetBlockModel with toy data.
+        The toy model is generated on a regular ijk grid with the
+        specified ``shape`` and ``block_size``, anchored at ``corner`` in
+        world coordinates. A simple ellipsoidal grade distribution is
+        created in xyz space and stored under ``grade_name`` alongside
+        any supporting attributes.
+
+        Parameters
+        ----------
+        filename : Path
+            Path to the *source* ``.parquet`` file to hold the raw toy
+            data. A canonical ``.pbm`` file will be written alongside it
+            with the same stem.
+        shape : tuple of int, default ``(3, 3, 3)``
+            Number of blocks along the logical ijk axes.
+        block_size : tuple of float, default ``(1, 1, 1)``
+            Block dimensions along each logical axis.
+        corner : tuple of float, default ``(-0.5, -0.5, -0.5)``
+            World‑space coordinates of the block with indices
+            ``(i=0, j=0, k=0)`` lower corner.
+        axis_azimuth, axis_dip, axis_plunge : float, default 0.0
+            Rotation angles defining orientation of the logical ijk axes
+            relative to the world xyz frame. These are converted to an
+            orthonormal basis ``(axis_u, axis_v, axis_w)`` used by
+            :class:`RegularGeometry`.
+        deposit_bearing, deposit_dip, deposit_plunge : float
+            Orientation of the synthetic deposit in degrees.
+        grade_name : str, default ``"grade"``
+            Name of the column storing the simulated grade values.
+        grade_min, grade_max : float
+            Minimum and maximum grade values for the toy distribution.
+        deposit_center : tuple of float
+            Center of the ellipsoidal deposit in world xyz coordinates.
+        deposit_radii : tuple of float
+            Semi‑axes of the deposit ellipsoid in world units.
+        noise_std : float, default 0.0
+            Absolute standard deviation of Gaussian noise added to grades.
+        noise_rel : float, optional
+            Relative standard deviation expressed as a fraction of
+            ``(grade_max - grade_min)``. Mutually exclusive with
+            ``noise_std``.
+        noise_seed : int, optional
+            Seed used for reproducible Gaussian noise.
+
+        Returns
+        -------
+        ParquetBlockModel
+            A :class:`ParquetBlockModel` backed by a canonical ``.pbm``
+            file with the generated toy data and geometry metadata.
+
+        Notes
+        -----
+        For rotated geometries (non‑zero rotation angles), xyz
+        centroids will appear rotated in world coordinates relative to
+        the ijk axes of the grid. Geometry validation is skipped in this
+        case to avoid imposing axis‑aligned assumptions on the rotated
+        layout.
         """
 
         create_toy_blockmodel(shape=shape, block_size=block_size, corner=corner,
@@ -331,20 +633,28 @@ class ParquetBlockModel:
                               deposit_bearing=deposit_bearing, deposit_dip=deposit_dip, deposit_plunge=deposit_plunge,
                               grade_name=grade_name, grade_min=grade_min, grade_max=grade_max,
                               deposit_center=deposit_center, deposit_radii=deposit_radii,
-                              noise_std=noise_std, parquet_filepath=filename,
+                              noise_std=noise_std, noise_rel=noise_rel,
+                              noise_seed=noise_seed, parquet_filepath=filename,
                               )
         # get the orientation of the axes
-        axis_u, axis_v, axis_w = rotation_to_axis_orientation(
+        axis_u, axis_v, axis_w = angles_to_axes(
             axis_azimuth=axis_azimuth, axis_dip=axis_dip,
             axis_plunge=axis_plunge)
         # create geometry that aligns with the demo block model
-        geometry = RegularGeometry(block_size=block_size, corner=corner, shape=shape,
-                                   axis_u=axis_u, axis_v=axis_v, axis_w=axis_w)
+        geometry = RegularGeometry(
+            local=LocalGeometry(corner=corner, block_size=block_size, shape=shape),
+            world=WorldFrame(axis_u=axis_u, axis_v=axis_v, axis_w=axis_w),
+        )
 
         if not geometry.is_rotated:
             cls._validate_geometry(filename)
 
-        new_filepath = shutil.copy(filename, filename.resolve().with_suffix(".pbm.parquet"))
+        new_filepath = filename.resolve().with_suffix(".pbm")
+        cls._write_canonical_pbm(input_path=filename,
+                                 output_path=new_filepath,
+                                 geometry=geometry,
+                                 columns=None,
+                                 chunk_size=1_000_000)
 
         return cls(blockmodel_path=new_filepath, geometry=geometry)
 
@@ -353,19 +663,56 @@ class ParquetBlockModel:
                       path: Path,
                       name: Optional[str] = None
                       ) -> "ParquetBlockModel":
-        """Create a ParquetBlockModel from a RegularGeometry object.
+        """Create a :class:`ParquetBlockModel` from a geometry only.
 
-        The model will have no attributes.
+        This constructor materialises a **dense** ijk grid defined by a
+        :class:`RegularGeometry` into a Parquet file with xyz centroid
+        columns but **no additional attributes**. It is useful for
+        creating an empty block model skeleton that can be joined with
+        external attribute data.
 
-        Args:
-            geometry (RegularGeometry): The geometry of the block model.
-            path (Path): The file path where the Parquet file will be saved.
-            name (Optional[str]): The name of the block model. If None, the name will be derived from the path.
-        Returns:
-            ParquetBlockModel: An instance of ParquetBlockModel with the specified geometry.
+        Parameters
+        ----------
+        geometry : RegularGeometry
+            Geometry of the logical ijk grid.
+        path : Path
+            Path to the target ``.pbm`` file. The file will contain a
+            row for every ijk block with derived xyz centroid columns and
+            embedded geometry metadata.
+        name : str, optional
+            Optional name for the resulting :class:`ParquetBlockModel`.
+
+        Returns
+        -------
+        ParquetBlockModel
+            A block model with geometry defined but no attribute
+            columns.
         """
         centroids_df = geometry.to_dataframe()
-        centroids_df.to_parquet(path, index=False)
+        centroids_df["block_id"] = np.arange(int(np.prod(geometry.local.shape)), dtype=np.uint32)
+        if geometry.world_id_encoding is None:
+            geometry.world_id_encoding = cls._build_world_id_encoding_from_xyz(
+                centroids_df["x"].to_numpy(dtype=float),
+                centroids_df["y"].to_numpy(dtype=float),
+                centroids_df["z"].to_numpy(dtype=float),
+            )
+        offset, scale = get_world_id_encoding_params(geometry.world_id_encoding)
+        centroids_df["world_id"] = encode_world_coordinates(
+            centroids_df["x"].to_numpy(dtype=float),
+            centroids_df["y"].to_numpy(dtype=float),
+            centroids_df["z"].to_numpy(dtype=float),
+            offset=offset,
+            scale=scale,
+        ).astype(np.int64)
+        centroids_df.attrs["parq-blockmodel"] = geometry.to_metadata_dict()
+
+        table = pa.Table.from_pandas(centroids_df)
+        meta = table.schema.metadata or {}
+        meta = dict(meta)
+        meta[b"parq-blockmodel"] = json.dumps(geometry.to_metadata_dict()).encode("utf-8")
+        table = table.replace_schema_metadata(meta)
+        pq.write_table(table, path)
+
         return cls(blockmodel_path=path, name=name, geometry=geometry)
 
     def create_report(self, columns: Optional[list[str]] = None,
@@ -484,8 +831,8 @@ class ParquetBlockModel:
             return summed_data.T  # Flip for correct orientation
         # Create a new ImageData object with correct dimensions
         new_mesh = pv.ImageData(dimensions=(summed_data.shape[0] + 1, summed_data.shape[1] + 1, 1),
-                                spacing=self.geometry.block_size,
-                                origin=self.geometry.corner)
+                                spacing=self.geometry.local.block_size,
+                                origin=self.geometry.local.corner)
         new_mesh.cell_data[attribute] = summed_data.ravel(order='F')
         return new_mesh
 
@@ -525,31 +872,37 @@ class ParquetBlockModel:
         return fig
 
     def _get_heatmap_data(self, axis, summed_data
-                          ) -> tuple[tuple[np.ndarray, ...], tuple[str, ...], tuple[float, ...]]:
+                          ) -> tuple[tuple[np.ndarray, ...], tuple[str, ...], tuple[tuple[float, float], tuple[float, float]]]:
+        ex = self.geometry.extents  # (xmin, xmax, ymin, ymax, zmin, zmax)
+
         if axis == "z":
             x = np.arange(summed_data.shape[0])
             y = np.arange(summed_data.shape[1])
             z = summed_data
             labels = "Easting", "Northing"
-            extents = self.geometry.extents[0:2]  # x, y extents
+            x_extent = (ex[0], ex[1])
+            y_extent = (ex[2], ex[3])
         elif axis == "x":
             x = np.arange(summed_data.shape[1])
             y = np.arange(summed_data.shape[2])
             z = summed_data
             labels = "Northing", "RL"
-            extents = self.geometry.extents[1], self.geometry.extents[2]
+            x_extent = (ex[2], ex[3])
+            y_extent = (ex[4], ex[5])
         elif axis == "y":
             x = np.arange(summed_data.shape[0])
             y = np.arange(summed_data.shape[2])
             z = summed_data
             labels = "Easting", "RL"
-            extents = self.geometry.extents[0], self.geometry.extents[1]
+            x_extent = (ex[0], ex[1])
+            y_extent = (ex[4], ex[5])
         else:
             raise ValueError("Invalid axis. Choose from 'x', 'y', or 'z'.")
-        return tuple([x, y, z]), labels, extents
+        return (x, y, z), labels, (x_extent, y_extent)
 
     def plot(self, scalar: str,
              grid_type: typing.Literal["image", "structured", "unstructured"] = "image",
+             frame: typing.Literal["world", "local"] = "world",
              threshold: bool = True, show_edges: bool = True,
              show_axes: bool = True, enable_picking: bool = False,
              picked_attributes: Optional[list[str]] = None) -> 'pv.Plotter':
@@ -558,6 +911,8 @@ class ParquetBlockModel:
         Args:
             scalar: The name of the scalar attribute to visualize.
             grid_type: The type of grid to use for plotting. Options are "image", "structured", or "unstructured".
+            frame: Coordinate frame for image grids. ``"world"`` applies geometry axis vectors;
+                ``"local"`` uses axis-aligned local ijk orientation. Only supported for ``grid_type="image"``.
             threshold: The thresholding option for the mesh. If True, applies a threshold to the scalar values.
             show_edges: Show edges of the mesh.
             show_axes: Show the axes in the plot.
@@ -570,7 +925,8 @@ class ParquetBlockModel:
 
         import pyvista as pv
         if scalar not in self.attributes:
-            raise ValueError(f"Column '{scalar}' not found in the ParquetBlockModel.")
+            raise ValueError(f"Column '{scalar}' not found in the ParquetBlockModel."
+                             f"Available columns are: {self.attributes}")
 
         # Create a PyVista plotter
         plotter = pv.Plotter()
@@ -583,7 +939,7 @@ class ParquetBlockModel:
                 attributes = picked_attributes
             if scalar not in attributes:
                 attributes.append(scalar)
-        mesh = self.to_pyvista(grid_type=grid_type, attributes=attributes)
+        mesh = self.to_pyvista(grid_type=grid_type, attributes=attributes, frame=frame)
 
         # Add a thresholded mesh to the plotter
         if threshold:
@@ -626,43 +982,339 @@ class ParquetBlockModel:
     def read(self, columns: Optional[list[str]] = None,
              index: typing.Literal["xyz", "ijk", None] = "xyz",
              dense: bool = False) -> pd.DataFrame:
-        """
-        Read the Parquet file and return a DataFrame.
+        """Read the Parquet file and return a DataFrame.
 
-        Args:
-            columns: List of column names to read. If None, all columns are read.
-            index: The index type to use for the DataFrame. Options are "xyz" for centroid coordinates,
-                "ijk" for block indices, or None for no index.
-            dense: If True, reads the data as a dense grid. If False, reads the data as a sparse grid.
+        Notes
+        -----
+        Current behaviour (for backwards compatibility):
 
-        Returns:
-            pd.DataFrame: The DataFrame containing the block model data.
+        * ``index="xyz"`` (the default) returns a DataFrame indexed by
+          centroid coordinates ``(x, y, z)``. This matches the original
+          design where xyz are treated as canonical.
+        * ``index="ijk"`` returns a DataFrame whose index is derived from
+          :class:`RegularGeometry` via ``to_ijk_multi_index``.
+
+        Option B design (future change, **not** yet enforced):
+
+        * The canonical in-memory representation will become an
+          ``(i, j, k)`` MultiIndex with attributes-only columns.
+        * xyz (centroid) coordinates will be treated as a **derived view**
+          computed from ``(i, j, k)`` + geometry, exposed via a helper such
+          as ``as_xyz()`` or via pandas accessors that read geometry from
+          ``df.attrs["parq-blockmodel"]``.
+        * Plotting helpers (PyVista, Plotly) will consume ijk + geometry and
+          compute xyz internally when needed, so they do not rely on xyz
+          being persisted as data columns.
+
+        Until that refactor is complete, this method preserves the existing
+        xyz-first semantics so that external callers continue to work.
+
+        Args
+        ----
+        columns:
+            List of column names to read. If None, all columns are read.
+        index:
+            The index type to use for the DataFrame. Options are
+            ``"xyz"`` for centroid coordinates, ``"ijk"`` for block
+            indices, or ``None`` for no index.
+        dense:
+            If True, reads/reindexes to the full dense grid. If False,
+            returns the sparse layout in the underlying file.
+
+        Returns
+        -------
+        pd.DataFrame
+            The DataFrame containing the block model data.
+
+        Notes
+        -----
+        ``index="xyz"`` is preserved as the default for backwards
+        compatibility with earlier versions of :mod:`parq_blockmodel`
+        that treated centroid coordinates as canonical. New code is
+        encouraged to pass ``index="ijk"`` explicitly and work in terms
+        of logical grid indices plus geometry.
         """
         if columns is None:
             columns = self.columns
         df = pq.read_table(self.blockmodel_path, columns=columns).to_pandas()
-        if index == "xyz":
-            df.index = self.centroid_index
-        elif index == "ijk":
-            dense_index = self.geometry.to_ijk_multi_index()
-            df.index = dense_index
-        else:
-            raise ValueError("index_type must be 'xyz' or 'ijk'")
-        if dense:
-            dense_index = self.geometry.to_multi_index() if index == "xyz" else self.geometry.to_ijk_multi_index()
-            df = df.reindex(dense_index)
 
-        # if index:
-        #     df.index = self.centroid_index
-        #     if dense:
-        #         dense_index = self.geometry.to_multi_index()
-        #         if len(df) == len(dense_index):
-        #             assert df.index.equals(dense_index)
-        #         df = df.reindex(dense_index)
+        block_ids: Optional[np.ndarray] = None
+        if index in {"ijk", "xyz"}:
+            if "block_id" in df.columns:
+                block_ids = df["block_id"].to_numpy(dtype=np.uint32)
+            elif "world_id" in df.columns:
+                if not self.geometry.world_id_encoding:
+                    raise ValueError("world_id column present but metadata has no world_id_encoding payload.")
+                offset, scale = get_world_id_encoding_params(self.geometry.world_id_encoding)
+                x, y, z = decode_world_coordinates(df["world_id"].to_numpy(dtype=np.int64), offset=offset, scale=scale)
+                block_ids = self.geometry.row_index_from_xyz(x, y, z).astype(np.uint32)
+            elif {"i", "j", "k"}.issubset(df.columns):
+                block_ids = self.geometry.row_index_from_ijk(
+                    df["i"].to_numpy(), df["j"].to_numpy(), df["k"].to_numpy()
+                ).astype(np.uint32)
+            elif {"x", "y", "z"}.issubset(df.columns):
+                block_ids = self.geometry.row_index_from_xyz(
+                    df["x"].to_numpy(), df["y"].to_numpy(), df["z"].to_numpy()
+                ).astype(np.uint32)
+            else:
+                # Requested columns may omit positional fields (block_id/world_id/ijk/xyz).
+                # Recover row ids from the backing dataset to preserve correct mapping even
+                # when on-disk row order is not canonical ijk C-order.
+                block_id_batches = [ids for ids in self._iter_block_ids()]
+                if not block_id_batches:
+                    derived_block_ids = np.empty(0, dtype=np.uint32)
+                else:
+                    derived_block_ids = np.concatenate(block_id_batches).astype(np.uint32, copy=False)
+                block_ids = derived_block_ids
+                if len(derived_block_ids) != len(df):
+                    raise ValueError(
+                        "Unable to align requested columns with positional rows: "
+                        f"loaded {len(df)} data rows but derived {len(derived_block_ids)} block ids."
+                    )
+
+        if index in {"ijk", "xyz"} and block_ids is None:
+            raise RuntimeError("Failed to derive block ids for requested indexed read.")
+
+        if index == "xyz":
+            if {"x", "y", "z"}.issubset(df.columns):
+                df.index = pd.MultiIndex.from_arrays(
+                    [df["x"].to_numpy(), df["y"].to_numpy(), df["z"].to_numpy()], names=["x", "y", "z"]
+                )
+            else:
+                x, y, z = self.geometry.xyz_from_row_index(block_ids)
+                df.index = pd.MultiIndex.from_arrays([x, y, z], names=["x", "y", "z"])
+        elif index == "ijk":
+            i, j, k = self.geometry.ijk_from_row_index(block_ids)
+            df.index = pd.MultiIndex.from_arrays([i, j, k], names=["i", "j", "k"])
+        elif index is None:
+            pass
+        else:
+            raise ValueError("index must be 'xyz', 'ijk', or None")
+        if dense:
+            if index == "xyz":
+                dense_index = self.geometry.to_multi_index_xyz()
+                df = df.reindex(dense_index)
+            elif index == "ijk":
+                dense_index = self.geometry.to_multi_index_ijk()
+                df = df.reindex(dense_index)
+            else:
+                raise ValueError("dense=True requires index='xyz' or index='ijk'.")
+
         return df
 
+    def triangulate(
+        self,
+        attributes: Optional[list[str]] = None,
+        surface_only: bool = True,
+        sparse: Optional[bool] = None,
+    ) -> 'parq_blockmodel.mesh.TriangleMesh':
+        """Generate a triangulated mesh from the block model.
+
+        Creates a triangle mesh representation of the block model geometry,
+        optionally including block attributes (grades, rock types, etc.) as
+        vertex or face attributes.
+
+        Parameters
+        ----------
+        attributes : list[str], optional
+            List of attribute columns to include in the mesh. If None,
+            only geometry is included (no attributes). Attributes must
+            be in :attr:`self.attributes`.
+        surface_only : bool, default True
+            If True, include only exterior surface faces. If False, include
+            all interior faces as well. Useful for sparse models.
+        sparse : bool, optional
+            If True (or None and sparse model detected), include only blocks
+            that exist in the data. If False, generate mesh for full dense grid.
+
+        Returns
+        -------
+        parq_blockmodel.mesh.TriangleMesh
+            Triangle mesh with vertices, faces, and optional attributes.
+
+        Notes
+        -----
+        The mesh uses right-handed coordinates in world space, with rotation
+        applied via :attr:`geometry` axis vectors. Attributes are preserved
+        as per-vertex or per-face properties. For sparse models, only surface
+        faces are typically needed (surface_only=True).
+
+        Examples
+        --------
+        >>> pbm = ParquetBlockModel(Path("model.pbm"))
+        >>> mesh = pbm.triangulate(attributes=["grade", "density"], surface_only=True)
+        >>> print(f"Mesh: {mesh.n_vertices} vertices, {mesh.n_faces} faces")
+        """
+        from parq_blockmodel.mesh.triangulation import BlockMeshGenerator
+
+        generator = BlockMeshGenerator(self.geometry)
+
+        # Read block data if attributes are requested
+        if attributes:
+            invalid_attrs = [a for a in attributes if a not in self.attributes]
+            if invalid_attrs:
+                raise ValueError(
+                    f"Attributes not found: {invalid_attrs}. Available: {self.attributes}"
+                )
+            # Read only the requested attributes; read() with index="ijk"
+            # derives the (i, j, k) MultiIndex separately, so we must NOT
+            # include i/j/k in columns — otherwise reset_index() collides.
+            block_data = self.read(columns=attributes, index="ijk")
+            block_data = block_data.reset_index()
+        else:
+            block_data = None
+
+        # Generate mesh
+        mesh = generator.triangulate(
+            block_data=block_data,
+            surface_only=surface_only,
+            sparse=sparse if sparse is not None else self.is_sparse,
+        )
+
+        return mesh
+
+    def to_ply(
+        self,
+        output_path: Union[str, Path],
+        attributes: Optional[list[str]] = None,
+        surface_only: bool = True,
+        sparse: Optional[bool] = None,
+        binary: bool = False,
+    ) -> Path:
+        """Export the block model as a PLY (Polygon File Format) mesh.
+
+        PLY is the canonical format for mesh storage, supporting lossless
+        round-tripping of all geometry and attribute data. The output file
+        includes:
+        - Vertex coordinates in world space
+        - Face connectivity (triangles)
+        - Per-vertex and per-face attributes (grades, rock type, etc.)
+        - Block logical indices (i, j, k) for traceability
+        - Geometry metadata (corner, block_size, shape, axes, CRS)
+
+        Parameters
+        ----------
+        output_path : str or Path
+            Target PLY file path.
+        attributes : list[str], optional
+            Block attributes to include. If None, only geometry is exported.
+        surface_only : bool, default True
+            If True, export only exterior surface faces.
+        sparse : bool, optional
+            If True, export only existing blocks. If None, infer from model sparsity.
+        binary : bool, default False
+            If True, write binary PLY (smaller file, less readable).
+            If False, write ASCII PLY (larger, human-readable).
+
+        Returns
+        -------
+        Path
+            The output file path (pathlib.Path).
+
+        Notes
+        -----
+        Units and coordinate system are inherited from :attr:`geometry`.
+        For rotated geometries, world-space coordinates reflect the rotation.
+
+        Examples
+        --------
+        >>> pbm = ParquetBlockModel(Path("model.pbm"))
+        >>> pbm.to_ply("model.ply", attributes=["grade", "density"])
+        """
+        from parq_blockmodel.mesh.ply import write_ply
+
+        mesh = self.triangulate(
+            attributes=attributes,
+            surface_only=surface_only,
+            sparse=sparse,
+        )
+        write_ply(mesh, output_path, binary=binary)
+        return Path(output_path)
+
+    def to_glb(
+        self,
+        output_path: Union[str, Path],
+        attributes: Optional[list[str]] = None,
+        texture_attribute: Optional[str] = None,
+        colormap: str = "viridis",
+        surface_only: bool = True,
+        sparse: Optional[bool] = None,
+    ) -> Path:
+        """Export the block model as a GLB (glTF 2.0 binary) mesh.
+
+        GLB is a derived format for external visualization in 3D viewers.
+        Optionally applies vertex colors based on a scalar attribute
+        (e.g., grade, density). Geometry metadata is embedded in the
+        glTF extras field for reference.
+
+        Parameters
+        ----------
+        output_path : str or Path
+            Target GLB file path.
+        attributes : list[str], optional
+            Block attributes to include (stored in glTF extensions).
+        texture_attribute : str, optional
+            Attribute name to use for vertex coloring (e.g., "grade").
+            Must be numeric. If None, uses default gray material.
+        colormap : str, default "viridis"
+            Matplotlib colormap name for mapping texture_attribute to colors.
+            Examples: "viridis", "plasma", "coolwarm", "Greys".
+        surface_only : bool, default True
+            If True, export only exterior surface faces.
+        sparse : bool, optional
+            If True, export only existing blocks. If None, infer from model sparsity.
+
+        Returns
+        -------
+        Path
+            The output file path (pathlib.Path).
+
+        Notes
+        -----
+        GLB format is optimized for visualization and may lose some precision
+        compared to PLY. For scientific workflows requiring lossless data
+        preservation, prefer :meth:`to_ply`.
+
+        The texture_attribute is normalized to [0, 1] and mapped to the
+        specified colormap. NaN values are rendered as transparent.
+
+        Examples
+        --------
+        >>> pbm = ParquetBlockModel(Path("model.pbm"))
+        >>> pbm.to_glb("model.glb", texture_attribute="grade", colormap="viridis")
+        """
+        from parq_blockmodel.mesh.glb import write_glb
+
+        # Ensure texture_attribute is always triangulated into the mesh even
+        # when the caller left the generic `attributes` list as None.
+        attrs_for_mesh = list(attributes) if attributes else []
+        if texture_attribute and texture_attribute not in attrs_for_mesh:
+            attrs_for_mesh.append(texture_attribute)
+
+        mesh = self.triangulate(
+            attributes=attrs_for_mesh if attrs_for_mesh else None,
+            surface_only=surface_only,
+            sparse=sparse,
+        )
+
+        if texture_attribute and texture_attribute not in mesh.vertex_attributes:
+            raise ValueError(
+                f"Texture attribute '{texture_attribute}' not in mesh. "
+                f"Available: {list(mesh.vertex_attributes.keys())}"
+            )
+
+        write_glb(
+            mesh,
+            output_path,
+            texture_attribute=texture_attribute,
+            colormap=colormap,
+            include_metadata=True,
+        )
+        return Path(output_path)
+
     def to_pyvista(self, grid_type: typing.Literal["image", "structured", "unstructured"] = "structured",
-                   attributes: Optional[list[str]] = None
+                   attributes: Optional[list[str]] = None,
+                   frame: typing.Literal["world", "local"] = "world"
                    ) -> Union['pv.ImageData', 'pv.StructuredGrid', 'pv.UnstructuredGrid']:
 
         if attributes is None:
@@ -670,17 +1322,32 @@ class ParquetBlockModel:
 
         if grid_type == "image":
             from parq_blockmodel.utils.pyvista.pyvista_utils import df_to_pv_image_data
-            grid = df_to_pv_image_data(df=self.read(columns=attributes, dense=False),
-                                       geometry=self.geometry)
+            # Read in canonical ijk order (rotation-invariant) so values map
+            # to cells correctly for both local and world frames.
+            df = self.read(columns=attributes, index="ijk", dense=True)
+            grid = df_to_pv_image_data(
+                df=df,
+                geometry=self.geometry,
+                categorical_encode=True,
+                frame=frame,
+            )
         elif grid_type == "structured":
+            if frame != "world":
+                raise ValueError("frame='local' is only supported for grid_type='image'.")
             from parq_blockmodel.utils.pyvista.pyvista_utils import df_to_pv_structured_grid
-            grid = df_to_pv_structured_grid(df=self.read(columns=attributes, dense=False),
-                                            validate_block_size=True)
+            grid = df_to_pv_structured_grid(
+                df=self.read(columns=attributes, dense=False),
+                validate_block_size=True,
+            )
         elif grid_type == "unstructured":
+            if frame != "world":
+                raise ValueError("frame='local' is only supported for grid_type='image'.")
             from parq_blockmodel.utils.pyvista.pyvista_utils import df_to_pv_unstructured_grid
-            grid = df_to_pv_unstructured_grid(df=self.read(columns=attributes, dense=False),
-                                              block_size=self.geometry.block_size,
-                                              validate_block_size=True)
+            grid = df_to_pv_unstructured_grid(
+                df=self.read(columns=attributes, dense=False),
+                block_size=self.geometry.local.block_size,
+                validate_block_size=True,
+            )
         else:
             raise ValueError(f"Invalid grid type: {grid_type}. "
                              "Choose from 'image', 'structured', or 'unstructured'.")
@@ -688,57 +1355,341 @@ class ParquetBlockModel:
         return grid
 
     @staticmethod
-    def _validate_geometry(filepath: Path, geometry: Optional[RegularGeometry] = None) -> None:
-        """
-        Validates the geometry of a Parquet file by checking if the index (centroid) columns are present
-        and have valid values. For sparse models, ensures centroids are a subset of the dense grid.
+    def _assert_block_id_xyz_consistent(
+        block_ids: np.ndarray,
+        x: np.ndarray,
+        y: np.ndarray,
+        z: np.ndarray,
+        geometry: RegularGeometry,
+        tol: float,
+        context: str,
+    ) -> None:
+        """Raise if provided block_id values do not match xyz-derived ids."""
+        expected = geometry.row_index_from_xyz(x, y, z, tol=tol).astype(np.uint32)
+        actual = np.asarray(block_ids, dtype=np.uint32)
+        mismatch = actual != expected
+        if np.any(mismatch):
+            first = int(np.flatnonzero(mismatch)[0])
+            raise ValueError(
+                "Inconsistent positional columns: provided block_id does not match "
+                f"xyz-derived block_id ({context}, first mismatch at batch offset {first}: "
+                f"provided={int(actual[first])}, expected={int(expected[first])})."
+            )
 
-        Args:
-            filepath (Path): Path to the Parquet file.
-            geometry (RegularGeometry, optional): The geometry of the block model. If None, it will be derived from
-             the Parquet file.
+    @staticmethod
+    def _validate_geometry(filepath: Path,
+                           geometry: Optional[RegularGeometry] = None,
+                           chunk_size: int = 1_000_000,
+                           tol: float = 1e-6) -> None:
+        """Validate centroid columns against a :class:`RegularGeometry`.
 
-        Raises:
-            ValueError: If any index column is missing, contains invalid values, or centroids are not valid.
+        This helper enforces that a Parquet file used as a
+        :class:`ParquetBlockModel` has well‑formed centroid columns
+        ``x``, ``y``, ``z`` and that these centroids lie on the dense
+        grid implied by a :class:`RegularGeometry` instance.
+
+        Parameters
+        ----------
+        filepath : Path
+            Path to the Parquet file to validate (typically a ``.pbm``
+            container or its source ``.parquet`` file).
+        geometry : RegularGeometry, optional
+            Geometry of the logical ijk grid. If omitted, it is inferred
+            from ``filepath`` via :meth:`RegularGeometry.from_parquet`.
+
+        Raises
+        ------
+        ValueError
+            If any centroid column is missing or contains null values,
+            if their lengths differ, or if the resulting sparse centroids
+            are not a subset of the dense grid implied by ``geometry``.
+
+        Notes
+        -----
+        For centroid-defined layouts we require explicit centroid columns
+        ``x, y, z`` on disk. As the library moves toward an ijk‑first
+        core, geometry will increasingly be treated as the sole source
+        of truth and xyz may become purely a derived view. At that
+        point this validation may be relaxed or supplemented with
+        geometry‑only checks.
         """
-        index_columns = ['x', 'y', 'z']
         columns = pq.read_schema(filepath).names
-        if not all(col in columns for col in index_columns):
-            raise ValueError(f"Missing index columns in the dataset: {', '.join(index_columns)}")
 
-        table = pq.read_table(filepath, columns=index_columns)
-        for col in index_columns:
-            if table[col].null_count > 0:
-                raise ValueError(f"Column '{col}' contains NaN values, which is not allowed in the index columns.")
+        has_block_id = "block_id" in columns
+        has_world_id = "world_id" in columns
+        has_ijk = all(col in columns for col in ["i", "j", "k"])
+        has_xyz = all(col in columns for col in ["x", "y", "z"])
 
-        # Ensure arrays are of the same length
-        centroids = table.to_pandas()
-        if isinstance(centroids.index, pd.MultiIndex) and centroids.index.names == ['x', 'y', 'z']:
-            x_values = centroids.index.get_level_values('x').values
-            y_values = centroids.index.get_level_values('y').values
-            z_values = centroids.index.get_level_values('z').values
-        else:
-            x_values = centroids['x'].values
-            y_values = centroids['y'].values
-            z_values = centroids['z'].values
-
-        if len(x_values) != len(y_values) or len(y_values) != len(z_values):
-            raise ValueError("Centroid arrays (x, y, z) must have the same length.")
+        if not any([has_block_id, has_world_id, has_ijk, has_xyz]):
+            raise ValueError("Dataset must contain at least one positional representation: block_id, world_id, ijk, or xyz.")
 
         if geometry is None:
             geometry = RegularGeometry.from_parquet(filepath)
 
-        dense_index = geometry.to_multi_index()
-        sparse_index = pd.MultiIndex.from_arrays([x_values, y_values, z_values])
+        dense_count = int(np.prod(geometry.local.shape))
+        seen: set[int] = set()
 
-        # For sparse models, ensure centroids are a subset of the dense grid
-        if not sparse_index.isin(dense_index).all():
-            raise ValueError("Sparse centroids must be a subset of the dense grid.")
+        pf = pq.ParquetFile(filepath)
+        if has_block_id and has_xyz:
+            columns_to_read = ["block_id", "x", "y", "z"]
+        elif has_block_id:
+            columns_to_read = ["block_id"]
+        elif has_world_id:
+            columns_to_read = ["world_id"]
+        elif has_xyz:
+            columns_to_read = ["x", "y", "z"]
+        else:
+            columns_to_read = ["i", "j", "k"]
+
+        for batch in pf.iter_batches(columns=columns_to_read, batch_size=chunk_size):
+            if has_block_id and has_xyz:
+                block_ids = np.asarray(batch.column(0), dtype=np.uint32)
+                x = np.asarray(batch.column(1), dtype=float)
+                y = np.asarray(batch.column(2), dtype=float)
+                z = np.asarray(batch.column(3), dtype=float)
+                ParquetBlockModel._assert_block_id_xyz_consistent(
+                    block_ids=block_ids,
+                    x=x,
+                    y=y,
+                    z=z,
+                    geometry=geometry,
+                    tol=tol,
+                    context=f"validation for {filepath}",
+                )
+            elif has_block_id:
+                block_ids = np.asarray(batch.column(0), dtype=np.uint32)
+            elif has_world_id:
+                if not geometry.world_id_encoding:
+                    raise ValueError("world_id column present but metadata has no world_id_encoding payload.")
+                offset, scale = get_world_id_encoding_params(geometry.world_id_encoding)
+                world_ids = np.asarray(batch.column(0), dtype=np.int64)
+                x, y, z = decode_world_coordinates(world_ids, offset=offset, scale=scale)
+                block_ids = geometry.row_index_from_xyz(x, y, z, tol=tol).astype(np.uint32)
+            elif has_xyz:
+                x = np.asarray(batch.column(0), dtype=float)
+                y = np.asarray(batch.column(1), dtype=float)
+                z = np.asarray(batch.column(2), dtype=float)
+                block_ids = geometry.row_index_from_xyz(x, y, z, tol=tol).astype(np.uint32)
+            else:
+                i = np.asarray(batch.column(0), dtype=np.int64)
+                j = np.asarray(batch.column(1), dtype=np.int64)
+                k = np.asarray(batch.column(2), dtype=np.int64)
+                block_ids = geometry.row_index_from_ijk(i, j, k).astype(np.uint32)
+
+            if np.any(block_ids < 0) or np.any(block_ids >= dense_count):
+                raise ValueError("Sparse positions must be a subset of the dense geometry grid.")
+
+            seen_before = len(seen)
+            seen.update(block_ids.tolist())
+            if len(seen) - seen_before != len(block_ids):
+                raise ValueError("Duplicate block positions detected in dataset.")
 
         logging.info(f"Geometry validation completed successfully for {filepath}.")
 
+    @classmethod
+    def validate_xyz_parquet(cls,
+                             parquet_path: Path,
+                             axis_azimuth: float = 0.0,
+                             axis_dip: float = 0.0,
+                             axis_plunge: float = 0.0,
+                             chunk_size: int = 1_000_000,
+                             tol: float = 1e-6) -> RegularGeometry:
+        """Validate xyz-defined Parquet input and return inferred geometry."""
+        geometry = RegularGeometry.from_parquet(filepath=parquet_path,
+                                                axis_azimuth=axis_azimuth,
+                                                axis_dip=axis_dip,
+                                                axis_plunge=axis_plunge,
+                                                chunk_size=chunk_size)
+        cls._validate_geometry(filepath=parquet_path, geometry=geometry, chunk_size=chunk_size, tol=tol)
+        return geometry
+
+    @classmethod
+    def _build_world_id_encoding_from_xyz(
+        cls,
+        x: np.ndarray,
+        y: np.ndarray,
+        z: np.ndarray,
+        scale: float = 10.0,
+    ) -> dict[str, object]:
+        """Build default world_id encoding metadata from xyz ranges."""
+        ox = np.floor(float(np.min(x)) * scale) / scale
+        oy = np.floor(float(np.min(y)) * scale) / scale
+        oz = np.floor(float(np.min(z)) * scale) / scale
+
+        x_span = float(np.max(x) - ox)
+        y_span = float(np.max(y) - oy)
+        z_span = float(np.max(z) - oz)
+        if x_span > MAX_XY_VALUE or y_span > MAX_XY_VALUE or z_span > MAX_Z_VALUE:
+            raise ValueError(
+                "Coordinates exceed world_id span limits (24/24/16 bits at scale=10). "
+                "Provide a custom encoding strategy."
+            )
+
+        return {
+            "enabled": True,
+            "column": "world_id",
+            "frame": "world_xyz",
+            "axis_order": ["x", "y", "z"],
+            "quantization": {
+                "scale": scale,
+                "rounding": "nearest",
+                "precision_decimals": 1,
+            },
+            "offset": {"x": ox, "y": oy, "z": oz, "units": "world"},
+            "bit_layout": {
+                "x_bits": 24,
+                "y_bits": 24,
+                "z_bits": 16,
+                "x_shift": 40,
+                "y_shift": 16,
+                "z_shift": 0,
+                "signed": False,
+            },
+            "range_after_offset": {
+                "x_min": 0.0,
+                "x_max": MAX_XY_VALUE,
+                "y_min": 0.0,
+                "y_max": MAX_XY_VALUE,
+                "z_min": 0.0,
+                "z_max": MAX_Z_VALUE,
+            },
+            "overflow_policy": "error",
+            "null_policy": "no_nulls",
+        }
+
+    @classmethod
+    def _write_canonical_pbm(cls,
+                             input_path: Path,
+                             output_path: Path,
+                             geometry: RegularGeometry,
+                             columns: Optional[list[str]],
+                             chunk_size: int = 1_000_000,
+                             tol: float = 1e-6) -> None:
+        """Stream a source parquet file into canonical PBM with block_id and metadata."""
+        pf = pq.ParquetFile(input_path)
+        src_cols = pf.schema.names
+
+        if columns is None:
+            output_cols = list(src_cols)
+        else:
+            missing = [c for c in columns if c not in src_cols]
+            if missing:
+                raise ValueError(f"Requested columns not present in source parquet: {missing}")
+            output_cols = list(columns)
+
+        has_block_id = "block_id" in src_cols
+        has_world_id = "world_id" in src_cols
+        has_xyz = all(c in src_cols for c in ["x", "y", "z"])
+        has_ijk = all(c in src_cols for c in ["i", "j", "k"])
+
+        if not any([has_block_id, has_world_id, has_ijk, has_xyz]):
+            raise ValueError("Cannot derive block_id from source parquet: requires block_id, world_id, ijk, or xyz columns.")
+
+        if geometry.world_id_encoding is None:
+            xmin, xmax, ymin, ymax, zmin, zmax = geometry.extents
+            geometry.world_id_encoding = cls._build_world_id_encoding_from_xyz(
+                np.array([xmin, xmax], dtype=float),
+                np.array([ymin, ymax], dtype=float),
+                np.array([zmin, zmax], dtype=float),
+            )
+        offset, scale = get_world_id_encoding_params(geometry.world_id_encoding)
+
+        read_cols = list(dict.fromkeys(output_cols + [c for c in ["block_id", "world_id", "i", "j", "k", "x", "y", "z"] if c in src_cols]))
+        if "block_id" not in output_cols:
+            output_cols = ["block_id"] + output_cols
+        if "world_id" not in output_cols:
+            output_cols = ["block_id", "world_id"] + [c for c in output_cols if c != "block_id"]
+
+        with atomic_output_file(output_path) as tmp_path:
+            writer = None
+            seen_block_ids: set[int] = set()
+            try:
+                for batch in pf.iter_batches(columns=read_cols, batch_size=chunk_size):
+                    df_batch = pa.Table.from_batches([batch]).to_pandas(ignore_metadata=True)
+
+                    if "block_id" in df_batch.columns and {"x", "y", "z"}.issubset(df_batch.columns):
+                        cls._assert_block_id_xyz_consistent(
+                            block_ids=df_batch["block_id"].to_numpy(dtype=np.uint32),
+                            x=df_batch["x"].to_numpy(dtype=float),
+                            y=df_batch["y"].to_numpy(dtype=float),
+                            z=df_batch["z"].to_numpy(dtype=float),
+                            geometry=geometry,
+                            tol=tol,
+                            context=f"canonical write for {input_path}",
+                        )
+
+                    if "block_id" in df_batch.columns:
+                        block_ids = df_batch["block_id"].to_numpy(dtype=np.uint32)
+                    elif "world_id" in df_batch.columns:
+                        world_ids = df_batch["world_id"].to_numpy(dtype=np.int64)
+                        xw, yw, zw = decode_world_coordinates(world_ids, offset=offset, scale=scale)
+                        block_ids = geometry.row_index_from_xyz(xw, yw, zw, tol=tol).astype(np.uint32)
+                    elif {"x", "y", "z"}.issubset(df_batch.columns):
+                        block_ids = geometry.row_index_from_xyz(
+                            df_batch["x"].to_numpy(), df_batch["y"].to_numpy(), df_batch["z"].to_numpy(), tol=tol
+                        ).astype(np.uint32)
+                    else:
+                        block_ids = geometry.row_index_from_ijk(
+                            df_batch["i"].to_numpy(), df_batch["j"].to_numpy(), df_batch["k"].to_numpy()
+                        ).astype(np.uint32)
+
+                    if np.any(block_ids < 0) or np.any(block_ids >= int(np.prod(geometry.local.shape))):
+                        raise ValueError("Source data contains positions outside geometry bounds.")
+                    if np.unique(block_ids).size != block_ids.size:
+                        raise ValueError("Canonical .pbm requires unique block_id values.")
+                    seen_before = len(seen_block_ids)
+                    seen_block_ids.update(block_ids.tolist())
+                    if len(seen_block_ids) - seen_before != block_ids.size:
+                        raise ValueError("Canonical .pbm requires unique block_id values.")
+
+                    df_batch["block_id"] = block_ids
+                    if "world_id" not in df_batch.columns:
+                        if {"x", "y", "z"}.issubset(df_batch.columns):
+                            x = df_batch["x"].to_numpy(dtype=float)
+                            y = df_batch["y"].to_numpy(dtype=float)
+                            z = df_batch["z"].to_numpy(dtype=float)
+                        else:
+                            x, y, z = geometry.xyz_from_row_index(block_ids)
+                        df_batch["world_id"] = encode_world_coordinates(
+                            x, y, z, offset=offset, scale=scale
+                        ).astype(np.int64)
+                    write_df = df_batch[output_cols]
+
+                    table = pa.Table.from_pandas(write_df, preserve_index=False)
+                    meta = table.schema.metadata or {}
+                    meta = dict(meta)
+                    meta[b"parq-blockmodel"] = json.dumps(geometry.to_metadata_dict()).encode("utf-8")
+                    table = table.replace_schema_metadata(meta)
+
+                    if writer is None:
+                        writer = pq.ParquetWriter(tmp_path, table.schema)
+                    writer.write_table(table)
+            finally:
+                if writer is not None:
+                    writer.close()
+                # On Windows, os.replace (used by atomic_output_file) fails if
+                # input_path == output_path and pf still holds a read handle.
+                # Explicitly close pf here, before atomic_output_file renames.
+                try:
+                    pf.close()
+                except Exception:
+                    pass
+
     @staticmethod
     def _validate_and_load_data(df, expected_num_blocks):
+        """Legacy helper to ensure data is compatible with model geometry.
+
+        The preferred layout includes explicit centroid columns ``x``,
+        ``y``, ``z``. If these are missing but the row count matches the
+        expected dense grid size, the function assumes the existing row
+        order already aligns with the ijk C‑order implied by the
+        geometry and emits a warning. Otherwise, a :class:`ValueError`
+        is raised.
+
+        This behaviour is intended **solely for backwards
+        compatibility**. New code should persist centroid coordinates or
+        rely on ijk indices plus geometry instead of implicit ordering.
+        """
         required_cols = {'x', 'y', 'z'}
         if not required_cols.issubset(df.columns):
             if len(df) == expected_num_blocks:
@@ -751,16 +1702,33 @@ class ParquetBlockModel:
     def to_dense_parquet(self, filepath: Path,
                          chunk_size: int = 100_000, show_progress: bool = False) -> None:
         """
-        Save the block model to a Parquet file.
+        Export the block model as a **dense** xyz-indexed Parquet file.
 
-        This method saves the block model as a Parquet file by chunk. If `dense` is True, it saves the block model as a dense grid,
-        Args:
-            filepath (Path): The file path where the Parquet file will be saved.
-            chunk_size (int): The number of blocks to save in each chunk. Defaults to 100_000.
-            show_progress (bool): If True, show a progress bar. Defaults to False.
+        The underlying ``.pbm`` may be sparse with respect to the dense
+        ijk grid encoded by :attr:`geometry`. This helper iterates over
+        the on‑disk data in chunks, reindexes each chunk to the full
+        dense centroid MultiIndex ``geometry.to_multi_index_xyz()`` and
+        writes the result to ``filepath``.
+
+        Parameters
+        ----------
+        filepath : Path
+            Target path for the exported Parquet file.
+        chunk_size : int, default 100_000
+            Number of rows to process per chunk when reading from the
+            backing ``.pbm`` file.
+        show_progress : bool, default False
+            If True, display a progress bar while exporting.
+
+        Notes
+        -----
+        This export is primarily intended for interoperability with
+        tools that expect a fully populated xyz grid. The canonical
+        representation of the block model remains the ``.pbm`` file with
+        embedded :class:`RegularGeometry` metadata.
         """
         columns = self.columns
-        dense_index = self.geometry.to_multi_index()
+        dense_index = self.geometry.to_multi_index_xyz()
         parquet_file = pq.ParquetFile(self.blockmodel_path)
         total_rows = parquet_file.metadata.num_rows
         total_batches = max(math.ceil(total_rows / chunk_size), 1)
@@ -784,3 +1752,19 @@ class ParquetBlockModel:
                     writer.close()
                 if progress:
                     progress.close()
+
+# ---------------------------------------------------------------------------
+# Backwards-compatible private helper for tests
+# ---------------------------------------------------------------------------
+
+def _create_demo_blockmodel(*args, **kwargs):
+    """Thin wrapper around :func:`parq_blockmodel.utils.demo_block_model.create_demo_blockmodel`.
+
+    Some tests and older scripts import this symbol from ``parq_blockmodel.blockmodel``
+    directly. Re-expose it here for backward compatibility while delegating all
+    behaviour to the utility implementation.
+    """
+
+    return create_demo_blockmodel(*args, **kwargs)
+
+

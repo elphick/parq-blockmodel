@@ -10,40 +10,64 @@ Rotation is typically specified in degrees from the cardinal orthonormal axes (x
 
 import pyvista as pv
 from parq_blockmodel import RegularGeometry
-from parq_blockmodel.utils import rotation_to_axis_orientation
+from parq_blockmodel.utils import angles_to_axes
 
-# sphinx_gallery_thumbnail_number = 2
+# sphinx_gallery_thumbnail_number = -1
 
 # %%
-# Create a Rotated Geometry
-# -------------------------
-# Create a geometry with 30 degrees azimuth.
+# Create Two Geometries: Unrotated and Rotated
+# --------------------------------------------
+# We first create an unrotated geometry, then rotate the world axes by 30 degrees.
 
-axis_u, axis_v, axis_w = rotation_to_axis_orientation(axis_azimuth=30, axis_dip=0, axis_plunge=0)
+geom_unrotated = RegularGeometry(
+    corner=(0.0, 0.0, 0.0),
+    block_size=(1.0, 1.0, 1.0),
+    shape=(2, 2, 2),
+)
 
-geom = RegularGeometry(corner=(0.0, 0.0, 0.0),
-                       block_size=(1.0, 1.0, 1.0),
-                       shape=(2, 2, 2),
-                       axis_u=axis_u,
-                       axis_v=axis_v,
-                       axis_w=axis_w)
+axis_u, axis_v, axis_w = angles_to_axes(axis_azimuth=30, axis_dip=0, axis_plunge=0)
+geom_rotated = RegularGeometry(
+    corner=(0.0, 0.0, 0.0),
+    block_size=(1.0, 1.0, 1.0),
+    shape=(2, 2, 2),
+    axis_u=axis_u,
+    axis_v=axis_v,
+    axis_w=axis_w,
+)
 
-# Create a PyVista plotter
+# %%
+# Visualise Unrotated then Rotated in 3D
 isometric_view = [(6, 5, 3),  # camera position
                   (1, 1, 1),  # focal point (center of the grid)
                   (0, 0, 1),  # view up direction
                   ]
+
 plotter = pv.Plotter()
-edges = geom.to_pyvista().extract_all_edges()
+edges = geom_unrotated.to_pyvista().extract_all_edges()
 plotter.add_mesh(edges, color="black", line_width=1)
 plotter.show_axes()
 plotter.camera_position = isometric_view
-plotter.show(title="Rotated Regular Geometry", window_size=(800, 600))
+plotter.show(title="Unrotated Regular Geometry", window_size=(800, 600))
+
+plotter = pv.Plotter()
+edges = geom_rotated.to_pyvista().extract_all_edges()
+plotter.add_mesh(edges, color="black", line_width=1)
+plotter.show_axes()
+plotter.camera_position = isometric_view
+plotter.show(title="Rotated Regular Geometry (World Frame)", window_size=(800, 600))
+
+# Optional: local frame plot (axis-aligned, no rotation)
+plotter = pv.Plotter()
+edges = geom_rotated.to_pyvista(frame="local").extract_all_edges()
+plotter.add_mesh(edges, color="black", line_width=1)
+plotter.show_axes()
+plotter.camera_position = isometric_view
+plotter.show(title="Rotated Geometry in Local Frame", window_size=(800, 600))
 
 # %%
 # Visualise in 2D
 # Slice at z=0.5 to intersect the first layer of cells
-slice_2d = geom.to_pyvista().slice(normal='z', origin=(0, 0, 0.5))
+slice_2d = geom_rotated.to_pyvista().slice(normal='z', origin=(0, 0, 0.5))
 edges_2d = slice_2d.extract_all_edges()
 points = edges_2d.points
 labels = [f"({x:.1f}, {y:.1f})" for x, y, _ in points]

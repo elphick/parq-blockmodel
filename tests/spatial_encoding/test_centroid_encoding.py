@@ -1,7 +1,16 @@
 import pytest
 import numpy as np
 
-from parq_blockmodel.utils import encode_coordinates, decode_coordinates
+from parq_blockmodel.utils import (
+    decode_coordinates,
+    decode_frame_coordinates,
+    decode_world_coordinates,
+    encode_coordinates,
+    encode_frame_coordinates,
+    encode_world_coordinates,
+    get_id_encoding_params,
+    get_world_id_encoding_params,
+)
 from parq_blockmodel.utils.spatial_encoding import MAX_XY_VALUE, MAX_Z_VALUE
 
 
@@ -62,3 +71,29 @@ def test_random_values():
     np.testing.assert_almost_equal(decoded_x, x, decimal=6)
     np.testing.assert_almost_equal(decoded_y, y, decimal=6)
     np.testing.assert_almost_equal(decoded_z, z, decimal=6)
+
+
+def test_frame_encoding_aliases_match_world_encoding():
+    x = np.array([500000.1, 500010.2])
+    y = np.array([7000000.3, 7000010.4])
+    z = np.array([100.5, 110.6])
+    offset = (500000.0, 7000000.0, 100.0)
+
+    world_encoded = encode_world_coordinates(x, y, z, offset=offset, scale=10.0)
+    frame_encoded = encode_frame_coordinates(x, y, z, offset=offset, scale=10.0)
+    np.testing.assert_array_equal(world_encoded, frame_encoded)
+
+    xw, yw, zw = decode_world_coordinates(world_encoded, offset=offset, scale=10.0)
+    xf, yf, zf = decode_frame_coordinates(frame_encoded, offset=offset, scale=10.0)
+    np.testing.assert_allclose(xw, xf)
+    np.testing.assert_allclose(yw, yf)
+    np.testing.assert_allclose(zw, zf)
+
+
+def test_get_id_encoding_params_alias():
+    payload = {
+        "offset": {"x": 1.0, "y": 2.0, "z": 3.0},
+        "quantization": {"scale": 10.0},
+    }
+    assert get_id_encoding_params(payload) == get_world_id_encoding_params(payload)
+

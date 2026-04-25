@@ -1,729 +1,829 @@
-"""
-geometry.py
-
-This module defines the Geometry class and its subclasses for handling block model geometries.
-
-Main API:
-
-- Geometry: Abstract base class for block model geometries.
-- RegularGeometry: Concrete class for regular block model geometries.
-
-"""
+from __future__ import annotations
+from dataclasses import dataclass
+from typing import Optional, Mapping, Any
 
 import json
-import logging
-import math
-from abc import ABC, abstractmethod
-from dataclasses import dataclass, field
-from functools import cached_property
-from pathlib import Path
-from typing import Union, Optional, TYPE_CHECKING
-
-from numpy.typing import NDArray
-
 import numpy as np
 import pandas as pd
-from scipy.cluster.hierarchy import centroid
+from numpy.typing import NDArray
 
-from parq_blockmodel.types import Point, Vector, Shape3D, MinMax, BlockSize
-from parq_blockmodel.utils.geometry_utils import validate_axes_orthonormal, rotation_to_axis_orientation, rotate_points
-from parq_blockmodel.utils.spatial_encoding import multiindex_to_encoded_index
-
-if TYPE_CHECKING:
-    import pyvista as pv
-
-
-class Geometry(ABC):
-    """Base class for geometry objects.
-
-    The geometry associated with omf block models are not defined by block centroids, and vary by block model type.
-    In the pandas representation, the geometry is defined by the block centroids, so this class is used to
-    define the geometry in terms of block centroids.
-    Additionally, other properties of the geometry are defined here, such as the shape of the geometry.
-
-    Attributes (in omf and pyvista) are stored in Fortran 'F' order, meaning that the last index changes the fastest.
-    Hence, the MultiIndex levels need to be sorted by 'z', 'y', 'x', to align with the Fortran order.
-    This has x changing fastest, z changing slowest.
-
-    """
-
-    corner: Point
-    axis_u: Vector = (1, 0, 0)
-    axis_v: Vector = (0, 1, 0)
-    axis_w: Vector = (0, 0, 1)
-    srs: Optional[str] = None  # Spatial Reference System, e.g. EPSG code
-
-    _shape: Optional[Shape3D] = None
-    _is_regular: Optional[bool] = None
-    _logger: logging.Logger = logging.getLogger(__name__)
-
-    @property
-    def is_sparse(self) -> bool:
-        """Indicates whether the geometry is sparse."""
-        return False
-
-    def to_summary_json(self) -> str:
-        """Convert the geometry to a JSON string.
-
-        Returns:
-            str: The JSON string representing the geometry.
-        """
-        return json.dumps(self.summary)
-
-    def to_json_file(self, json_filepath: Path) -> Path:
-        """Write the Geometry to a JSON file.
-
-        Args:
-            json_filepath (Path): The path to write the JSON file.
-
-        Returns:
-            Path to the json file.
-        """
-        json_filepath.write_text(self.to_json())
-        return json_filepath
-
-    @abstractmethod
-    def __repr__(self):
-        pass
-
-    @abstractmethod
-    def __str__(self):
-        pass
-
-    @property
-    @abstractmethod
-    def is_regular(self) -> bool:
-        pass
-
-    @property
-    def is_rotated(self) -> bool:
-        """Check if the geometry is rotated."""
-        axes = np.array([self.axis_u, self.axis_v, self.axis_w])
-        return not np.allclose(axes, np.eye(3), atol=1e-8)
-
-    @property
-    @abstractmethod
-    def _centroids(self) -> np.ndarray:
-        """Return the centroids as a (3, N) array."""
-        pass
-
-    @abstractmethod
-    def centroid_i(self) -> NDArray[np.floating]:
-        """Return the unique i (axis u) indices of the centroids."""
-        pass
-
-    @abstractmethod
-    def centroid_j(self) -> NDArray[np.floating]:
-        """Return the unique j (axis v) indices of the centroids."""
-        pass
-
-    @abstractmethod
-    def centroid_k(self) -> NDArray[np.floating]:
-        """Return the unique k (axis w) indices of the centroids."""
-        pass
-
-    @property
-    @abstractmethod
-    def centroid_x(self) -> NDArray[np.floating]:
-        """Return the x coordinates of the centroids."""
-        pass
-
-    @property
-    @abstractmethod
-    def centroid_y(self) -> NDArray[np.floating]:
-        """Return the y coordinates of the centroids."""
-        pass
-
-    @property
-    @abstractmethod
-    def centroid_z(self) -> NDArray[np.floating]:
-        """Return the z coordinates of the centroids."""
-        pass
-
-    @property
-    def num_blocks(self) -> int:
-        return int(np.prod(self.shape))
-
-    @property
-    def shape(self) -> Shape3D:
-        if self._shape is None:
-            self._shape = (
-                len(self.centroid_x),
-                len(self.centroid_y),
-                len(self.centroid_z),
-            )
-        return self._shape
-
-    @property
-    @abstractmethod
-    def extents(self) -> tuple[MinMax, MinMax, MinMax]:
-        pass
-
-    @property
-    def bounding_box(self) -> tuple[MinMax, MinMax]:
-        return self.extents[0], self.extents[1]
-
-    @property
-    @abstractmethod
-    def summary(self) -> dict:
-        pass
-
-    @classmethod
-    @abstractmethod
-    def from_multi_index(cls, index: pd.MultiIndex):
-        pass
-
-    @abstractmethod
-    def to_multi_index(self) -> pd.MultiIndex:
-        pass
-
-    @abstractmethod
-    def to_ijk_multi_index(self, dtype: type = np.int32) -> pd.MultiIndex:
-        pass
-
-    @abstractmethod
-    def nearest_centroid_lookup(self, x: float, y: float, z: float) -> Point:
-        pass
+from parq_blockmodel.types import Point, Vector, Shape3D, BlockSize
+from parq_blockmodel.utils.geometry_utils import (
+    validate_axes_orthonormal,
+)
 
 
 @dataclass
-class RegularGeometry(Geometry):
-    """Regular geometry data class.
+class LocalGeometry:
+    """Local dense grid geometry with C-order indexing.
 
+    This class models the logical/local lattice only (local corner/origin,
+    block size, shape). It has no rotation, CRS, or world-frame meaning.
+
+    Attributes:
+        corner (Point): Local (u0, v0, w0) corner of the (i=0, j=0, k=0) block.
+        block_size (BlockSize): Block dimensions ``(dx, dy, dz)`` along the
+            local ``i/j/k`` (``u/v/w``) axes.
+        shape (Shape3D): Grid shape (ni, nj, nk) - number of blocks along each axis.
     """
 
     corner: Point
     block_size: BlockSize
     shape: Shape3D
-    axis_u: Vector = (1, 0, 0)
-    axis_v: Vector = (0, 1, 0)
-    axis_w: Vector = (0, 0, 1)
-    srs: Optional[str] = None  # Spatial Reference System, e.g. EPSG code
+
+    def __post_init__(self):
+        corner = [float(v) for v in self.corner]
+        block_size = [float(v) for v in self.block_size]
+        shape = [int(v) for v in self.shape]
+
+        self.corner = (corner[0], corner[1], corner[2])
+        self.block_size = (block_size[0], block_size[1], block_size[2])
+        self.shape = (shape[0], shape[1], shape[2])
+
+    @property
+    def centroids_uvw(self) -> np.ndarray:
+        """Compute local centroids as a (3, N) array in C-order."""
+        dx, dy, dz = self.block_size
+        ni, nj, nk = self.shape
+        cu, cv, cw = self.corner
+
+        u = np.arange(cu + dx / 2, cu + dx * ni, dx)
+        v = np.arange(cv + dy / 2, cv + dy * nj, dy)
+        w = np.arange(cw + dz / 2, cw + dz * nk, dz)
+
+        uu, vv, ww = np.meshgrid(u, v, w, indexing="ij")
+        return np.vstack([uu.ravel("C"), vv.ravel("C"), ww.ravel("C")])
+
+    def ijk_from_row_index(self, rows):
+        """Convert row index/indices into (i, j, k) using C-order."""
+        return np.unravel_index(rows, self.shape, order="C")
+
+    def row_index_from_ijk(self, i, j, k):
+        """Convert (i, j, k) into row index using C-order."""
+        return np.ravel_multi_index((i, j, k), self.shape, order="C")
+
+    def uvw_from_ijk(self, i, j, k) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Convert logical indices to local centroid coordinates."""
+        i = np.asarray(i, dtype=float)
+        j = np.asarray(j, dtype=float)
+        k = np.asarray(k, dtype=float)
+
+        dx, dy, dz = self.block_size
+        cu, cv, cw = self.corner
+        u = cu + (i + 0.5) * dx
+        v = cv + (j + 0.5) * dy
+        w = cw + (k + 0.5) * dz
+        return u, v, w
+
+    def ijk_from_uvw(self, u, v, w, tol: float = 1e-6) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Map local centroid coordinates to integer logical ijk indices."""
+        u = np.asarray(u, dtype=float)
+        v = np.asarray(v, dtype=float)
+        w = np.asarray(w, dtype=float)
+
+        dx, dy, dz = self.block_size
+        cu, cv, cw = self.corner
+
+        fi = (u - (cu + 0.5 * dx)) / dx
+        fj = (v - (cv + 0.5 * dy)) / dy
+        fk = (w - (cw + 0.5 * dz)) / dz
+
+        i = np.rint(fi).astype(np.int64)
+        j = np.rint(fj).astype(np.int64)
+        k = np.rint(fk).astype(np.int64)
+
+        if not (
+            np.all(np.abs(fi - i) <= tol)
+            and np.all(np.abs(fj - j) <= tol)
+            and np.all(np.abs(fk - k) <= tol)
+        ):
+            raise ValueError("Centroid coordinates are not aligned to geometry centroid lattice.")
+
+        ni, nj, nk = self.shape
+        if not (
+            np.all((i >= 0) & (i < ni))
+            and np.all((j >= 0) & (j < nj))
+            and np.all((k >= 0) & (k < nk))
+        ):
+            raise ValueError("Centroid coordinates map outside geometry bounds.")
+
+        return i, j, k
+
+
+@dataclass
+class WorldFrame:
+    """World embedding for local geometry.
+
+    Holds world origin, orthonormal axes, and optional CRS. It is
+    responsible for local<->world coordinate transforms.
+
+    Attributes:
+        origin (Point): World origin coordinates (x0, y0, z0).
+        axis_u (Vector): Unit vector for U-axis in world coordinates.
+        axis_v (Vector): Unit vector for V-axis in world coordinates.
+        axis_w (Vector): Unit vector for W-axis in world coordinates.
+        srs (str, optional): Spatial reference system (CRS) identifier.
+    """
+
+    origin: Point = (0.0, 0.0, 0.0)
+    axis_u: Vector = (1.0, 0.0, 0.0)
+    axis_v: Vector = (0.0, 1.0, 0.0)
+    axis_w: Vector = (0.0, 0.0, 1.0)
+    srs: Optional[str] = None
 
     def __post_init__(self):
         if not validate_axes_orthonormal(self.axis_u, self.axis_v, self.axis_w):
             raise ValueError("Axis vectors must be orthogonal and normalized.")
 
-    def __repr__(self):
-        return f"RegularGeometry: {self.summary}"
+        origin = [float(v) for v in self.origin]
+        axis_u = [float(v) for v in self.axis_u]
+        axis_v = [float(v) for v in self.axis_v]
+        axis_w = [float(v) for v in self.axis_w]
 
-    def __str__(self):
-        return f"RegularGeometry: {self.summary}"
+        self.origin = (origin[0], origin[1], origin[2])
+        self.axis_u = (axis_u[0], axis_u[1], axis_u[2])
+        self.axis_v = (axis_v[0], axis_v[1], axis_v[2])
+        self.axis_w = (axis_w[0], axis_w[1], axis_w[2])
 
     @property
-    def is_regular(self) -> bool:
-        return True
+    def rotation_matrix(self) -> np.ndarray:
+        """Return matrix whose columns are world axes (u, v, w)."""
+        return np.array([self.axis_u, self.axis_v, self.axis_w], dtype=float).T
 
-    @cached_property
-    def c_index(self) -> np.ndarray:
-        """
-        Compute the zero-based C-order (tabular) index for the dense grid.
+    def local_to_world(self, local_points: np.ndarray) -> np.ndarray:
+        """Map local 3xN points into world coordinates."""
+        origin = np.asarray(self.origin, dtype=float).reshape(3, 1)
+        return origin + self.rotation_matrix @ local_points
+
+    def world_to_local(self, world_points: np.ndarray) -> np.ndarray:
+        """Map world 3xN points into local coordinates."""
+        origin = np.asarray(self.origin, dtype=float).reshape(3, 1)
+        # Axes are orthonormal, so inverse is transpose.
+        return self.rotation_matrix.T @ (world_points - origin)
+
+
+class RegularGeometry:
+    """Dense, metadata-defined block model geometry (C-order canonical).
+
+    This class describes *all* block model geometry in parq-blockmodel.
+    It does **not** store x, y, z or i, j, k per block. All coordinates
+    are derived from metadata + implicit row ordering.
+
+    Attributes:
+        local (LocalGeometry): The local lattice geometry (corner, block_size, shape, C-order).
+        world (WorldFrame): The world embedding with origin, axes, and CRS.
+        schema_version (str): Version of the metadata schema. Default: "1.0"
+        world_id_encoding (dict, optional): Encoding for world IDs.
+
+    Note:
+        **Internal Storage Ordering (C-order canonical)**
+
+        parq-blockmodel uses **NumPy C-order** as its canonical definition of
+        block ordering:
+
+        - i varies fastest
+        - j varies next
+        - k varies slowest
+        - r = i + ni * (j + nj * k)
+
+        This matches:
+
+        - Parquet row-oriented storage naturally
+        - NumPy operations (ravel, reshape)
+        - Efficient dense arrays
+        - Our metadata-based geometry model
+
+        This does **NOT** match lexicographic MultiIndex sorting
+        (`.sort_index(["x", "y", "z"])`) which yields x slowest, z fastest.
+        MultiIndex lexicographic sorting must NOT define canonical storage.
+
+        F-order is NOT used (even though OMF/VTK are sometimes described this way).
+        PyVista accepts C-order 1D arrays perfectly fine.
+
+        **Canonical = C-order. Do not switch to F-order.**
+    """
+
+    local: LocalGeometry
+    world: WorldFrame
+    schema_version: str = "1.0"
+    world_id_encoding: Optional[dict[str, Any]] = None
+
+    def __post_init__(self):
+        """Validate and initialize geometry components."""
+        # No additional initialization needed; LocalGeometry and WorldFrame
+        # validate themselves via their own __post_init__ methods.
+        pass
+
+    @classmethod
+    def create(
+        cls,
+        corner: Point = (0.0, 0.0, 0.0),
+        block_size: BlockSize = (1.0, 1.0, 1.0),
+        shape: Shape3D = (1, 1, 1),
+        axis_u: Vector = (1.0, 0.0, 0.0),
+        axis_v: Vector = (0.0, 1.0, 0.0),
+        axis_w: Vector = (0.0, 0.0, 1.0),
+        srs: Optional[str] = None,
+    ) -> "RegularGeometry":
+        """Convenience factory for creating RegularGeometry with keyword arguments.
+
+        This is the recommended way to construct geometries when you have
+        individual parameters rather than pre-built LocalGeometry and WorldFrame.
+
+        Args:
+            corner (Point, optional): Local corner ``(u₀, v₀, w₀)`` of block
+                ``(i=0, j=0, k=0)``. Defaults to ``(0, 0, 0)``.
+            block_size (BlockSize, optional): Block dimensions ``(dx, dy, dz)``
+                along the local ``i/j/k`` (``u/v/w``) axes. Defaults to
+                ``(1, 1, 1)``.
+            shape (Shape3D, optional): Number of blocks (nᵢ, nⱼ, nₖ). Defaults to (1, 1, 1).
+            axis_u (Vector, optional): Orthonormal U-axis for world embedding. Defaults to (1, 0, 0).
+            axis_v (Vector, optional): Orthonormal V-axis for world embedding. Defaults to (0, 1, 0).
+            axis_w (Vector, optional): Orthonormal W-axis for world embedding. Defaults to (0, 0, 1).
+            srs (str, optional): Spatial reference system identifier.
+
         Returns:
-            np.ndarray: A 1D array of C-order indices.
+            RegularGeometry: New geometry instance.
         """
-        return np.arange(np.prod(self.shape), dtype=np.int32)
+        return cls(
+            local=LocalGeometry(corner=corner, block_size=block_size, shape=shape),
+            world=WorldFrame(origin=(0.0, 0.0, 0.0), axis_u=axis_u, axis_v=axis_v, axis_w=axis_w, srs=srs),
+        )
 
-    @cached_property
-    def _centroids(self) -> np.ndarray:
-        # Compute axis-aligned centroids
-        x = np.arange(self.corner[0] + self.block_size[0] / 2,
-                      self.corner[0] + self.block_size[0] * self.shape[0],
-                      self.block_size[0])
-        y = np.arange(self.corner[1] + self.block_size[1] / 2,
-                      self.corner[1] + self.block_size[1] * self.shape[1],
-                      self.block_size[1])
-        z = np.arange(self.corner[2] + self.block_size[2] / 2,
-                      self.corner[2] + self.block_size[2] * self.shape[2],
-                      self.block_size[2])
-        xx, yy, zz = np.meshgrid(x, y, z, indexing="ij")
-        centroids = np.vstack([xx.ravel(order='C'), yy.ravel(order='C'), zz.ravel(order='C')])
-        # Apply rotation
-        rotation_matrix = np.array([self.axis_u, self.axis_v, self.axis_w]).T
-        rotated = rotation_matrix @ centroids
-        return rotated  # shape: (3, N)
+    def __init__(
+        self,
+        local: Optional[LocalGeometry] = None,
+        world: Optional[WorldFrame] = None,
+        schema_version: str = "1.0",
+        world_id_encoding: Optional[dict[str, Any]] = None,
+        # Backward-compatible keyword arguments
+        corner: Optional[Point] = None,
+        block_size: Optional[BlockSize] = None,
+        shape: Optional[Shape3D] = None,
+        axis_u: Optional[Vector] = None,
+        axis_v: Optional[Vector] = None,
+        axis_w: Optional[Vector] = None,
+        srs: Optional[str] = None,
+    ):
+        """Initialize RegularGeometry.
 
-    def centroid_i(self, dtype='int32') -> np.ndarray:
-        return np.arange(self.shape[0], dtype=dtype)
+        Can be called with either:
+        1. New style: RegularGeometry(local=..., world=...)
+        2. Old style: RegularGeometry(corner=..., block_size=..., shape=..., axis_u=...)
+        3. Or mix default parameters with keyword overrides
+        """
+        # If old-style parameters are provided, use them to construct local/world
+        if any(p is not None for p in [corner, block_size, shape, axis_u, axis_v, axis_w, srs]):
+            if local is not None or world is not None:
+                raise ValueError(
+                    "Cannot specify both new-style (local/world) and old-style "
+                    "(corner/block_size/shape/axis_*) parameters"
+                )
+            # Use old-style parameters
+            local = LocalGeometry(
+                corner=corner or (0.0, 0.0, 0.0),
+                block_size=block_size or (1.0, 1.0, 1.0),
+                shape=shape or (1, 1, 1),
+            )
+            world = WorldFrame(
+                origin=(0.0, 0.0, 0.0),
+                axis_u=axis_u or (1.0, 0.0, 0.0),
+                axis_v=axis_v or (0.0, 1.0, 0.0),
+                axis_w=axis_w or (0.0, 0.0, 1.0),
+                srs=srs,
+            )
+        elif local is None or world is None:
+            # If neither new-style nor old-style provided, use defaults
+            local = local or LocalGeometry(
+                corner=(0.0, 0.0, 0.0),
+                block_size=(1.0, 1.0, 1.0),
+                shape=(1, 1, 1),
+            )
+            world = world or WorldFrame()
 
-    def centroid_j(self, dtype='int32') -> np.ndarray:
-        return np.arange(self.shape[1], dtype=dtype)
+        self.local = local
+        self.world = world
+        self.schema_version = schema_version
+        self.world_id_encoding = world_id_encoding
 
-    def centroid_k(self, dtype='int32') -> np.ndarray:
-        return np.arange(self.shape[2], dtype=dtype)
+    # ----------------------------------------------------------------------
+    # Centroid calculation (C‑order)
+    # ----------------------------------------------------------------------
 
     @property
-    def centroid_x(self) -> np.ndarray:
+    def _centroids(self) -> np.ndarray:
+        """Compute world XYZ centroids as a (3, N) array in **C‑order**.
+
+        Returns:
+            np.ndarray: Array of shape (3, N), where N = ni*nj*nk.
+                        First row = X, second = Y, third = Z.
+        """
+        local = self.local.centroids_uvw
+        return self.world.local_to_world(local)
+
+    @property
+    def centroid_x(self) -> NDArray[np.floating]:
         return self._centroids[0]
 
     @property
-    def centroid_y(self) -> np.ndarray:
+    def centroid_y(self) -> NDArray[np.floating]:
         return self._centroids[1]
 
     @property
-    def centroid_z(self) -> np.ndarray:
+    def centroid_z(self) -> NDArray[np.floating]:
         return self._centroids[2]
 
-    @property
-    def shape(self) -> Shape3D:
-        return self._shape
+    # ----------------------------------------------------------------------
+    # Index conversion API (C‑order guaranteed)
+    # ----------------------------------------------------------------------
 
-    @shape.setter
-    def shape(self, value: Shape3D) -> None:
-        self._shape = value
+    def ijk_from_row_index(self, rows):
+        """Convert row index/indices into (i, j, k) using **C‑order**."""
+        return self.local.ijk_from_row_index(rows)
 
-    @property
-    def extents(self) -> tuple[MinMax, MinMax, MinMax]:
-        return (
-            (
-                float(self.centroid_x[0] - self.block_size[0] / 2),
-                float(self.centroid_x[-1] + self.block_size[0] / 2),
-            ),
-            (
-                float(self.centroid_y[0] - self.block_size[1] / 2),
-                float(self.centroid_y[-1] + self.block_size[1] / 2),
-            ),
-            (
-                float(self.centroid_z[0] - self.block_size[2] / 2),
-                float(self.centroid_z[-1] + self.block_size[2] / 2),
-            ),
-        )
+    def row_index_from_ijk(self, i, j, k):
+        """Convert (i, j, k) into row index using **C‑order**."""
+        return self.local.row_index_from_ijk(i, j, k)
 
-    @property
-    def axis_angles(self):
-        """Return (azimuth, dip, plunge) corresponding to axis_u, axis_v, axis_w."""
-        from parq_blockmodel.utils.geometry_utils import axis_orientation_to_rotation
-        return axis_orientation_to_rotation(self.axis_u, self.axis_v, self.axis_w)
+    def xyz_from_ijk(self, i, j, k) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Convert logical indices to world-space centroid coordinates."""
+        u, v, w = self.local.uvw_from_ijk(i, j, k)
+        local = np.vstack([u, v, w])
+        world = self.world.local_to_world(local)
+        return world[0], world[1], world[2]
 
-    @property
-    def summary(self) -> dict:
-        return {
-            "corner": tuple(self.corner),
-            "axis_angles": tuple(self.axis_angles),
-            "block_size": self.block_size,
-            "block_count": self.num_blocks,
-            "shape": self.shape,
-            "is_regular": self.is_regular,
-            "extents": self.extents,
-            "bounding_box": self.bounding_box,
-        }
+    def xyz_from_row_index(self, rows) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Convert C-order row index/indices to world-space centroid coordinates."""
+        i, j, k = self.ijk_from_row_index(rows)
+        return self.xyz_from_ijk(i, j, k)
 
-    @classmethod
-    def from_parquet(cls, filepath: Path,
-                     axis_azimuth: float = 0.0,
-                     axis_dip: float = 0.0,
-                     axis_plunge: float = 0.0
-                     ) -> "RegularGeometry":
-        import pyarrow.parquet as pq
-        columns = pq.ParquetFile(filepath).schema.names
-        if not {"x", "y", "z"}.issubset(columns):
-            raise ValueError("Parquet file must contain 'x', 'y', 'z' columns.")
+    def ijk_from_xyz(self, x, y, z, tol: float = 1e-6) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Map world-space centroid coordinates to integer logical ijk indices."""
+        x = np.asarray(x, dtype=float)
+        y = np.asarray(y, dtype=float)
+        z = np.asarray(z, dtype=float)
 
-        # Read the Parquet file to get the index, whether file was written by pandas or not
-        centroid_cols = ["x", "y", "z"]
-        centroids: pd.DataFrame = pq.read_table(filepath, columns=centroid_cols).to_pandas()
+        world = np.vstack([x, y, z])
+        local = self.world.world_to_local(world)
+        return self.local.ijk_from_uvw(local[0], local[1], local[2], tol=tol)
 
-        if centroids.index.names == centroid_cols:
-            index = centroids.index
-        else:
-            if centroids.empty:
-                raise ValueError("Parquet file is empty or does not contain valid centroid data.")
-            index = centroids.set_index(["x", "y", "z"]).index
-        # Create a RegularGeometry from the MultiIndex
-        return cls.from_multi_index(index, axis_azimuth=axis_azimuth, axis_dip=axis_dip, axis_plunge=axis_plunge)
+    def row_index_from_xyz(self, x, y, z, tol: float = 1e-6) -> np.ndarray:
+        """Map world-space centroid coordinates directly to C-order row indices."""
+        i, j, k = self.ijk_from_xyz(x, y, z, tol=tol)
+        return np.asarray(self.row_index_from_ijk(i, j, k), dtype=np.int64)
 
-    @classmethod
-    def from_multi_index(cls, index: pd.MultiIndex,
-                         axis_azimuth: float = 0.0,
-                         axis_dip: float = 0.0,
-                         axis_plunge: float = 0.0,
-                         srs: Optional[str] = None) -> Union["RegularGeometry", "SparseRegularGeometry"]:
-        """
-        Create a RegularGeometry or SparseRegularGeometry instance from a pandas MultiIndex.
+    # ----------------------------------------------------------------------
+    # Convenience exports (not used internally)
+    # ----------------------------------------------------------------------
 
-        Args:
-            index (pd.MultiIndex): A MultiIndex containing the levels 'x', 'y', and 'z'.
-            axis_azimuth (float): The azimuth angle in degrees for rotation. Defaults to 0.0.
-            axis_dip (float): The dip angle in degrees for rotation. Defaults to 0.0.
-            axis_plunge (float): The plunge angle in degrees for rotation. Defaults to 0.0.
-            srs (Optional[str]): The spatial reference system (e.g., EPSG code). Defaults to None.
+    def to_multi_index_xyz(self) -> pd.MultiIndex:
+        """Return XYZ centroid coordinates as a MultiIndex.
 
-        Returns:
-            Union[RegularGeometry, SparseRegularGeometry]: An instance of RegularGeometry or SparseRegularGeometry.
-        """
-        if not {"x", "y", "z"}.issubset(index.names):
-            raise ValueError("Index must contain the levels 'x', 'y', 'z'.")
+        NOTE:
+            This MultiIndex preserves **C‑order row layout**.
+            If you want lexicographic ('x slowest, z fastest'), sort it
+            explicitly:
 
-        rotation_matrix = np.array(rotation_to_axis_orientation(axis_azimuth, axis_dip, axis_plunge)).T
-
-        # Skip rotation if no rotation is needed
-        if not (axis_azimuth or axis_dip or axis_plunge):
-            unrotated_centroids = np.column_stack(
-                [index.get_level_values("x"), index.get_level_values("y"), index.get_level_values("z")]
-            )
-        else:
-            inverse_rotation_matrix = np.linalg.inv(rotation_matrix)
-            # Transform centroids into the u, v, w (axis) context
-            centroids = np.column_stack(
-                [index.get_level_values("x"), index.get_level_values("y"), index.get_level_values("z")]
-            )
-            unrotated_centroids = centroids @ inverse_rotation_matrix
-
-        # Calculate block size, corner, and shape in the unrotated context
-        x, y, z = unrotated_centroids.T
-        dx, dy, dz = np.diff(np.unique(x)), np.diff(np.unique(y)), np.diff(np.unique(z))
-        block_size = (dx.min(), dy.min(), dz.min())
-        corner = (x.min() - block_size[0] / 2, y.min() - block_size[1] / 2, z.min() - block_size[2] / 2)
-        shape = (
-            int((x.max() - x.min()) / block_size[0]) + 1,
-            int((y.max() - y.min()) / block_size[1]) + 1,
-            int((z.max() - z.min()) / block_size[2]) + 1,
-        )
-
-        # Check if sparse
-        expected_dense_size = np.prod(shape)
-        if len(index) < expected_dense_size:
-            return SparseRegularGeometry.from_multi_index(index=index, shape=shape,
-                                                          corner=corner, axis_azimuth=axis_azimuth,
-                                                          axis_dip=axis_dip, axis_plunge=axis_plunge,
-                                                          srs=srs)
-
-        # Return RegularGeometry for dense grids
-        return cls(corner=corner, axis_u=rotation_matrix[:, 0], axis_v=rotation_matrix[:, 1],
-                   axis_w=rotation_matrix[:, 2], block_size=block_size, shape=shape, srs=srs)
-
-    @classmethod
-    def from_centroids(cls, centroids: np.ndarray) -> "RegularGeometry":
-        """Create a RegularGeometry from centroids.
-
-        Typically, this is used to create a RegularGeometry from a (3, N) array of centroids,
-        where each row corresponds to x, y, z coordinates of the centroids, perhaps from a pyvista grid or similar.
-
-        Args:
-            centroids (np.ndarray): A (3, N) array of centroids.
-
-        Returns:
-            RegularGeometry: The created RegularGeometry object.
-        """
-        if centroids.shape[0] != 3:
-            raise ValueError("Centroids must be a (3, N) array.")
-
-        # Calculate the corner based on the first centroid
-        corner = (
-            float(centroids[0, 0] - centroids[0, 1] / 2),
-            float(centroids[1, 0] - centroids[1, 1] / 2),
-            float(centroids[2, 0] - centroids[2, 1] / 2),
-        )
-
-        # Calculate block size from the first two centroids
-        block_size = (
-            float(centroids[0, 1] - centroids[0, 0]),
-            float(centroids[1, 1] - centroids[1, 0]),
-            float(centroids[2, 1] - centroids[2, 0]),
-        )
-
-        # Calculate shape
-        shape = (len(np.unique(centroids[0])), len(np.unique(centroids[1])), len(np.unique(centroids[2])))
-
-        return cls(corner=corner,
-                   block_size=block_size,
-                   shape=shape)
-
-    @classmethod
-    def from_extents(cls, extents: tuple[MinMax, MinMax, MinMax],
-                     block_size: BlockSize,
-                     axis_u: Vector = (1, 0, 0),
-                     axis_v: Vector = (0, 1, 0),
-                     axis_w: Vector = (0, 0, 1),
-                     ) -> "RegularGeometry":
-        """Create a RegularGeometry from extents."""
-        min_x, max_x = extents[0]
-        min_y, max_y = extents[1]
-        min_z, max_z = extents[2]
-
-        corner = (min_x, min_y, min_z)
-        shape = (
-            int(math.ceil((max_x - min_x) / block_size[0])),
-            int(math.ceil((max_y - min_y) / block_size[1])),
-            int(math.ceil((max_z - min_z) / block_size[2])),
-        )
-
-        return cls(corner=corner,
-                   block_size=block_size,
-                   shape=shape,
-                   axis_u=axis_u,
-                   axis_v=axis_v,
-                   axis_w=axis_w)
-
-    def to_json(self) -> str:
-        """Convert the full geometry to a JSON string."""
-        data = {
-            "corner": list(self.corner),
-            "axis_u": list(self.axis_u),
-            "axis_v": list(self.axis_v),
-            "axis_w": list(self.axis_w),
-            "block_size": list(self.block_size),
-            "shape": list(self.shape),
-        }
-        return json.dumps(data)
-
-    @classmethod
-    def from_json(cls, json_str: str) -> "RegularGeometry":
-        """Deserialize a JSON string to a full geometry object."""
-        data = json.loads(json_str)
-        return cls(
-            corner=list(data["corner"]),
-            axis_u=list(data["axis_u"]),
-            axis_v=list(data["axis_v"]),
-            axis_w=list(data["axis_w"]),
-            block_size=list(data["block_size"]),
-            shape=list(data["shape"]),
-        )
-
-    def to_multi_index(self) -> pd.MultiIndex:
-        """
-        Convert the geometry to a MultiIndex using the c-index as the base.
+                mi = geom.to_multi_index_xyz().sort_index()
         """
         coords = np.column_stack([self.centroid_x, self.centroid_y, self.centroid_z])
         return pd.MultiIndex.from_arrays(coords.T, names=["x", "y", "z"])
 
-    def to_ijk_multi_index(self, dtype: type = np.int32) -> pd.MultiIndex:
-        """
-        Convert the geometry to a MultiIndex with (i, j, k) indices using the c-index.
-        """
-        i, j, k = np.unravel_index(self.c_index, self.shape, order="C")
-        return pd.MultiIndex.from_arrays([i.astype(dtype), j.astype(dtype), k.astype(dtype)], names=["i", "j", "k"])
+    def to_multi_index_ijk(self) -> pd.MultiIndex:
+        """Export (i, j, k) indices as a MultiIndex in **C‑order**."""
+        N = np.prod(self.local.shape)
+        rows = np.arange(N)
+        i, j, k = self.ijk_from_row_index(rows)
+        return pd.MultiIndex.from_arrays([i, j, k], names=["i", "j", "k"])
+
+    def to_dataframe_xyz(self) -> pd.DataFrame:
+        """Return a DataFrame of XYZ centroids for export/inspection."""
+        return pd.DataFrame({
+            "x": self.centroid_x,
+            "y": self.centroid_y,
+            "z": self.centroid_z,
+        })
+
+    # Convenience alias for older callers expecting ``to_dataframe``.
 
     def to_dataframe(self) -> pd.DataFrame:
+        """Backward-compatible alias for :meth:`to_dataframe_xyz`."""
+        return self.to_dataframe_xyz()
+
+    # ----------------------------------------------------------------------
+    # Metadata I/O
+    # ----------------------------------------------------------------------
+
+    def to_metadata_dict(self) -> dict:
+        """Serialize geometry metadata for Parquet storage."""
+        metadata = {
+            "schema_version": self.schema_version,
+            "corner": list(self.local.corner),
+            "block_size": list(self.local.block_size),
+            "shape": list(self.local.shape),
+            "origin": list(self.world.origin),
+            "axis_u": list(self.world.axis_u),
+            "axis_v": list(self.world.axis_v),
+            "axis_w": list(self.world.axis_w),
+            "srs": self.world.srs,
+        }
+        if self.world_id_encoding is not None:
+            metadata["world_id_encoding"] = self.world_id_encoding
+        return metadata
+
+    @classmethod
+    def from_metadata(cls, meta: dict) -> "RegularGeometry":
+        """Reconstruct geometry from stored metadata."""
+        return cls(
+            local=LocalGeometry(
+                corner=tuple(meta["corner"]),
+                block_size=tuple(meta["block_size"]),
+                shape=tuple(meta["shape"]),
+            ),
+            world=WorldFrame(
+                origin=tuple(meta.get("origin", (0.0, 0.0, 0.0))),
+                axis_u=tuple(meta["axis_u"]),
+                axis_v=tuple(meta["axis_v"]),
+                axis_w=tuple(meta["axis_w"]),
+                srs=meta.get("srs"),
+            ),
+            schema_version=str(meta.get("schema_version", "1.0")),
+            world_id_encoding=meta.get("world_id_encoding"),
+        )
+
+    # ------------------------------------------------------------------
+    # Metadata helpers for DataFrame.attrs and Parquet key_value_metadata
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def from_attrs(
+        cls,
+        attrs: Mapping[str, Any],
+        key: str = "parq-blockmodel",
+    ) -> "RegularGeometry":
+        """Reconstruct geometry from a ``DataFrame.attrs``-style mapping.
+
+        ``attrs[key]`` is expected to contain the dict produced by
+        :meth:`to_metadata_dict` (or a compatible future schema that
+        :meth:`from_metadata` can consume).
         """
-        Convert a RegularGeometry to a DataFrame using the cached centroids.
 
-        Returns:
-            pd.DataFrame: The DataFrame representing the blockmodel element geometry.
-        """
-        centroids = self._centroids  # shape: (3, N)
-        df = pd.DataFrame({
-            "x": centroids[0],
-            "y": centroids[1],
-            "z": centroids[2],
-        })
-        df.attrs["geometry"] = self.summary
-        return df
+        if key not in attrs:
+            raise KeyError(f"Geometry metadata not found in attrs under key {key!r}.")
 
-    def to_spatial_index(self) -> pd.Index:
-        """Convert a RegularGeometry to an encoded integer index
+        payload = attrs[key]
+        if not isinstance(payload, dict):
+            raise TypeError(
+                "Expected attrs[%r] to be a dict compatible with RegularGeometry.to_metadata_dict(), "
+                "got %s." % (key, type(payload).__name__)
+            )
 
-        The integer index is encoded to preserve the spatial position.
+        return cls.from_metadata(payload)
 
-        Use the coordinate_hashing.hashed_index_to_multiindex function to convert it back to x, y, z pd.MultiIndex
-
-        Returns:
-
-        """
-        return multiindex_to_encoded_index(self.to_multi_index())
-
-    def to_pyvista(self) -> 'pv.ImageData':
-        import pyvista as pv
-
-        # PyVista expects dimensions as (nx, ny, nz) + 1
-        nx, ny, nz = self.shape
-        dims = (nx, ny, nz)
-        origin = self.corner
-        spacing = self.block_size
-
-        # ImageData expects dimensions as number of points, so add 1 to each
-        dims = tuple(d + 1 for d in dims)
-
-        grid = pv.ImageData(dimensions=dims,
-                            spacing=spacing,
-                            origin=origin)
-        grid.direction_matrix = np.array([self.axis_u, self.axis_v, self.axis_w]).T
-        return grid
-
-    def nearest_centroid_lookup(self, x: float, y: float, z: float) -> Point:
-        """Find the nearest centroid for provided x, y, z points.
+    @classmethod
+    def from_parquet_metadata(
+        cls,
+        metadata: Any,
+        key: str = "parq-blockmodel",
+    ) -> "RegularGeometry":
+        """Reconstruct geometry from Parquet file metadata.
 
         Args:
-            x (float): X coordinate.
-            y (float): Y coordinate.
-            z (float): Z coordinate.
+            metadata: Either a ``pyarrow.parquet.FileMetaData`` instance or a
+                mapping of key-value metadata (usually ``dict[str, str]``).
+            key: Metadata key under which the geometry payload is stored.
 
         Returns:
-            Point3: The coordinates of the nearest centroid.
+            RegularGeometry: The reconstructed geometry.
+
+        Raises:
+            KeyError: If the key is not present in the provided metadata.
+            TypeError: If metadata is not a valid type.
+            ValueError: If the payload cannot be interpreted as valid geometry
+                metadata.
         """
 
-        reference_centroid: Point = (float(self.centroid_x[0]),
-                                     float(self.centroid_y[0]),
-                                     float(self.centroid_z[0]),
-                                     )
-        dx, dy, dz = self.block_size
-        ref_x, ref_y, ref_z = reference_centroid
+        meta_dict: dict[str, Any]
+        if hasattr(metadata, "metadata"):
+            # Likely a pyarrow.parquet.FileMetaData
+            raw = metadata.metadata or {}
+            meta_dict = {
+                (k.decode("utf-8") if isinstance(k, (bytes, bytearray)) else str(k)):
+                (v.decode("utf-8") if isinstance(v, (bytes, bytearray)) else v)
+                for k, v in raw.items()
+            }
+        elif isinstance(metadata, Mapping):
+            meta_dict = dict(metadata)
+        else:
+            raise TypeError(
+                "metadata must be a pyarrow.parquet.FileMetaData or a mapping of key-value "
+                f"strings, got {type(metadata).__name__}."
+            )
 
-        nearest_x = round((x - ref_x) / dx) * dx + ref_x
-        nearest_y = round((y - ref_y) / dy) * dy + ref_y
-        nearest_z = round((z - ref_z) / dz) * dz + ref_z
+        if key not in meta_dict:
+            raise KeyError(f"Geometry metadata key {key!r} not found in Parquet metadata.")
 
-        return nearest_x, nearest_y, nearest_z
+        raw_value = meta_dict[key]
 
-    def is_compatible(self, other: 'RegularGeometry') -> True:
-        """Check if the geometry is compatible with another RegularGeometry.
+        # Allow already-decoded dict payloads for convenience/testing.
+        if isinstance(raw_value, dict):
+            return cls.from_metadata(raw_value)
 
-        Args:
-            other: The other RegularGeometry to check compatibility with.
+        if not isinstance(raw_value, str):
+            raise TypeError(
+                f"Expected Parquet metadata value for key {key!r} to be a JSON string or dict, "
+                f"got {type(raw_value).__name__}."
+            )
 
-        Returns:
-            bool: True if the geometries are compatible, False otherwise.
+        try:
+            payload = json.loads(raw_value)
+        except Exception as exc:  # pragma: no cover - error path
+            raise ValueError(
+                f"Failed to parse geometry metadata JSON in key {key!r}: {exc}"
+            ) from exc
 
-        """
+        if not isinstance(payload, dict):
+            raise ValueError(
+                f"Geometry metadata under key {key!r} must decode to a dict, got {type(payload).__name__}."
+            )
 
-        if self.srs != other.srs:
-            self._logger.warning(f"SRS {self.srs} != {other.srs}.")
-            return False
-        if self.block_size != other.block_size:
-            self._logger.warning(f"Block size {self.block_size} != {other.block_size}.")
-            return False
-        if self.shape != other.shape:
-            self._logger.warning(f"Shape {self.shape} != {other.shape}.")
-            return False
-        if self.axis_u != other.axis_u:
-            self._logger.warning(f"Axis {self.axis_u} != {other.axis_u}.")
-            return False
-        if self.axis_v != other.axis_v:
-            self._logger.warning(f"Axis {self.axis_v} != {other.axis_v}.")
-            return False
-        if self.axis_w != other.axis_w:
-            self._logger.warning(f"Axis {self.axis_w} != {other.axis_w}.")
-            return False
-        x_offset = (self.corner[0] - other.corner[0]) / self.block_size[0]
-        if x_offset != int(x_offset):
-            self._logger.warning(f"Incompatibility in x dimension: {x_offset} != {int(x_offset)}.")
-            return False
-        y_offset = (self.corner[1] - other.corner[1]) / self.block_size[1]
-        if y_offset != int(y_offset):
-            self._logger.warning(f"Incompatibility in y dimension: {y_offset} != {int(y_offset)}.")
-            return False
-        z_offset = (self.corner[2] - other.corner[2]) / self.block_size[2]
-        if z_offset != int(z_offset):
-            self._logger.warning(f"Incompatibility in z dimension: {z_offset} != {int(z_offset)}.")
-            return False
-        return True
+        return cls.from_metadata(payload)
 
-
-class SparseRegularGeometry(RegularGeometry):
-    """A subclass of RegularGeometry for sparse geometries using c-index."""
-
-    def __init__(self, corner, block_size, shape, c_index: np.ndarray,
-                 axis_u=(1, 0, 0), axis_v=(0, 1, 0), axis_w=(0, 0, 1), srs: Optional[str] = None):
-        super().__init__(corner, block_size, shape, axis_u, axis_v, axis_w, srs)
-        self.c_index = np.asarray(c_index, dtype=np.int32)
-        self._validate_c_index()
+    # ------------------------------------------------------------------
+    # Legacy helpers
+    # ------------------------------------------------------------------
 
     @property
-    def is_sparse(self) -> bool:
-        """Indicates that this geometry is sparse."""
-        return True
+    def is_rotated(self) -> bool:
+        """Return True if axes differ from the identity orientation."""
+        return not (
+            np.allclose(self.world.axis_u, (1.0, 0.0, 0.0))
+            and np.allclose(self.world.axis_v, (0.0, 1.0, 0.0))
+            and np.allclose(self.world.axis_w, (0.0, 0.0, 1.0))
+        )
 
-    def _validate_c_index(self):
-        """Ensure the c-index values are valid for the dense grid."""
-        if not np.all((0 <= self.c_index) & (self.c_index < np.prod(self.shape))):
-            raise ValueError("c_index values must be within the range of the dense grid.")
+    # Backward-compatible property accessors
+    @property
+    def corner(self) -> Point:
+        """Backward-compatible access to local corner."""
+        return self.local.corner
 
-    def to_multi_index(self) -> pd.MultiIndex:
-        """Convert the sparse c-index to a MultiIndex with (x, y, z) coordinates."""
-        dense_multi_index = super().to_multi_index()
-        return dense_multi_index[self.c_index]
+    @property
+    def origin(self) -> Point:
+        """Backward-compatible access to world origin."""
+        return self.world.origin
 
-    def to_ijk_multi_index(self, dtype: type = np.int32) -> pd.MultiIndex:
-        """Convert the sparse c-index to a MultiIndex with (i, j, k) indices."""
-        i, j, k = np.unravel_index(self.c_index, self.shape, order="C")
-        return pd.MultiIndex.from_arrays([i.astype(dtype), j.astype(dtype), k.astype(dtype)], names=["i", "j", "k"])
+    @property
+    def block_size(self) -> BlockSize:
+        """Backward-compatible access to local-axis block spacing ``(dx, dy, dz)``."""
+        return self.local.block_size
 
-    @classmethod
-    def from_multi_index(cls, index: pd.MultiIndex, shape: Optional[Shape3D] = None, corner: Optional[Point] = None,
-                         axis_azimuth: float = 0.0, axis_dip: float = 0.0, axis_plunge: float = 0.0,
-                         srs: Optional[str] = None) -> "SparseRegularGeometry":
+    @property
+    def shape(self) -> Shape3D:
+        """Backward-compatible access to grid shape."""
+        return self.local.shape
+
+    @property
+    def axis_u(self) -> Vector:
+        """Backward-compatible access to U-axis."""
+        return self.world.axis_u
+
+    @property
+    def axis_v(self) -> Vector:
+        """Backward-compatible access to V-axis."""
+        return self.world.axis_v
+
+    @property
+    def axis_w(self) -> Vector:
+        """Backward-compatible access to W-axis."""
+        return self.world.axis_w
+
+    @property
+    def srs(self) -> Optional[str]:
+        """Backward-compatible access to spatial reference system."""
+        return self.world.srs
+
+    @property
+    def extents(self) -> tuple[float, float, float, float, float, float]:
+        """Return the axis-aligned bounding box (xmin, xmax, ymin, ymax, zmin, zmax).
+
+        For unrotated geometries this is derived directly from corner, block_size,
+        and shape. For rotated geometries, we conservatively compute extents from
+        the centroid cloud.
         """
-        Create a SparseRegularGeometry instance from a pandas MultiIndex.
+
+        if not self.is_rotated:
+            cx, cy, cz = self.local.corner
+            dx, dy, dz = self.local.block_size
+            ni, nj, nk = self.local.shape
+            xmin, ymin, zmin = cx, cy, cz
+            xmax = cx + ni * dx
+            ymax = cy + nj * dy
+            zmax = cz + nk * dz
+            return xmin, xmax, ymin, ymax, zmin, zmax
+
+        # Rotated: fall back to centroid cloud bounds
+        xs = self.centroid_x
+        ys = self.centroid_y
+        zs = self.centroid_z
+        return float(xs.min()), float(xs.max()), float(ys.min()), float(ys.max()), float(zs.min()), float(zs.max())
+
+    # ------------------------------------------------------------------
+    # PyVista helper
+    # ------------------------------------------------------------------
+
+    def to_pyvista(self, *, frame: str = "world"):
+        """Return a ``pyvista.ImageData`` representing the dense grid.
 
         Args:
-            index (pd.MultiIndex): A MultiIndex containing the levels 'x', 'y', and 'z'.
-            shape (Optional[Shape3D]): The shape of the grid. If None, it is calculated as the tightest possible.
-            corner (Optional[Point]): The corner of the grid. If None, it is calculated as the tightest possible.
-            axis_azimuth (float): The azimuth angle in degrees for rotation. Defaults to 0.0.
-            axis_dip (float): The dip angle in degrees for rotation. Defaults to 0.0.
-            axis_plunge (float): The plunge angle in degrees for rotation. Defaults to 0.0.
-            srs (Optional[str]): The spatial reference system. Defaults to None.
+            frame (str, optional): Coordinate frame used for the returned grid.
+                - ``"world"`` (default): apply world orientation from ``axis_u/v/w``.
+                - ``"local"``: return axis-aligned local grid (no rotation).
 
         Returns:
-            SparseRegularGeometry: An instance of SparseRegularGeometry.
+            pyvista.ImageData: The grid representation.
+
+        Note:
+            In ``"world"`` mode, rotation is encoded using the ImageData
+            direction matrix, so plotting reflects geometry orientation.
         """
-        if not {"x", "y", "z"}.issubset(index.names):
-            raise ValueError("Index must contain the levels 'x', 'y', 'z'.")
 
-        rotation_matrix = np.array(rotation_to_axis_orientation(axis_azimuth, axis_dip, axis_plunge)).T
+        import pyvista as pv
 
-        # Skip rotation if no rotation is needed
-        if not (axis_azimuth or axis_dip or axis_plunge):
-            unrotated_centroids = np.column_stack(
-                [index.get_level_values("x"), index.get_level_values("y"), index.get_level_values("z")]
-            )
+        if frame not in {"world", "local"}:
+            raise ValueError("frame must be one of {'world', 'local'}")
+
+        dx, dy, dz = self.local.block_size
+        ni, nj, nk = self.local.shape
+
+        spacing = (dx, dy, dz)
+
+        # Voxel dimensions: number of points = cells + 1 along each axis
+        dimensions = (ni + 1, nj + 1, nk + 1)
+
+        grid = pv.ImageData()
+        if frame == "world":
+            local_origin = np.asarray(self.local.corner, dtype=float).reshape(3, 1)
+            origin = tuple(self.world.local_to_world(local_origin).ravel())
+            grid.origin = origin
+            grid.direction_matrix = self.world.rotation_matrix
         else:
-            inverse_rotation_matrix = np.linalg.inv(rotation_matrix)
-            # Transform centroids into the u, v, w (axis) context
-            centroids = np.column_stack(
-                [index.get_level_values("x"), index.get_level_values("y"), index.get_level_values("z")]
-            )
-            unrotated_centroids = centroids @ inverse_rotation_matrix
-
-        # Calculate block size from unique differences
-        x, y, z = unrotated_centroids.T
-        dx, dy, dz = np.diff(np.unique(x)), np.diff(np.unique(y)), np.diff(np.unique(z))
-        block_size = (dx.min(), dy.min(), dz.min())
-
-        # Calculate corner and shape if not provided
-        if corner is None:
-            corner = (x.min() - block_size[0] / 2, y.min() - block_size[1] / 2, z.min() - block_size[2] / 2)
-        if shape is None:
-            shape = (
-                int((x.max() - corner[0]) / block_size[0]) + 1,
-                int((y.max() - corner[1]) / block_size[1]) + 1,
-                int((z.max() - corner[2]) / block_size[2]) + 1,
-            )
-
-        # Calculate c_index for the sparse grid
-        i = np.floor((unrotated_centroids[:, 0] - corner[0]) / block_size[0]).astype(np.int32)
-        j = np.floor((unrotated_centroids[:, 1] - corner[1]) / block_size[1]).astype(np.int32)
-        k = np.floor((unrotated_centroids[:, 2] - corner[2]) / block_size[2]).astype(np.int32)
-        c_index = np.ravel_multi_index((i, j, k), shape, order="C")
-
-        return cls(corner=corner, block_size=block_size, shape=shape, c_index=c_index,
-                   axis_u=rotation_matrix[:, 0], axis_v=rotation_matrix[:, 1],
-                   axis_w=rotation_matrix[:, 2], srs=srs)
-
-    def to_json(self) -> str:
-        """Serialize SparseRegularGeometry to a JSON string."""
-        data = {
-            "corner": self.corner,
-            "block_size": self.block_size,
-            "shape": self.shape,
-            "axis_u": self.axis_u,
-            "axis_v": self.axis_v,
-            "axis_w": self.axis_w,
-            "srs": self.srs,
-            "c_index": self.c_index.tolist(),  # Convert numpy array to list for JSON compatibility
-        }
-        return json.dumps(data)
+            grid.origin = tuple(self.local.corner)
+        grid.spacing = spacing
+        grid.dimensions = dimensions
+        return grid
 
     @classmethod
-    def from_json(cls, json_str: str) -> "SparseRegularGeometry":
-        """Deserialize a JSON string to create a SparseRegularGeometry object."""
-        data = json.loads(json_str)
+    def from_parquet(
+        cls,
+        filepath,
+        axis_azimuth: float = 0.0,
+        axis_dip: float = 0.0,
+        axis_plunge: float = 0.0,
+        chunk_size: int = 1_000_000,
+    ) -> "RegularGeometry":
+        """Reconstruct geometry from a Parquet file.
+
+        Preferred path is to read geometry metadata from the Parquet
+        key_value_metadata under the reserved key ``"parq-blockmodel"``.
+        If that key is missing, fall back to centroid-based inference
+        using ``x, y, z`` columns and provided rotation angles.
+
+        .. todo:: Consider efficiency gains by staying in numpy versus using python sets.
+        """
+
+        import pyarrow.parquet as pq
+
+        pf = pq.ParquetFile(filepath)
+        try:
+            return cls.from_parquet_metadata(pf.metadata)
+        except KeyError:
+            pass
+
+        # Fallback: infer from centroids and rotation angles.
+        columns = set(pf.schema.names)
+        if not {"x", "y", "z"}.issubset(columns):
+            raise ValueError("Parquet file must contain x, y, z columns to infer geometry.")
+
+        from parq_blockmodel.utils.geometry_utils import angles_to_axes
+
+        axis_u, axis_v, axis_w = angles_to_axes(
+            axis_azimuth=axis_azimuth,
+            axis_dip=axis_dip,
+            axis_plunge=axis_plunge,
+        )
+
+        R = np.array([axis_u, axis_v, axis_w], dtype=float).T
+
+        local_x_values: set[float] = set()
+        local_y_values: set[float] = set()
+        local_z_values: set[float] = set()
+
+        for batch in pf.iter_batches(columns=["x", "y", "z"], batch_size=chunk_size):
+            table = batch.to_pydict()
+            x = np.asarray(table["x"], dtype=float)
+            y = np.asarray(table["y"], dtype=float)
+            z = np.asarray(table["z"], dtype=float)
+            pts = np.vstack([x, y, z])
+            local = R.T @ pts
+
+            local_x_values.update(np.unique(local[0]).tolist())
+            local_y_values.update(np.unique(local[1]).tolist())
+            local_z_values.update(np.unique(local[2]).tolist())
+
+        ux = np.array(sorted(local_x_values), dtype=float)
+        uy = np.array(sorted(local_y_values), dtype=float)
+        uz = np.array(sorted(local_z_values), dtype=float)
+
+        if ux.size < 2 or uy.size < 2 or uz.size < 2:
+            raise ValueError("Cannot infer block size/shape from degenerate centroid coordinates.")
+
+        dx = float(np.diff(ux).min())
+        dy = float(np.diff(uy).min())
+        dz = float(np.diff(uz).min())
+
+        ni = int(round((ux.max() - ux.min()) / dx)) + 1
+        nj = int(round((uy.max() - uy.min()) / dy)) + 1
+        nk = int(round((uz.max() - uz.min()) / dz)) + 1
+
+        # Corner is half a block before the minimum centroid along each axis.
+        corner = (float(ux.min() - dx / 2), float(uy.min() - dy / 2), float(uz.min() - dz / 2))
+
+        block_size: BlockSize = (dx, dy, dz)
+        shape: Shape3D = (ni, nj, nk)
+
+
         return cls(
-            corner=tuple(data["corner"]),
-            block_size=tuple(data["block_size"]),
-            shape=tuple(data["shape"]),
-            c_index=np.array(data["c_index"], dtype=np.int32),
-            axis_u=tuple(data["axis_u"]),
-            axis_v=tuple(data["axis_v"]),
-            axis_w=tuple(data["axis_w"]),
-            srs=data["srs"],
+            local=LocalGeometry(corner=corner, block_size=block_size, shape=shape),
+            world=WorldFrame(axis_u=axis_u, axis_v=axis_v, axis_w=axis_w),
+        )
+
+    @classmethod
+    def from_multi_index(
+        cls,
+        index: "pd.MultiIndex",
+        axis_azimuth: float = 0.0,
+        axis_dip: float = 0.0,
+        axis_plunge: float = 0.0,
+    ) -> "RegularGeometry":
+        """Infer geometry from an xyz centroid MultiIndex.
+
+        Convenience constructor used by :meth:`ParquetBlockModel.from_dataframe`
+        when no explicit geometry is provided. The index must have levels
+        ``("x", "y", "z")`` in world coordinates.
+
+        Parameters
+        ----------
+        index : pd.MultiIndex
+            Centroid coordinates with names ``["x", "y", "z"]``.
+        axis_azimuth, axis_dip, axis_plunge : float
+            Optional rotation angles (degrees) defining the orientation of
+            the logical ijk axes in world space.
+
+        Returns
+        -------
+        RegularGeometry
+        """
+        import pandas as pd
+        from parq_blockmodel.utils.geometry_utils import angles_to_axes
+
+        if not isinstance(index, pd.MultiIndex) or index.names != ["x", "y", "z"]:
+            raise ValueError("index must be a pd.MultiIndex with names ['x', 'y', 'z'].")
+
+        axis_u, axis_v, axis_w = angles_to_axes(
+            axis_azimuth=axis_azimuth,
+            axis_dip=axis_dip,
+            axis_plunge=axis_plunge,
+        )
+        R = np.array([axis_u, axis_v, axis_w], dtype=float).T
+
+        x = np.asarray(index.get_level_values("x"), dtype=float)
+        y = np.asarray(index.get_level_values("y"), dtype=float)
+        z = np.asarray(index.get_level_values("z"), dtype=float)
+        pts = np.vstack([x, y, z])
+        local = R.T @ pts
+
+        ux = np.array(sorted(set(np.unique(local[0]).tolist())), dtype=float)
+        uy = np.array(sorted(set(np.unique(local[1]).tolist())), dtype=float)
+        uz = np.array(sorted(set(np.unique(local[2]).tolist())), dtype=float)
+
+        if ux.size < 2 or uy.size < 2 or uz.size < 2:
+            raise ValueError("Cannot infer block size/shape from degenerate centroid coordinates.")
+
+        dx = float(np.diff(ux).min())
+        dy = float(np.diff(uy).min())
+        dz = float(np.diff(uz).min())
+
+        ni = int(round((ux.max() - ux.min()) / dx)) + 1
+        nj = int(round((uy.max() - uy.min()) / dy)) + 1
+        nk = int(round((uz.max() - uz.min()) / dz)) + 1
+
+        corner = (float(ux.min() - dx / 2), float(uy.min() - dy / 2), float(uz.min() - dz / 2))
+        block_size: BlockSize = (dx, dy, dz)
+        shape: Shape3D = (ni, nj, nk)
+
+
+        return cls(
+            local=LocalGeometry(corner=corner, block_size=block_size, shape=shape),
+            world=WorldFrame(axis_u=axis_u, axis_v=axis_v, axis_w=axis_w),
         )

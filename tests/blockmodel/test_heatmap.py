@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from parq_blockmodel import ParquetBlockModel
 from parq_blockmodel.utils import create_demo_blockmodel
 
@@ -12,8 +14,8 @@ def test_heatmap_array(tmpdir):
     pbm: ParquetBlockModel = ParquetBlockModel.create_demo_block_model(filename=parquet_filepath,
                                                                        shape=shape,
                                                                        )
-    heatmap: np.ndarray = pbm.create_heatmap_from_threshold(attribute='index_c',
-                                                            threshold=4,
+    heatmap: np.ndarray = pbm.create_heatmap_from_threshold(attribute='depth',
+                                                            threshold=1,
                                                             axis='z',
                                                             return_array=True)
 
@@ -23,14 +25,15 @@ def test_heatmap_array(tmpdir):
     assert np.sum(heatmap) > 0, "Heatmap is empty, expected some non-zero values."
     print("Heatmap shape:", heatmap.shape)
 
+@pytest.mark.gui
 def test_heatmap_plot(tmpdir):
     parquet_filepath: Path = Path(tmpdir) / 'tests.parquet'
     shape = (3, 3, 3)
     pbm: ParquetBlockModel = ParquetBlockModel.create_demo_block_model(filename=parquet_filepath,
                                                                        shape=shape,
                                                                        )
-    fig = pbm.plot_heatmap(attribute='index_c',
-                           threshold=4,
+    fig = pbm.plot_heatmap(attribute='depth',
+                           threshold=1,
                            axis='z')
 
     assert fig is not None, "Heatmap figure is None."

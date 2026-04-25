@@ -1,0 +1,90 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="26 -10 160 120"
+     aria-label="parq-blockmodel icon">
+
+  <!-- colours -->
+  <!-- body:       #3A4A56 -->
+  <!-- highlight:  #F2C14E -->
+  <!-- outline:    #1F2A33 -->
+  <!-- background: #7A8893 -->
+  <!-- missing:    #FFFFFF -->
+
+  <!-- ================= MAIN SOLID ================= -->
+
+  <!-- top face -->
+  <polygon points="60,20 108,0 152,20 100,40"
+           fill="#3A4A56"/>
+
+  <!-- left face -->
+  <polygon points="60,20 100,40 100,70 60,50"
+           fill="#3A4A56"/>
+
+  <!-- ================= HIGHLIGHTED FOREGROUND BLOCK ================= -->
+
+  <!-- top face of highlighted foreground block -->
+  <polygon points="105,20 80,30 100,40 126,30"
+           fill="#F2C14E"/>
+
+  <!-- front-left face -->
+  <polygon points="80,30 100,40 100,70 80,60"
+           fill="#F2C14E"/>
+
+  <!-- front-right face -->
+  <polygon points="100,40 126,30 126,60 100,70"
+           fill="#F2C14E"/>
+
+  <!-- ================= MISSING RIGHT-HAND BLOCK ================= -->
+
+  <!-- top-right face removed -->
+  <polygon points="105,20 130,10 152,20 126,30"
+           fill="#FFFFFF"/>
+
+  <!-- right vertical face removed -->
+  <polygon points="152,20 126,30 126,60 152,50"
+           fill="#FFFFFF"/>
+
+  <!-- ================= NEW BACKGROUND EDGES ================= -->
+
+  <!-- background edge 1:
+     rear vertical edge of missing RH block -->
+<line x1="130" y1="10" x2="130" y2="40"
+      stroke="#7A8893" stroke-width="2"/>
+
+  <!-- background edge 2:
+       rear bottom edge of missing RH block -->
+  <line x1="130" y1="40" x2="152" y2="50"
+        stroke="#7A8893" stroke-width="2"/>
+
+  <!-- background edge 3:
+       hidden base boundary projecting SW -->
+  <line x1="130" y1="40" x2="126" y2="42"
+        stroke="#7A8893" stroke-width="2"/>
+
+  <!-- ================= SUBDIVISIONS ================= -->
+
+  <!-- top face splits -->
+  <line x1="84"  y1="10" x2="126" y2="30"
+        stroke="#1F2A33" stroke-width="2"/>
+  <line x1="130" y1="10" x2="80"  y2="30"
+        stroke="#1F2A33" stroke-width="2"/>
+
+  <!-- vertical projections -->
+  <line x1="80"  y1="30" x2="80"  y2="60"
+        stroke="#1F2A33" stroke-width="2"/>
+  <line x1="126" y1="30" x2="126" y2="60"
+        stroke="#1F2A33" stroke-width="2"/>
+
+  <!-- ================= HULL OUTLINE ================= -->
+
+  <g fill="none"
+     stroke="#1F2A33"
+     stroke-width="2"
+     stroke-linejoin="round">
+
+    <polygon points="60,20 108,0 152,20 100,40"/>
+    <polygon points="60,20 100,40 100,70 60,50"/>
+    <polygon points="152,20 100,40 100,70 152,50"/>
+
+  </g>
+
+</svg>

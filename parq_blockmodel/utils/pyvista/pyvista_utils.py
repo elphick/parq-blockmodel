@@ -7,6 +7,7 @@ import numpy as np
 from scipy.stats import mode
 
 from parq_blockmodel import RegularGeometry
+from parq_blockmodel.geometry import LocalGeometry, WorldFrame
 
 import pyvista as pv
 
@@ -16,6 +17,7 @@ def df_to_pv_image_data(df: pd.DataFrame,
                         fill_value=np.nan,
                         categorical_encode: bool = False,
                         categorical_mappings: dict[str, dict] = None,
+                        frame: str = "world",
                         ) -> pv.ImageData:
     """
     Convert a DataFrame to a PyVista ImageData object for a dense regular grid.
@@ -26,24 +28,45 @@ def df_to_pv_image_data(df: pd.DataFrame,
         fill_value: Value to use for missing cells.
         categorical_encode: Whether to encode categorical columns.
         categorical_mappings: Mapping of categorical column names to integers.  If None, will auto-generate.
+        frame: Coordinate frame for the output grid. ``"world"`` applies geometry orientation;
+            ``"local"`` uses axis-aligned local ijk orientation.
 
     Returns:
         pv.ImageData: PyVista ImageData object with cell data.
     """
 
-    # Ensure index is MultiIndex (x, y, z)
-    if not isinstance(df.index, pd.MultiIndex):
-        df = df.set_index(['x', 'y', 'z'])
+    shape = geometry.local.shape
+    grid: pv.ImageData = geometry.to_pyvista(frame=frame)
 
-    # Sort index to match PyVista's Fortran order (z, y, x)
-    df = df.sort_index(level=['z', 'y', 'x'])
-
-    # Create dense index and reindex
-    dense_index = geometry.to_multi_index()
-    dense_df = df.reindex(dense_index)
-    shape = geometry.shape
-
-    grid: pv.ImageData = geometry.to_pyvista()
+    # ------------------------------------------------------------------
+    # Normalise the DataFrame to canonical C-order ijk layout.
+    #
+    # PyVista ImageData expects cell_data in Fortran (i-fastest) order.
+    # The safe, rotation-invariant path is:
+    #   1. Bring data into canonical C-order ijk (k fastest, i slowest).
+    #   2. reshape(shape, order='C').ravel(order='F') → i-fastest for PV.
+    #
+    # If the caller already provides an ijk-indexed DataFrame (from
+    # ``ParquetBlockModel.read(index="ijk", dense=True)``) we use it
+    # directly.  For backwards-compat the old xyz-sorted path is kept
+    # for xyz-indexed DataFrames, but it only works correctly for
+    # axis-aligned (non-rotated) models.
+    # ------------------------------------------------------------------
+    if isinstance(df.index, pd.MultiIndex) and list(df.index.names) == ["i", "j", "k"]:
+        # ijk-indexed: already in canonical C-order from geometry.to_multi_index_ijk().
+        dense_df = df
+    else:
+        # xyz-indexed legacy path (non-rotated models only).
+        if not isinstance(df.index, pd.MultiIndex):
+            df = df.set_index(['x', 'y', 'z'])
+        df = df.sort_index(level=['z', 'y', 'x'])
+        dense_index = geometry.to_multi_index_xyz()
+        if not isinstance(dense_index, pd.MultiIndex):
+            dense_index = pd.MultiIndex.from_tuples(list(dense_index), names=["x", "y", "z"])
+        else:
+            dense_index = dense_index.set_names(["x", "y", "z"])
+        dense_index = dense_index.sort_values()
+        dense_df = df.reindex(dense_index)
 
     for attr in df.columns:
         col = dense_df[attr]
@@ -231,7 +254,6 @@ def df_to_poly_data(df: pd.DataFrame) -> pv.PolyData:
 
     Args:
         df: DataFrame with MultiIndex (x, y, z) or columns x, y, z.
-        geometry: RegularGeometry instance (provides shape, spacing, origin).
 
     Returns:
         pv.PolyData: PyVista PolyData object with point data.
@@ -287,10 +309,17 @@ def calculate_spacing(grid: pv.UnstructuredGrid) -> tuple[float, float, float]:
     y_coords = np.unique(grid.points[:, 1])
     z_coords = np.unique(grid.points[:, 2])
 
-    # Calculate differences and find the mode
-    dx = mode(np.diff(x_coords)).mode
-    dy = mode(np.diff(y_coords)).mode
-    dz = mode(np.diff(z_coords)).mode
+    def modal_diff(values: np.ndarray) -> float:
+        diffs = np.diff(values)
+        if diffs.size == 0:
+            return 1.0
+        unique, counts = np.unique(diffs, return_counts=True)
+        return float(unique[np.argmax(counts)])
+
+    # Calculate differences and find the modal spacing.
+    dx = modal_diff(x_coords)
+    dy = modal_diff(y_coords)
+    dz = modal_diff(z_coords)
 
     return dx, dy, dz
 
@@ -319,7 +348,10 @@ def infer_regular_geometry_from_df(df: pd.DataFrame):
         np.diff(z).mean() if len(z) > 1 else 1.0,
     )
     origin = (x[0] - spacing[0] / 2, y[0] - spacing[1] / 2, z[0] - spacing[2] / 2)
-    return RegularGeometry(shape=shape, block_size=spacing, corner=origin)
+    return RegularGeometry(
+        local=LocalGeometry(shape=shape, block_size=spacing, corner=origin),
+        world=WorldFrame(),
+    )
 
 
 def _get_geometry_from_df(df):

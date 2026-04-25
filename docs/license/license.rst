@@ -1,7 +1,7 @@
 License
 =======
 
-.. include:: ../../../LICENSE
+.. include:: ../../LICENSE
    :parser: myst_parser.sphinx_
 
 .. toctree::
