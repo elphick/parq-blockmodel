@@ -1,6 +1,6 @@
 [project]
 name = "parq-blockmodel"
-version = "0.2.0"
+version = "0.2.1"
 description = "A Python package for efficient storage, manipulation, and analysis of mining block models using Parquet files."
 authors = [
     { name = "Greg", email = "11791585+elphick@users.noreply.github.com" }
@@ -49,6 +49,7 @@ dev = [
     "trame-vtk>=2.9.0,<3",
     "trame-vuetify>=3.0.1,<4",
     "sphinx-book-theme>=1.2.0,<2",
+    "pytest-cov>=7.1.0",
 ]
 
 [tool.pytest.ini_options]
