@@ -1,0 +1,1088 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Classes &#8212; parq-blockmodel Documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=fd3f3429" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=e3499722" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api/mesh';</script>
+    <link rel="icon" href="../_static/parq-blockmodel.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.1" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/parq-blockmodel.svg" class="logo__image only-light" alt=""/>
+    <img src="../_static/parq-blockmodel.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">parq-blockmodel<br>(0.2.1)</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../usage/installation.html">Installation</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="simple">
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../user_guide.html">User Guide</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/01_geometry.html">Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/02_geometry_coordinates.html">Geometry and Coordinate Transformations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/03_blockmodels.html">Block Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/04_mesh_export.html">Mesh Module</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../auto_examples/index.html">Example Gallery</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/01_regular_geometry.html">Regular Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/02_rotated_geometry.html">Rotated Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/03_visualise_blockmodel.html">Block Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/04_rotated_blockmodel.html">Rotated Blockmodel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/05_heatmap.html">Heatmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/06_reblocking.html">Reblocking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/07_mesh_export.html">Mesh Export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/08_sparse_parquet_to_pbm.html">Dense and Sparse PBM from XYZ Parquet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/09_rotated_parquet_to_pbm.html">Rotated XYZ Parquet to PBM</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../todo.html">To Do</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../glossary/glossary.html">Glossary</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="modules.html">API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="_autosummary/parq_blockmodel.blockmodel.html">parq_blockmodel.blockmodel</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html">parq_blockmodel.blockmodel.ParquetBlockModel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="_autosummary/parq_blockmodel.geometry.html">parq_blockmodel.geometry</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/parq_blockmodel.geometry.LocalGeometry.html">parq_blockmodel.geometry.LocalGeometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/parq_blockmodel.geometry.RegularGeometry.html">parq_blockmodel.geometry.RegularGeometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="_autosummary/parq_blockmodel.geometry.WorldFrame.html">parq_blockmodel.geometry.WorldFrame</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.html">parq_blockmodel.utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.cicd.html">parq_blockmodel.utils.cicd</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.cicd.is_github_runner.html">parq_blockmodel.utils.cicd.is_github_runner</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.demo_block_model.html">parq_blockmodel.utils.demo_block_model</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade.html">parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.demo_block_model.create_demo_blockmodel.html">parq_blockmodel.utils.demo_block_model.create_demo_blockmodel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.demo_block_model.create_toy_blockmodel.html">parq_blockmodel.utils.demo_block_model.create_toy_blockmodel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.geometry_utils.html">parq_blockmodel.utils.geometry_utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.geometry_utils.angles_to_axes.html">parq_blockmodel.utils.geometry_utils.angles_to_axes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.geometry_utils.axes_to_angles.html">parq_blockmodel.utils.geometry_utils.axes_to_angles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex.html">parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.geometry_utils.rotate_points.html">parq_blockmodel.utils.geometry_utils.rotate_points</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal.html">parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.geometry_utils.validate_geometry.html">parq_blockmodel.utils.geometry_utils.validate_geometry</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.pandas.html">parq_blockmodel.utils.pandas</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.pandas.aggregate.html">parq_blockmodel.utils.pandas.aggregate</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.pandas_accessors.html">parq_blockmodel.utils.pandas_accessors</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor.html">parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.pandas_accessors.PyVistaAccessor.html">parq_blockmodel.utils.pandas_accessors.PyVistaAccessor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.plotly_scraper.html">parq_blockmodel.utils.plotly_scraper</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser.html">parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.pyvista.html">parq_blockmodel.utils.pyvista</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.pyvista.categorical_utils.html">parq_blockmodel.utils.pyvista.categorical_utils</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.pyvista.custom_plotter.html">parq_blockmodel.utils.pyvista.custom_plotter</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.pyvista.pyvista_utils.html">parq_blockmodel.utils.pyvista.pyvista_utils</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.spatial_encoding.html">parq_blockmodel.utils.spatial_encoding</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.spatial_encoding.decode_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.spatial_encoding.decode_world_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_world_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.spatial_encoding.encode_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.spatial_encoding.encode_world_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_world_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex.html">parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.spatial_encoding.get_id_encoding_params.html">parq_blockmodel.utils.spatial_encoding.get_id_encoding_params</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params.html">parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.spatial_encoding.is_integer.html">parq_blockmodel.utils.spatial_encoding.is_integer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index.html">parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.temporal.html">parq_blockmodel.utils.temporal</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.temporal.demo_data.html">parq_blockmodel.utils.temporal.demo_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="_autosummary/parq_blockmodel.utils.temporal.temporal_surfaces.html">parq_blockmodel.utils.temporal.temporal_surfaces</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../license/license.html">License</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="simple">
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Developer docs:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../design_ijk_metadata.html">Developer notes: geometry &amp; metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer_testing.html">Developer Testing Guide</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel/edit/main/docs/api/mesh.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel/issues/new?title=Issue%20on%20page%20%2Fapi/mesh.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/api/mesh.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Classes</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#">Classes</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#trianglemesh">TriangleMesh</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh"><code class="docutils literal notranslate"><span class="pre">TriangleMesh</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.vertices"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.vertices</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.faces"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.faces</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.vertex_attributes"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.vertex_attributes</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.face_attributes"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.face_attributes</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.vertex_ijk"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.vertex_ijk</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.face_ijk"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.face_ijk</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.metadata"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.metadata</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id0"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.face_attributes</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id1"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.face_ijk</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id2"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.faces</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id3"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.metadata</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.n_faces"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.n_faces</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.n_vertices"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.n_vertices</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.validate"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.validate()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id4"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.vertex_attributes</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id5"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.vertex_ijk</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id6"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.vertices</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#blockmeshgenerator">BlockMeshGenerator</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.BlockMeshGenerator"><code class="docutils literal notranslate"><span class="pre">BlockMeshGenerator</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.BlockMeshGenerator.geometry"><code class="docutils literal notranslate"><span class="pre">BlockMeshGenerator.geometry</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.BlockMeshGenerator.block_corners_local"><code class="docutils literal notranslate"><span class="pre">BlockMeshGenerator.block_corners_local()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.BlockMeshGenerator.block_vertices_xyz"><code class="docutils literal notranslate"><span class="pre">BlockMeshGenerator.block_vertices_xyz()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.BlockMeshGenerator.cube_faces_ccw"><code class="docutils literal notranslate"><span class="pre">BlockMeshGenerator.cube_faces_ccw()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.BlockMeshGenerator.surface_faces_ccw"><code class="docutils literal notranslate"><span class="pre">BlockMeshGenerator.surface_faces_ccw()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.BlockMeshGenerator.triangulate"><code class="docutils literal notranslate"><span class="pre">BlockMeshGenerator.triangulate()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#functions">Functions</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ply-format-functions">PLY Format Functions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#glb-format-functions">GLB Format Functions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parquetblockmodel-methods">ParquetBlockModel Methods</a></li>
+</ul>
+</li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">Examples</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#notes">Notes</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">See Also</a></li>
+</ul>
+
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <p>“””
+API Reference: Mesh Module
+===========================</p>
+<p id="module-parq_blockmodel.mesh">This module provides classes and functions for converting block models
+into triangulated surface geometry and exporting to standard formats.</p>
+<section id="classes">
+<h1>Classes<a class="headerlink" href="#classes" title="Link to this heading">#</a></h1>
+<section id="trianglemesh">
+<h2>TriangleMesh<a class="headerlink" href="#trianglemesh" title="Link to this heading">#</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.TriangleMesh">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">parq_blockmodel.mesh.</span></span><span class="sig-name descname"><span class="pre">TriangleMesh</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">vertices</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">faces</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vertex_attributes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">face_attributes</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vertex_ijk</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">face_ijk</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">metadata</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/parq_blockmodel/mesh/types.html#TriangleMesh"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.mesh.TriangleMesh" title="Link to this definition">#</a></dt>
+<dd><p>Representation of a triangle mesh with optional attributes.</p>
+<p>This is the internal mesh format used by the mesh module. It can be
+serialized to PLY (lossless) or GLB (derived) formats.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.TriangleMesh.vertices">
+<span class="sig-name descname"><span class="pre">vertices</span></span><a class="headerlink" href="#parq_blockmodel.mesh.TriangleMesh.vertices" title="Link to this definition">#</a></dt>
+<dd><p>Vertex coordinates, shape (n_vertices, 3) in world space.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.TriangleMesh.faces">
+<span class="sig-name descname"><span class="pre">faces</span></span><a class="headerlink" href="#parq_blockmodel.mesh.TriangleMesh.faces" title="Link to this definition">#</a></dt>
+<dd><p>Triangle face indices, shape (n_faces, 3). Each row is a CCW-ordered
+triangle when viewed from the exterior (right-handed coordinates).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.TriangleMesh.vertex_attributes">
+<span class="sig-name descname"><span class="pre">vertex_attributes</span></span><a class="headerlink" href="#parq_blockmodel.mesh.TriangleMesh.vertex_attributes" title="Link to this definition">#</a></dt>
+<dd><p>Per-vertex scalar attributes, e.g. {“grade”: (n_vertices,), “density”: (n_vertices,)}.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict[str, np.ndarray]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.TriangleMesh.face_attributes">
+<span class="sig-name descname"><span class="pre">face_attributes</span></span><a class="headerlink" href="#parq_blockmodel.mesh.TriangleMesh.face_attributes" title="Link to this definition">#</a></dt>
+<dd><p>Per-face scalar attributes, e.g. {“rock_type”: (n_faces,)}.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict[str, np.ndarray]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.TriangleMesh.vertex_ijk">
+<span class="sig-name descname"><span class="pre">vertex_ijk</span></span><a class="headerlink" href="#parq_blockmodel.mesh.TriangleMesh.vertex_ijk" title="Link to this definition">#</a></dt>
+<dd><p>Logical (i, j, k) indices for each vertex, shape (n_vertices, 3).
+Useful for tracing back to block model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[np.ndarray]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.TriangleMesh.face_ijk">
+<span class="sig-name descname"><span class="pre">face_ijk</span></span><a class="headerlink" href="#parq_blockmodel.mesh.TriangleMesh.face_ijk" title="Link to this definition">#</a></dt>
+<dd><p>Logical (i, j, k) indices for each face (typically the block containing it),
+shape (n_faces, 3).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Optional[np.ndarray]</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.TriangleMesh.metadata">
+<span class="sig-name descname"><span class="pre">metadata</span></span><a class="headerlink" href="#parq_blockmodel.mesh.TriangleMesh.metadata" title="Link to this definition">#</a></dt>
+<dd><p>Arbitrary metadata, e.g. CRS, units, author, etc.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<p>Represents a triangle mesh with optional vertex and face attributes.</p>
+<section id="attributes">
+<h3>Attributes<a class="headerlink" href="#attributes" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>vertices<span class="classifier">np.ndarray</span></dt><dd><p>Vertex coordinates, shape (n_vertices, 3) in world space.</p>
+</dd>
+<dt>faces<span class="classifier">np.ndarray</span></dt><dd><p>Triangle face indices, shape (n_faces, 3).</p>
+</dd>
+<dt>vertex_attributes<span class="classifier">dict[str, np.ndarray]</span></dt><dd><p>Per-vertex attributes (e.g., grades, rock types).</p>
+</dd>
+<dt>face_attributes<span class="classifier">dict[str, np.ndarray]</span></dt><dd><p>Per-face attributes.</p>
+</dd>
+<dt>vertex_ijk<span class="classifier">np.ndarray, optional</span></dt><dd><p>Logical (i, j, k) indices for vertices.</p>
+</dd>
+<dt>face_ijk<span class="classifier">np.ndarray, optional</span></dt><dd><p>Logical (i, j, k) indices for faces.</p>
+</dd>
+<dt>metadata<span class="classifier">dict</span></dt><dd><p>Geometry and export metadata.</p>
+</dd>
+</dl>
+</section>
+<section id="methods">
+<h3>Methods<a class="headerlink" href="#methods" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>validate()</dt><dd><p>Validate mesh integrity.</p>
+</dd>
+<dt>n_vertices</dt><dd><p>Number of vertices.</p>
+</dd>
+<dt>n_faces</dt><dd><p>Number of faces.</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id0">
+<span class="sig-name descname"><span class="pre">face_attributes</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code><span class="pre">,</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code><span class="pre">[</span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code><span class="pre">,</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">dtype</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">TypeVar</span></code><span class="pre">(</span><code class="docutils literal notranslate"><span class="pre">_ScalarType_co</span></code><span class="pre">,</span> <span class="pre">bound=</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">generic</span></code><span class="pre">,</span> <span class="pre">covariant=True)]]]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id0" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id1">
+<span class="sig-name descname"><span class="pre">face_ijk</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code><span class="pre">[</span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code><span class="pre">,</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">dtype</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">int64</span></code><span class="pre">]]]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id1" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id2">
+<span class="sig-name descname"><span class="pre">faces</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code><span class="pre">[</span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code><span class="pre">,</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">dtype</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">int64</span></code><span class="pre">]]</span></em><a class="headerlink" href="#id2" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id3">
+<span class="sig-name descname"><span class="pre">metadata</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code><span class="pre">]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id3" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.TriangleMesh.n_faces">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">n_faces</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#parq_blockmodel.mesh.TriangleMesh.n_faces" title="Link to this definition">#</a></dt>
+<dd><p>Number of faces (triangles).</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.TriangleMesh.n_vertices">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">n_vertices</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">int</span></em><a class="headerlink" href="#parq_blockmodel.mesh.TriangleMesh.n_vertices" title="Link to this definition">#</a></dt>
+<dd><p>Number of vertices.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.TriangleMesh.validate">
+<span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/parq_blockmodel/mesh/types.html#TriangleMesh.validate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.mesh.TriangleMesh.validate" title="Link to this definition">#</a></dt>
+<dd><p>Validate mesh integrity.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Raises<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>ValueError</strong> – If mesh is malformed (e.g., vertices not 3D, faces have invalid indices).</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">None</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id4">
+<span class="sig-name descname"><span class="pre">vertex_attributes</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code><span class="pre">,</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code><span class="pre">[</span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code><span class="pre">,</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">dtype</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">TypeVar</span></code><span class="pre">(</span><code class="docutils literal notranslate"><span class="pre">_ScalarType_co</span></code><span class="pre">,</span> <span class="pre">bound=</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">generic</span></code><span class="pre">,</span> <span class="pre">covariant=True)]]]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id4" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id5">
+<span class="sig-name descname"><span class="pre">vertex_ijk</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-data docutils literal notranslate"><span class="pre">Optional</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code><span class="pre">[</span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code><span class="pre">,</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">dtype</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">int64</span></code><span class="pre">]]]</span></em><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#id5" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="id6">
+<span class="sig-name descname"><span class="pre">vertices</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code><span class="pre">[</span><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code><span class="pre">,</span> <code class="xref py py-class docutils literal notranslate"><span class="pre">dtype</span></code><span class="pre">[</span><code class="xref py py-class docutils literal notranslate"><span class="pre">floating</span></code><span class="pre">]]</span></em><a class="headerlink" href="#id6" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+</section>
+</dd></dl>
+
+</section>
+<section id="blockmeshgenerator">
+<h2>BlockMeshGenerator<a class="headerlink" href="#blockmeshgenerator" title="Link to this heading">#</a></h2>
+<dl class="py class">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.BlockMeshGenerator">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">parq_blockmodel.mesh.</span></span><span class="sig-name descname"><span class="pre">BlockMeshGenerator</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">geometry</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/parq_blockmodel/mesh/triangulation.html#BlockMeshGenerator"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.mesh.BlockMeshGenerator" title="Link to this definition">#</a></dt>
+<dd><p>Convert a block model to a triangulated surface mesh.</p>
+<p>This class generates vertex and face arrays from a RegularGeometry and
+optional block attribute data. Supports both rotated and non-rotated
+geometries, sparse and dense block layouts, and surface-only vs. full
+interior mesh generation.</p>
+<p>Coordinates are always in world space (right-handed), with rotation
+applied via the RegularGeometry’s axis vectors (axis_u, axis_v, axis_w).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>geometry</strong> (<a class="reference internal" href="_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry" title="parq_blockmodel.geometry.RegularGeometry"><em>RegularGeometry</em></a>) – The block model geometry defining corner, block_size, shape, and axis orientation.</p>
+</dd>
+</dl>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.BlockMeshGenerator.geometry">
+<span class="sig-name descname"><span class="pre">geometry</span></span><a class="headerlink" href="#parq_blockmodel.mesh.BlockMeshGenerator.geometry" title="Link to this definition">#</a></dt>
+<dd><p>The block model geometry.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry" title="parq_blockmodel.geometry.RegularGeometry">RegularGeometry</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<p class="rubric">Notes</p>
+<p>All generated triangles use counter-clockwise (CCW) winding order when
+viewed from the exterior (right-hand rule). This ensures compatibility
+with standard 3D graphics renderers and PLY/GLB viewers.</p>
+<p>Generates triangle meshes from block model geometry and data.</p>
+<section id="parameters">
+<h3>Parameters<a class="headerlink" href="#parameters" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>geometry<span class="classifier">RegularGeometry</span></dt><dd><p>Block model geometry.</p>
+</dd>
+</dl>
+</section>
+<section id="id7">
+<h3>Methods<a class="headerlink" href="#id7" title="Link to this heading">#</a></h3>
+<dl class="simple">
+<dt>triangulate(block_data, surface_only, sparse)</dt><dd><p>Generate a triangle mesh.</p>
+</dd>
+<dt>block_corners_local()</dt><dd><p>Get local cube corner coordinates.</p>
+</dd>
+<dt>block_vertices_xyz(i, j, k)</dt><dd><p>Get world coordinates of block corners.</p>
+</dd>
+<dt>cube_faces_ccw()</dt><dd><p>Get cube face triangles with CCW winding.</p>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.BlockMeshGenerator.block_corners_local">
+<span class="sig-name descname"><span class="pre">block_corners_local</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/parq_blockmodel/mesh/triangulation.html#BlockMeshGenerator.block_corners_local"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.mesh.BlockMeshGenerator.block_corners_local" title="Link to this definition">#</a></dt>
+<dd><p>Get the 8 corner offsets for a unit cube in local (i, j, k) space.</p>
+<p>Returns a (8, 3) array where each row is a corner offset:
+(0,0,0), (1,0,0), (0,1,0), (1,1,0), (0,0,1), (1,0,1), (0,1,1), (1,1,1).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Shape (8, 3), corner offsets in local space.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.BlockMeshGenerator.block_vertices_xyz">
+<span class="sig-name descname"><span class="pre">block_vertices_xyz</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">j</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/parq_blockmodel/mesh/triangulation.html#BlockMeshGenerator.block_vertices_xyz"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.mesh.BlockMeshGenerator.block_vertices_xyz" title="Link to this definition">#</a></dt>
+<dd><p>Get the 8 vertices of a block in world coordinates.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>i</strong> (<em>int</em>) – Logical block indices.</p></li>
+<li><p><strong>j</strong> (<em>int</em>) – Logical block indices.</p></li>
+<li><p><strong>k</strong> (<em>int</em>) – Logical block indices.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Shape (8, 3), corner coordinates in world space.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.BlockMeshGenerator.cube_faces_ccw">
+<span class="sig-name descname"><span class="pre">cube_faces_ccw</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/parq_blockmodel/mesh/triangulation.html#BlockMeshGenerator.cube_faces_ccw"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.mesh.BlockMeshGenerator.cube_faces_ccw" title="Link to this definition">#</a></dt>
+<dd><p>Get the 6 faces of a cube with CCW winding (right-hand rule).</p>
+<p>Each face is a pair of triangles sharing an edge. Winding order is
+such that the outward normal points away from the cube center.</p>
+<dl class="simple">
+<dt>Local vertex numbering:</dt><dd><p>0: (0,0,0)  1: (1,0,0)  2: (0,1,0)  3: (1,1,0)
+4: (0,0,1)  5: (1,0,1)  6: (0,1,1)  7: (1,1,1)</p>
+</dd>
+</dl>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Shape (12, 3), 12 triangles (2 per face, 6 faces).</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.BlockMeshGenerator.surface_faces_ccw">
+<span class="sig-name descname"><span class="pre">surface_faces_ccw</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../_modules/parq_blockmodel/mesh/triangulation.html#BlockMeshGenerator.surface_faces_ccw"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.mesh.BlockMeshGenerator.surface_faces_ccw" title="Link to this definition">#</a></dt>
+<dd><p>Get only the exterior surface faces of a cube.</p>
+<p>For a sparse block model, we typically want only faces on the
+boundary of the model. This method returns which faces are
+“exterior” in a dense grid context. When sparse blocks are
+present, we’ll filter out internal faces via connectivity checks.</p>
+<p>Returns the same 12 triangles as cube_faces_ccw(), but this
+is a placeholder for future boundary detection logic.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Shape (12, 3), exterior triangles.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>np.ndarray</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.mesh.BlockMeshGenerator.triangulate">
+<span class="sig-name descname"><span class="pre">triangulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">block_data</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">surface_only</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sparse</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../_modules/parq_blockmodel/mesh/triangulation.html#BlockMeshGenerator.triangulate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.mesh.BlockMeshGenerator.triangulate" title="Link to this definition">#</a></dt>
+<dd><p>Generate a triangle mesh from block model data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>block_data</strong> (<em>pd.DataFrame</em><em>, </em><em>optional</em>) – Block model data with columns like “i”, “j”, “k”, “grade”, “density”, etc.
+If provided, attributes will be mapped to the mesh.
+If None, only geometry is returned with no attribute data.</p></li>
+<li><p><strong>sparse</strong> (<em>bool</em><em>, </em><em>optional</em>) – If True, include only blocks present in block_data.
+If False or None, generate the full dense mesh.
+If sparse=True but block_data is None, only non-empty blocks are included.</p></li>
+<li><p><strong>surface_only</strong> (<em>bool</em><em>, </em><em>default True</em>) – If True, include only exterior surface faces (shared faces with
+adjacent blocks are removed). If False, include all faces
+(interior voids remain empty). Only meaningful for sparse models.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The generated mesh with vertices, faces, and optional attributes.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#parq_blockmodel.mesh.TriangleMesh" title="parq_blockmodel.mesh.TriangleMesh">TriangleMesh</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>ValueError</strong> – If block_data is incompatible with the geometry.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+</dd></dl>
+
+</section>
+</section>
+<section id="functions">
+<h1>Functions<a class="headerlink" href="#functions" title="Link to this heading">#</a></h1>
+<section id="ply-format-functions">
+<h2>PLY Format Functions<a class="headerlink" href="#ply-format-functions" title="Link to this heading">#</a></h2>
+</section>
+<section id="glb-format-functions">
+<h2>GLB Format Functions<a class="headerlink" href="#glb-format-functions" title="Link to this heading">#</a></h2>
+</section>
+<section id="parquetblockmodel-methods">
+<h2>ParquetBlockModel Methods<a class="headerlink" href="#parquetblockmodel-methods" title="Link to this heading">#</a></h2>
+<p>These methods are added to <code class="docutils literal notranslate"><span class="pre">ParquetBlockModel</span></code>:</p>
+</section>
+</section>
+<section id="examples">
+<h1>Examples<a class="headerlink" href="#examples" title="Link to this heading">#</a></h1>
+<p><strong>Generate and inspect mesh:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">parq_blockmodel</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParquetBlockModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="n">pbm</span> <span class="o">=</span> <span class="n">ParquetBlockModel</span><span class="p">(</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;model.pbm&quot;</span><span class="p">))</span>
+<span class="n">mesh</span> <span class="o">=</span> <span class="n">pbm</span><span class="o">.</span><span class="n">triangulate</span><span class="p">(</span><span class="n">attributes</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;grade&quot;</span><span class="p">])</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Vertices: </span><span class="si">{</span><span class="n">mesh</span><span class="o">.</span><span class="n">n_vertices</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Faces: </span><span class="si">{</span><span class="n">mesh</span><span class="o">.</span><span class="n">n_faces</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Attributes: </span><span class="si">{</span><span class="nb">list</span><span class="p">(</span><span class="n">mesh</span><span class="o">.</span><span class="n">vertex_attributes</span><span class="o">.</span><span class="n">keys</span><span class="p">())</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Export to PLY (lossless):</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">pbm</span><span class="o">.</span><span class="n">to_ply</span><span class="p">(</span><span class="s2">&quot;model.ply&quot;</span><span class="p">,</span> <span class="n">attributes</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;grade&quot;</span><span class="p">,</span> <span class="s2">&quot;density&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+<p><strong>Export to GLB with colors:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">pbm</span><span class="o">.</span><span class="n">to_glb</span><span class="p">(</span><span class="s2">&quot;model.glb&quot;</span><span class="p">,</span> <span class="n">texture_attribute</span><span class="o">=</span><span class="s2">&quot;grade&quot;</span><span class="p">,</span> <span class="n">colormap</span><span class="o">=</span><span class="s2">&quot;viridis&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Handle sparse models:</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Surface-only mesh for sparse model (common in mining)</span>
+<span class="n">mesh</span> <span class="o">=</span> <span class="n">pbm</span><span class="o">.</span><span class="n">triangulate</span><span class="p">(</span><span class="n">surface_only</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">sparse</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="notes">
+<h1>Notes<a class="headerlink" href="#notes" title="Link to this heading">#</a></h1>
+<dl class="simple">
+<dt>Coordinate Systems</dt><dd><p>All mesh coordinates are in <strong>world space</strong> with units from the
+underlying block model. Rotations are applied via RegularGeometry’s
+axis vectors.</p>
+</dd>
+<dt>Right-handedness</dt><dd><p>Mesh triangles use counter-clockwise (CCW) winding order when viewed
+from the exterior (right-hand rule), ensuring compatibility with
+standard 3D viewers.</p>
+</dd>
+<dt>Sparse Models</dt><dd><p>For block models with missing cells, use <code class="docutils literal notranslate"><span class="pre">surface_only=True</span></code> (default)
+to generate only exterior faces, improving performance and visual clarity.</p>
+</dd>
+<dt>Attribute Preservation</dt><dd><p>Block attributes are preserved as per-vertex and per-face properties in
+both PLY and GLB formats. Categorical attributes are encoded as integers
+with metadata mapping.</p>
+</dd>
+</dl>
+</section>
+<section id="see-also">
+<h1>See Also<a class="headerlink" href="#see-also" title="Link to this heading">#</a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="modules.html#parq_blockmodel.ParquetBlockModel" title="parq_blockmodel.ParquetBlockModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">parq_blockmodel.ParquetBlockModel</span></code></a></p></li>
+<li><p><a class="reference internal" href="_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry" title="parq_blockmodel.geometry.RegularGeometry"><code class="xref py py-class docutils literal notranslate"><span class="pre">parq_blockmodel.geometry.RegularGeometry</span></code></a></p></li>
+</ul>
+<p>“””</p>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#">Classes</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#trianglemesh">TriangleMesh</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh"><code class="docutils literal notranslate"><span class="pre">TriangleMesh</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.vertices"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.vertices</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.faces"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.faces</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.vertex_attributes"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.vertex_attributes</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.face_attributes"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.face_attributes</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.vertex_ijk"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.vertex_ijk</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.face_ijk"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.face_ijk</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.metadata"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.metadata</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id0"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.face_attributes</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id1"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.face_ijk</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id2"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.faces</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id3"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.metadata</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.n_faces"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.n_faces</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.n_vertices"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.n_vertices</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.TriangleMesh.validate"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.validate()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id4"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.vertex_attributes</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id5"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.vertex_ijk</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#id6"><code class="docutils literal notranslate"><span class="pre">TriangleMesh.vertices</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#blockmeshgenerator">BlockMeshGenerator</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.BlockMeshGenerator"><code class="docutils literal notranslate"><span class="pre">BlockMeshGenerator</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.BlockMeshGenerator.geometry"><code class="docutils literal notranslate"><span class="pre">BlockMeshGenerator.geometry</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.BlockMeshGenerator.block_corners_local"><code class="docutils literal notranslate"><span class="pre">BlockMeshGenerator.block_corners_local()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.BlockMeshGenerator.block_vertices_xyz"><code class="docutils literal notranslate"><span class="pre">BlockMeshGenerator.block_vertices_xyz()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.BlockMeshGenerator.cube_faces_ccw"><code class="docutils literal notranslate"><span class="pre">BlockMeshGenerator.cube_faces_ccw()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.BlockMeshGenerator.surface_faces_ccw"><code class="docutils literal notranslate"><span class="pre">BlockMeshGenerator.surface_faces_ccw()</span></code></a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.mesh.BlockMeshGenerator.triangulate"><code class="docutils literal notranslate"><span class="pre">BlockMeshGenerator.triangulate()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#functions">Functions</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#ply-format-functions">PLY Format Functions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#glb-format-functions">GLB Format Functions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parquetblockmodel-methods">ParquetBlockModel Methods</a></li>
+</ul>
+</li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">Examples</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#notes">Notes</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">See Also</a></li>
+</ul>
+
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Greg Elphick
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, Greg Elphick.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

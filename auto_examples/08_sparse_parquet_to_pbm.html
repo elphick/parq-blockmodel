@@ -1,0 +1,921 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Dense and Sparse PBM from XYZ Parquet &#8212; parq-blockmodel Documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=fd3f3429" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=e3499722" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'auto_examples/08_sparse_parquet_to_pbm';</script>
+    <link rel="icon" href="../_static/parq-blockmodel.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Rotated XYZ Parquet to PBM" href="09_rotated_parquet_to_pbm.html" />
+    <link rel="prev" title="Mesh Export" href="07_mesh_export.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.1" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/parq-blockmodel.svg" class="logo__image only-light" alt=""/>
+    <img src="../_static/parq-blockmodel.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">parq-blockmodel<br>(0.2.1)</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../usage/installation.html">Installation</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="simple">
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../user_guide.html">User Guide</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/01_geometry.html">Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/02_geometry_coordinates.html">Geometry and Coordinate Transformations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/03_blockmodels.html">Block Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../user_guide/04_mesh_export.html">Mesh Module</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="index.html">Example Gallery</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="01_regular_geometry.html">Regular Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_rotated_geometry.html">Rotated Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_visualise_blockmodel.html">Block Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_rotated_blockmodel.html">Rotated Blockmodel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="05_heatmap.html">Heatmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="06_reblocking.html">Reblocking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="07_mesh_export.html">Mesh Export</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Dense and Sparse PBM from XYZ Parquet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="09_rotated_parquet_to_pbm.html">Rotated XYZ Parquet to PBM</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../todo.html">To Do</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../glossary/glossary.html">Glossary</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api/modules.html">API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.blockmodel.html">parq_blockmodel.blockmodel</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html">parq_blockmodel.blockmodel.ParquetBlockModel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.html">parq_blockmodel.geometry</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.LocalGeometry.html">parq_blockmodel.geometry.LocalGeometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html">parq_blockmodel.geometry.RegularGeometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.WorldFrame.html">parq_blockmodel.geometry.WorldFrame</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.html">parq_blockmodel.utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.cicd.html">parq_blockmodel.utils.cicd</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.cicd.is_github_runner.html">parq_blockmodel.utils.cicd.is_github_runner</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.demo_block_model.html">parq_blockmodel.utils.demo_block_model</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade.html">parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.demo_block_model.create_demo_blockmodel.html">parq_blockmodel.utils.demo_block_model.create_demo_blockmodel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.demo_block_model.create_toy_blockmodel.html">parq_blockmodel.utils.demo_block_model.create_toy_blockmodel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.html">parq_blockmodel.utils.geometry_utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.angles_to_axes.html">parq_blockmodel.utils.geometry_utils.angles_to_axes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.axes_to_angles.html">parq_blockmodel.utils.geometry_utils.axes_to_angles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex.html">parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.rotate_points.html">parq_blockmodel.utils.geometry_utils.rotate_points</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal.html">parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.validate_geometry.html">parq_blockmodel.utils.geometry_utils.validate_geometry</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pandas.html">parq_blockmodel.utils.pandas</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pandas.aggregate.html">parq_blockmodel.utils.pandas.aggregate</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pandas_accessors.html">parq_blockmodel.utils.pandas_accessors</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor.html">parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pandas_accessors.PyVistaAccessor.html">parq_blockmodel.utils.pandas_accessors.PyVistaAccessor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.plotly_scraper.html">parq_blockmodel.utils.plotly_scraper</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser.html">parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pyvista.html">parq_blockmodel.utils.pyvista</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pyvista.categorical_utils.html">parq_blockmodel.utils.pyvista.categorical_utils</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pyvista.custom_plotter.html">parq_blockmodel.utils.pyvista.custom_plotter</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pyvista.pyvista_utils.html">parq_blockmodel.utils.pyvista.pyvista_utils</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.html">parq_blockmodel.utils.spatial_encoding</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.decode_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.decode_world_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_world_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.encode_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.encode_world_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_world_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex.html">parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.get_id_encoding_params.html">parq_blockmodel.utils.spatial_encoding.get_id_encoding_params</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params.html">parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.is_integer.html">parq_blockmodel.utils.spatial_encoding.is_integer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index.html">parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.temporal.html">parq_blockmodel.utils.temporal</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.temporal.demo_data.html">parq_blockmodel.utils.temporal.demo_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.temporal.temporal_surfaces.html">parq_blockmodel.utils.temporal.temporal_surfaces</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../license/license.html">License</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="simple">
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Developer docs:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../design_ijk_metadata.html">Developer notes: geometry &amp; metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer_testing.html">Developer Testing Guide</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel/edit/main/docs/auto_examples/08_sparse_parquet_to_pbm.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel/issues/new?title=Issue%20on%20page%20%2Fauto_examples/08_sparse_parquet_to_pbm.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/auto_examples/08_sparse_parquet_to_pbm.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Dense and Sparse PBM from XYZ Parquet</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-a-centroid-parquet-file">Create a Centroid Parquet File</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-dense-pbm">Create Dense PBM</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#filter-to-high-grade-rows-fe-57">Filter to High-Grade Rows (fe &gt; 57)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-sparse-pbm">Create Sparse PBM</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#compare-the-two-models">Compare the Two Models</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <div class="sphx-glr-download-link-note admonition note">
+<p class="admonition-title">Note</p>
+<p><a class="reference internal" href="#sphx-glr-download-auto-examples-08-sparse-parquet-to-pbm-py"><span class="std std-ref">Go to the end</span></a>
+to download the full example code.</p>
+</div>
+<section class="sphx-glr-example-title" id="dense-and-sparse-pbm-from-xyz-parquet">
+<span id="sphx-glr-auto-examples-08-sparse-parquet-to-pbm-py"></span><h1>Dense and Sparse PBM from XYZ Parquet<a class="headerlink" href="#dense-and-sparse-pbm-from-xyz-parquet" title="Link to this heading">#</a></h1>
+<p>This example shows an axis-aligned workflow that starts dense and then creates
+a sparse model from filtered rows.</p>
+<p>Workflow:</p>
+<ol class="arabic simple">
+<li><p>Create a source Parquet file with a synthetic <code class="docutils literal notranslate"><span class="pre">fe</span></code> column.</p></li>
+<li><p>Create a dense PBM via <a class="reference internal" href="../api/modules.html#parq_blockmodel.ParquetBlockModel.from_parquet" title="parq_blockmodel.ParquetBlockModel.from_parquet"><code class="xref py py-meth docutils literal notranslate"><span class="pre">from_parquet()</span></code></a>.</p></li>
+<li><p>Filter the source rows to <code class="docutils literal notranslate"><span class="pre">fe</span> <span class="pre">&gt;</span> <span class="pre">57</span></code>.</p></li>
+<li><p>Create a second PBM from that sparse input.</p></li>
+<li><p>Compare dense and sparse models visually.</p></li>
+</ol>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pa</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pyarrow.parquet</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pq</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pyvista</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pv</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">parq_blockmodel</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParquetBlockModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">parq_blockmodel.utils.demo_block_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_toy_blockmodel</span>
+</pre></div>
+</div>
+<section id="create-a-centroid-parquet-file">
+<h2>Create a Centroid Parquet File<a class="headerlink" href="#create-a-centroid-parquet-file" title="Link to this heading">#</a></h2>
+<p>Use the toy helper to write a parquet file containing <code class="docutils literal notranslate"><span class="pre">x</span></code>, <code class="docutils literal notranslate"><span class="pre">y</span></code>, <code class="docutils literal notranslate"><span class="pre">z</span></code>
+centroid columns and a synthetic <code class="docutils literal notranslate"><span class="pre">fe</span></code> grade.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">temp_dir</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="n">tempfile</span><span class="o">.</span><span class="n">gettempdir</span><span class="p">())</span> <span class="o">/</span> <span class="s2">&quot;sparse_parquet_to_pbm&quot;</span>
+<span class="n">temp_dir</span><span class="o">.</span><span class="n">mkdir</span><span class="p">(</span><span class="n">parents</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">source_parquet</span> <span class="o">=</span> <span class="n">temp_dir</span> <span class="o">/</span> <span class="s2">&quot;dense_source.parquet&quot;</span>
+<span class="n">toy_df</span> <span class="o">=</span> <span class="n">create_toy_blockmodel</span><span class="p">(</span>
+    <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">14</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">8</span><span class="p">),</span>
+    <span class="n">block_size</span><span class="o">=</span><span class="p">(</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">),</span>
+    <span class="n">corner</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+    <span class="n">grade_name</span><span class="o">=</span><span class="s2">&quot;fe&quot;</span><span class="p">,</span>
+    <span class="n">grade_min</span><span class="o">=</span><span class="mf">45.0</span><span class="p">,</span>
+    <span class="n">grade_max</span><span class="o">=</span><span class="mf">70.0</span><span class="p">,</span>
+    <span class="n">deposit_center</span><span class="o">=</span><span class="p">(</span><span class="mf">70.0</span><span class="p">,</span> <span class="mf">60.0</span><span class="p">,</span> <span class="mf">20.0</span><span class="p">),</span>
+    <span class="n">deposit_radii</span><span class="o">=</span><span class="p">(</span><span class="mf">45.0</span><span class="p">,</span> <span class="mf">35.0</span><span class="p">,</span> <span class="mf">18.0</span><span class="p">),</span>
+    <span class="n">noise_std</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Build an xyz-indexed source parquet for the external-use-case scenario.</span>
+<span class="n">source_df</span> <span class="o">=</span> <span class="n">toy_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">(</span><span class="n">drop</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">source_df</span> <span class="o">=</span> <span class="n">source_df</span><span class="o">.</span><span class="n">drop</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;i&quot;</span><span class="p">,</span> <span class="s2">&quot;j&quot;</span><span class="p">,</span> <span class="s2">&quot;k&quot;</span><span class="p">],</span> <span class="n">errors</span><span class="o">=</span><span class="s2">&quot;ignore&quot;</span><span class="p">)</span>
+<span class="n">source_df</span> <span class="o">=</span> <span class="n">source_df</span><span class="o">.</span><span class="n">set_index</span><span class="p">([</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">])</span><span class="o">.</span><span class="n">sort_index</span><span class="p">()</span>
+<span class="n">source_df</span><span class="o">.</span><span class="n">to_parquet</span><span class="p">(</span><span class="n">source_parquet</span><span class="p">)</span>
+
+<span class="n">loaded_source_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">source_parquet</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">loaded_source_df</span><span class="o">.</span><span class="n">index</span><span class="o">.</span><span class="n">names</span> <span class="o">!=</span> <span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">]:</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Expected source parquet to load with MultiIndex [&#39;x&#39;, &#39;y&#39;, &#39;z&#39;].&quot;</span><span class="p">)</span>
+<span class="k">if</span> <span class="nb">any</span><span class="p">(</span><span class="n">col</span> <span class="ow">in</span> <span class="n">loaded_source_df</span><span class="o">.</span><span class="n">columns</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;i&quot;</span><span class="p">,</span> <span class="s2">&quot;j&quot;</span><span class="p">,</span> <span class="s2">&quot;k&quot;</span><span class="p">]):</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Source parquet must not contain i, j, k columns.&quot;</span><span class="p">)</span>
+
+<span class="n">loaded_source_df</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="output_subarea output_html rendered_html output_result">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th></th>
+      <th></th>
+      <th>block_id</th>
+      <th>depth</th>
+      <th>depth_category</th>
+      <th>fe</th>
+    </tr>
+    <tr>
+      <th>x</th>
+      <th>y</th>
+      <th>z</th>
+      <th></th>
+      <th></th>
+      <th></th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th rowspan="5" valign="top">5.0</th>
+      <th rowspan="5" valign="top">5.0</th>
+      <th>2.5</th>
+      <td>0</td>
+      <td>37.5</td>
+      <td>deep</td>
+      <td>45.0</td>
+    </tr>
+    <tr>
+      <th>7.5</th>
+      <td>1</td>
+      <td>32.5</td>
+      <td>deep</td>
+      <td>45.0</td>
+    </tr>
+    <tr>
+      <th>12.5</th>
+      <td>2</td>
+      <td>27.5</td>
+      <td>deep</td>
+      <td>45.0</td>
+    </tr>
+    <tr>
+      <th>17.5</th>
+      <td>3</td>
+      <td>22.5</td>
+      <td>deep</td>
+      <td>45.0</td>
+    </tr>
+    <tr>
+      <th>22.5</th>
+      <td>4</td>
+      <td>17.5</td>
+      <td>shallow</td>
+      <td>45.0</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
+<br />
+<br /></section>
+<section id="create-dense-pbm">
+<h2>Create Dense PBM<a class="headerlink" href="#create-dense-pbm" title="Link to this heading">#</a></h2>
+<p>Promote the raw centroid parquet to the canonical <code class="docutils literal notranslate"><span class="pre">.pbm</span></code> format.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">pbm_dense</span> <span class="o">=</span> <span class="n">ParquetBlockModel</span><span class="o">.</span><span class="n">from_parquet</span><span class="p">(</span><span class="n">source_parquet</span><span class="p">)</span>
+<span class="n">pbm_dense</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>ParquetBlockModel(name=dense_source, path=/tmp/sparse_parquet_to_pbm/dense_source.pbm)
+</pre></div>
+</div>
+</section>
+<section id="filter-to-high-grade-rows-fe-57">
+<h2>Filter to High-Grade Rows (fe &gt; 57)<a class="headerlink" href="#filter-to-high-grade-rows-fe-57" title="Link to this heading">#</a></h2>
+<p>Filter the original block rows, then write a sparse parquet while preserving
+geometry metadata from the dense PBM so the sparse model keeps the same grid.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">source_table</span> <span class="o">=</span> <span class="n">pq</span><span class="o">.</span><span class="n">read_table</span><span class="p">(</span><span class="n">pbm_dense</span><span class="o">.</span><span class="n">blockmodel_path</span><span class="p">)</span>
+<span class="n">source_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_parquet</span><span class="p">(</span><span class="n">source_parquet</span><span class="p">)</span>
+
+<span class="n">filtered_df</span> <span class="o">=</span> <span class="n">source_df</span><span class="p">[</span><span class="n">source_df</span><span class="p">[</span><span class="s2">&quot;fe&quot;</span><span class="p">]</span> <span class="o">&gt;</span> <span class="mf">57.0</span><span class="p">]</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">filtered_df</span> <span class="o">=</span> <span class="n">filtered_df</span><span class="o">.</span><span class="n">reset_index</span><span class="p">()</span><span class="o">.</span><span class="n">sort_values</span><span class="p">([</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">])</span>
+
+<span class="k">if</span> <span class="n">filtered_df</span><span class="o">.</span><span class="n">empty</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;No rows matched fe &gt; 57. Lower the threshold or adjust toy model parameters.&quot;</span><span class="p">)</span>
+
+<span class="n">filtered_df</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
+</pre></div>
+</div>
+<div class="output_subarea output_html rendered_html output_result">
+<div>
+<style scoped>
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+  <thead>
+    <tr style="text-align: right;">
+      <th></th>
+      <th>x</th>
+      <th>y</th>
+      <th>z</th>
+      <th>block_id</th>
+      <th>depth</th>
+      <th>depth_category</th>
+      <th>fe</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <th>0</th>
+      <td>55.0</td>
+      <td>55.0</td>
+      <td>17.5</td>
+      <td>523</td>
+      <td>22.5</td>
+      <td>deep</td>
+      <td>58.501200</td>
+    </tr>
+    <tr>
+      <th>1</th>
+      <td>55.0</td>
+      <td>55.0</td>
+      <td>22.5</td>
+      <td>524</td>
+      <td>17.5</td>
+      <td>shallow</td>
+      <td>59.853246</td>
+    </tr>
+    <tr>
+      <th>2</th>
+      <td>55.0</td>
+      <td>55.0</td>
+      <td>27.5</td>
+      <td>525</td>
+      <td>12.5</td>
+      <td>shallow</td>
+      <td>58.153335</td>
+    </tr>
+    <tr>
+      <th>3</th>
+      <td>55.0</td>
+      <td>65.0</td>
+      <td>12.5</td>
+      <td>530</td>
+      <td>27.5</td>
+      <td>deep</td>
+      <td>59.669567</td>
+    </tr>
+    <tr>
+      <th>4</th>
+      <td>55.0</td>
+      <td>65.0</td>
+      <td>17.5</td>
+      <td>531</td>
+      <td>22.5</td>
+      <td>deep</td>
+      <td>60.954389</td>
+    </tr>
+  </tbody>
+</table>
+</div>
+</div>
+<br />
+<br /><div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">sparse_parquet</span> <span class="o">=</span> <span class="n">temp_dir</span> <span class="o">/</span> <span class="s2">&quot;sparse_fe_gt57.parquet&quot;</span>
+<span class="n">sparse_table</span> <span class="o">=</span> <span class="n">pa</span><span class="o">.</span><span class="n">table</span><span class="p">({</span><span class="n">col</span><span class="p">:</span> <span class="n">filtered_df</span><span class="p">[</span><span class="n">col</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">()</span> <span class="k">for</span> <span class="n">col</span> <span class="ow">in</span> <span class="n">filtered_df</span><span class="o">.</span><span class="n">columns</span><span class="p">})</span>
+<span class="n">sparse_table</span> <span class="o">=</span> <span class="n">sparse_table</span><span class="o">.</span><span class="n">replace_schema_metadata</span><span class="p">(</span><span class="n">source_table</span><span class="o">.</span><span class="n">schema</span><span class="o">.</span><span class="n">metadata</span><span class="p">)</span>
+<span class="n">pq</span><span class="o">.</span><span class="n">write_table</span><span class="p">(</span><span class="n">sparse_table</span><span class="p">,</span> <span class="n">sparse_parquet</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dense rows : </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">source_df</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Sparse rows: </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">filtered_df</span><span class="p">)</span><span class="si">:</span><span class="s2">,</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Dense rows : 1,344
+Sparse rows: 34
+</pre></div>
+</div>
+</section>
+<section id="create-sparse-pbm">
+<h2>Create Sparse PBM<a class="headerlink" href="#create-sparse-pbm" title="Link to this heading">#</a></h2>
+<p>The sparse parquet is now promoted to a second PBM.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">pbm_sparse</span> <span class="o">=</span> <span class="n">ParquetBlockModel</span><span class="o">.</span><span class="n">from_parquet</span><span class="p">(</span><span class="n">sparse_parquet</span><span class="p">)</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Dense is sparse?  </span><span class="si">{</span><span class="n">pbm_dense</span><span class="o">.</span><span class="n">is_sparse</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Sparse is sparse? </span><span class="si">{</span><span class="n">pbm_sparse</span><span class="o">.</span><span class="n">is_sparse</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Sparse fraction   </span><span class="si">{</span><span class="n">pbm_sparse</span><span class="o">.</span><span class="n">sparsity</span><span class="si">:</span><span class="s2">.2%</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="sphx-glr-script-out highlight-none notranslate"><div class="highlight"><pre><span></span>Dense is sparse?  False
+Sparse is sparse? True
+Sparse fraction   97.47%
+</pre></div>
+</div>
+</section>
+<section id="compare-the-two-models">
+<h2>Compare the Two Models<a class="headerlink" href="#compare-the-two-models" title="Link to this heading">#</a></h2>
+<p>Visualize both models side-by-side with a shared color range.</p>
+<div class="highlight-Python notranslate"><div class="highlight"><pre><span></span><span class="n">dense_grid</span> <span class="o">=</span> <span class="n">pbm_dense</span><span class="o">.</span><span class="n">to_pyvista</span><span class="p">(</span><span class="n">grid_type</span><span class="o">=</span><span class="s2">&quot;image&quot;</span><span class="p">,</span> <span class="n">attributes</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;fe&quot;</span><span class="p">])</span>
+<span class="n">sparse_grid</span> <span class="o">=</span> <span class="n">pbm_sparse</span><span class="o">.</span><span class="n">to_pyvista</span><span class="p">(</span><span class="n">grid_type</span><span class="o">=</span><span class="s2">&quot;unstructured&quot;</span><span class="p">,</span> <span class="n">attributes</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;fe&quot;</span><span class="p">])</span>
+
+<span class="n">fe_min</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">source_df</span><span class="p">[</span><span class="s2">&quot;fe&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">min</span><span class="p">())</span>
+<span class="n">fe_max</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">source_df</span><span class="p">[</span><span class="s2">&quot;fe&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">max</span><span class="p">())</span>
+
+<span class="n">plotter</span> <span class="o">=</span> <span class="n">pv</span><span class="o">.</span><span class="n">Plotter</span><span class="p">(</span><span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">))</span>
+
+<span class="n">plotter</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">)</span>
+<span class="n">plotter</span><span class="o">.</span><span class="n">add_text</span><span class="p">(</span><span class="s2">&quot;Dense PBM&quot;</span><span class="p">,</span> <span class="n">font_size</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>
+<span class="n">plotter</span><span class="o">.</span><span class="n">add_mesh</span><span class="p">(</span><span class="n">dense_grid</span><span class="p">,</span> <span class="n">scalars</span><span class="o">=</span><span class="s2">&quot;fe&quot;</span><span class="p">,</span> <span class="n">clim</span><span class="o">=</span><span class="p">[</span><span class="n">fe_min</span><span class="p">,</span> <span class="n">fe_max</span><span class="p">],</span> <span class="n">show_edges</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">plotter</span><span class="o">.</span><span class="n">show_axes</span><span class="p">()</span>
+
+<span class="n">plotter</span><span class="o">.</span><span class="n">subplot</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span>
+<span class="n">plotter</span><span class="o">.</span><span class="n">add_text</span><span class="p">(</span><span class="s2">&quot;Sparse PBM (fe &gt; 57)&quot;</span><span class="p">,</span> <span class="n">font_size</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>
+<span class="n">plotter</span><span class="o">.</span><span class="n">add_mesh</span><span class="p">(</span><span class="n">sparse_grid</span><span class="p">,</span> <span class="n">scalars</span><span class="o">=</span><span class="s2">&quot;fe&quot;</span><span class="p">,</span> <span class="n">clim</span><span class="o">=</span><span class="p">[</span><span class="n">fe_min</span><span class="p">,</span> <span class="n">fe_max</span><span class="p">],</span> <span class="n">show_edges</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="n">plotter</span><span class="o">.</span><span class="n">show_axes</span><span class="p">()</span>
+
+<span class="n">plotter</span><span class="o">.</span><span class="n">link_views</span><span class="p">()</span>
+<span class="n">plotter</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<img src="../_images/sphx_glr_08_sparse_parquet_to_pbm_001.png" srcset="../_images/sphx_glr_08_sparse_parquet_to_pbm_001.png" alt="08 sparse parquet to pbm" class = "sphx-glr-single-img"/><p class="sphx-glr-timing"><strong>Total running time of the script:</strong> (0 minutes 0.743 seconds)</p>
+<div class="sphx-glr-footer sphx-glr-footer-example docutils container" id="sphx-glr-download-auto-examples-08-sparse-parquet-to-pbm-py">
+<div class="sphx-glr-download sphx-glr-download-jupyter docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/27078cfa3a435fb16056598dc37226f9/08_sparse_parquet_to_pbm.ipynb"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Jupyter</span> <span class="pre">notebook:</span> <span class="pre">08_sparse_parquet_to_pbm.ipynb</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-python docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/d7aa557af682deda851acc5d7484e347/08_sparse_parquet_to_pbm.py"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">Python</span> <span class="pre">source</span> <span class="pre">code:</span> <span class="pre">08_sparse_parquet_to_pbm.py</span></code></a></p>
+</div>
+<div class="sphx-glr-download sphx-glr-download-zip docutils container">
+<p><a class="reference download internal" download="" href="../_downloads/4c0edcdeaba137b95d17f201de5078d5/08_sparse_parquet_to_pbm.zip"><code class="xref download docutils literal notranslate"><span class="pre">Download</span> <span class="pre">zipped:</span> <span class="pre">08_sparse_parquet_to_pbm.zip</span></code></a></p>
+</div>
+</div>
+<p class="sphx-glr-signature"><a class="reference external" href="https://sphinx-gallery.github.io">Gallery generated by Sphinx-Gallery</a></p>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="07_mesh_export.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Mesh Export</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="09_rotated_parquet_to_pbm.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Rotated XYZ Parquet to PBM</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-a-centroid-parquet-file">Create a Centroid Parquet File</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-dense-pbm">Create Dense PBM</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#filter-to-high-grade-rows-fe-57">Filter to High-Grade Rows (fe &gt; 57)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#create-sparse-pbm">Create Sparse PBM</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#compare-the-two-models">Compare the Two Models</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Greg Elphick
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, Greg Elphick.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

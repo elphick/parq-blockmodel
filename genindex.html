@@ -1,0 +1,1447 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="./" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Index &#8212; parq-blockmodel Documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="_static/graphviz.css?v=fd3f3429" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="_static/custom.css?v=e3499722" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="_static/doctools.js?v=9a2dae69"></script>
+    <script src="_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="_static/sg-tags.js?v=d80f6fa4"></script>
+    <script src="_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'genindex';</script>
+    <link rel="icon" href="_static/parq-blockmodel.svg"/>
+    <link rel="index" title="Index" href="#" />
+    <link rel="search" title="Search" href="search.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.1" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+        
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="_static/parq-blockmodel.svg" class="logo__image only-light" alt=""/>
+    <img src="_static/parq-blockmodel.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">parq-blockmodel<br>(0.2.1)</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="usage/installation.html">Installation</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="simple">
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="usage/quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="user_guide.html">User Guide</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/01_geometry.html">Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/02_geometry_coordinates.html">Geometry and Coordinate Transformations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/03_blockmodels.html">Block Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="user_guide/04_mesh_export.html">Mesh Module</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="auto_examples/index.html">Example Gallery</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/01_regular_geometry.html">Regular Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/02_rotated_geometry.html">Rotated Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/03_visualise_blockmodel.html">Block Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/04_rotated_blockmodel.html">Rotated Blockmodel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/05_heatmap.html">Heatmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/06_reblocking.html">Reblocking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/07_mesh_export.html">Mesh Export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/08_sparse_parquet_to_pbm.html">Dense and Sparse PBM from XYZ Parquet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="auto_examples/09_rotated_parquet_to_pbm.html">Rotated XYZ Parquet to PBM</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="todo.html">To Do</a></li>
+<li class="toctree-l1"><a class="reference internal" href="glossary/glossary.html">Glossary</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="api/modules.html">API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="api/_autosummary/parq_blockmodel.blockmodel.html">parq_blockmodel.blockmodel</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html">parq_blockmodel.blockmodel.ParquetBlockModel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="api/_autosummary/parq_blockmodel.geometry.html">parq_blockmodel.geometry</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/parq_blockmodel.geometry.LocalGeometry.html">parq_blockmodel.geometry.LocalGeometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html">parq_blockmodel.geometry.RegularGeometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="api/_autosummary/parq_blockmodel.geometry.WorldFrame.html">parq_blockmodel.geometry.WorldFrame</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.html">parq_blockmodel.utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.cicd.html">parq_blockmodel.utils.cicd</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.cicd.is_github_runner.html">parq_blockmodel.utils.cicd.is_github_runner</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.demo_block_model.html">parq_blockmodel.utils.demo_block_model</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade.html">parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.demo_block_model.create_demo_blockmodel.html">parq_blockmodel.utils.demo_block_model.create_demo_blockmodel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.demo_block_model.create_toy_blockmodel.html">parq_blockmodel.utils.demo_block_model.create_toy_blockmodel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.geometry_utils.html">parq_blockmodel.utils.geometry_utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.geometry_utils.angles_to_axes.html">parq_blockmodel.utils.geometry_utils.angles_to_axes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.geometry_utils.axes_to_angles.html">parq_blockmodel.utils.geometry_utils.axes_to_angles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex.html">parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.geometry_utils.rotate_points.html">parq_blockmodel.utils.geometry_utils.rotate_points</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal.html">parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.geometry_utils.validate_geometry.html">parq_blockmodel.utils.geometry_utils.validate_geometry</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.pandas.html">parq_blockmodel.utils.pandas</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.pandas.aggregate.html">parq_blockmodel.utils.pandas.aggregate</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.pandas_accessors.html">parq_blockmodel.utils.pandas_accessors</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor.html">parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.pandas_accessors.PyVistaAccessor.html">parq_blockmodel.utils.pandas_accessors.PyVistaAccessor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.plotly_scraper.html">parq_blockmodel.utils.plotly_scraper</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser.html">parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.pyvista.html">parq_blockmodel.utils.pyvista</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.pyvista.categorical_utils.html">parq_blockmodel.utils.pyvista.categorical_utils</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.pyvista.custom_plotter.html">parq_blockmodel.utils.pyvista.custom_plotter</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.pyvista.pyvista_utils.html">parq_blockmodel.utils.pyvista.pyvista_utils</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.html">parq_blockmodel.utils.spatial_encoding</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.decode_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.decode_world_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_world_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.encode_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.encode_world_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_world_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex.html">parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.get_id_encoding_params.html">parq_blockmodel.utils.spatial_encoding.get_id_encoding_params</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params.html">parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.is_integer.html">parq_blockmodel.utils.spatial_encoding.is_integer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index.html">parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.temporal.html">parq_blockmodel.utils.temporal</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.temporal.demo_data.html">parq_blockmodel.utils.temporal.demo_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="api/_autosummary/parq_blockmodel.utils.temporal.temporal_surfaces.html">parq_blockmodel.utils.temporal.temporal_surfaces</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="license/license.html">License</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="simple">
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Developer docs:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="design_ijk_metadata.html">Developer notes: geometry &amp; metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="developer_testing.html">Developer Testing Guide</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel/issues/new?title=Issue%20on%20page%20%2Fgenindex.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1></h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+
+<h1 id="index">Index</h1>
+
+<div class="genindex-jumpbox">
+ <a href="#_"><strong>_</strong></a>
+ | <a href="#A"><strong>A</strong></a>
+ | <a href="#B"><strong>B</strong></a>
+ | <a href="#C"><strong>C</strong></a>
+ | <a href="#D"><strong>D</strong></a>
+ | <a href="#E"><strong>E</strong></a>
+ | <a href="#F"><strong>F</strong></a>
+ | <a href="#G"><strong>G</strong></a>
+ | <a href="#I"><strong>I</strong></a>
+ | <a href="#L"><strong>L</strong></a>
+ | <a href="#M"><strong>M</strong></a>
+ | <a href="#N"><strong>N</strong></a>
+ | <a href="#O"><strong>O</strong></a>
+ | <a href="#P"><strong>P</strong></a>
+ | <a href="#R"><strong>R</strong></a>
+ | <a href="#S"><strong>S</strong></a>
+ | <a href="#T"><strong>T</strong></a>
+ | <a href="#U"><strong>U</strong></a>
+ | <a href="#V"><strong>V</strong></a>
+ | <a href="#W"><strong>W</strong></a>
+ | <a href="#X"><strong>X</strong></a>
+ 
+</div>
+<h2 id="_">_</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.__init__">__init__() (parq_blockmodel.blockmodel.ParquetBlockModel method)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.LocalGeometry.html#parq_blockmodel.geometry.LocalGeometry.__init__">(parq_blockmodel.geometry.LocalGeometry method)</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.__init__">(parq_blockmodel.geometry.RegularGeometry method)</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.WorldFrame.html#parq_blockmodel.geometry.WorldFrame.__init__">(parq_blockmodel.geometry.WorldFrame method)</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor.html#parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor.__init__">(parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor method)</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pandas_accessors.PyVistaAccessor.html#parq_blockmodel.utils.pandas_accessors.PyVistaAccessor.__init__">(parq_blockmodel.utils.pandas_accessors.PyVistaAccessor method)</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter.html#parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter.__init__">(parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter method)</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.temporal.temporal_surfaces.TemporalSurfaceManager.html#parq_blockmodel.utils.temporal.temporal_surfaces.TemporalSurfaceManager.__init__">(parq_blockmodel.utils.temporal.temporal_surfaces.TemporalSurfaceManager method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="A">A</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade.html#parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade">add_gradient_ellipsoid_grade() (in module parq_blockmodel.utils.demo_block_model)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.pandas.aggregate.aggregate.html#parq_blockmodel.utils.pandas.aggregate.aggregate">aggregate() (in module parq_blockmodel.utils.pandas.aggregate)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.geometry_utils.angles_to_axes.html#parq_blockmodel.utils.geometry_utils.angles_to_axes">angles_to_axes() (in module parq_blockmodel.utils.geometry_utils)</a>
+</li>
+      <li><a href="glossary/glossary.html#term-Attributes"><strong>Attributes</strong></a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser.html#parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser">autoset_plotly_browser() (in module parq_blockmodel.utils.plotly_scraper)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.geometry_utils.axes_to_angles.html#parq_blockmodel.utils.geometry_utils.axes_to_angles">axes_to_angles() (in module parq_blockmodel.utils.geometry_utils)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.axis_u">axis_u (parq_blockmodel.geometry.RegularGeometry property)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.WorldFrame.html#parq_blockmodel.geometry.WorldFrame.axis_u">(parq_blockmodel.geometry.WorldFrame attribute)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.axis_u">(parq_blockmodel.RegularGeometry property)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.WorldFrame.axis_u">(parq_blockmodel.WorldFrame attribute)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.axis_v">axis_v (parq_blockmodel.geometry.RegularGeometry property)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.WorldFrame.html#parq_blockmodel.geometry.WorldFrame.axis_v">(parq_blockmodel.geometry.WorldFrame attribute)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.axis_v">(parq_blockmodel.RegularGeometry property)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.WorldFrame.axis_v">(parq_blockmodel.WorldFrame attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.axis_w">axis_w (parq_blockmodel.geometry.RegularGeometry property)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.WorldFrame.html#parq_blockmodel.geometry.WorldFrame.axis_w">(parq_blockmodel.geometry.WorldFrame attribute)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.axis_w">(parq_blockmodel.RegularGeometry property)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.WorldFrame.axis_w">(parq_blockmodel.WorldFrame attribute)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="B">B</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary/glossary.html#term-Block"><strong>Block</strong></a>
+</li>
+      <li><a href="api/mesh.html#parq_blockmodel.mesh.BlockMeshGenerator.block_corners_local">block_corners_local() (parq_blockmodel.mesh.BlockMeshGenerator method)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.LocalGeometry.html#parq_blockmodel.geometry.LocalGeometry.block_size">block_size (parq_blockmodel.geometry.LocalGeometry attribute)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.block_size">(parq_blockmodel.geometry.RegularGeometry property)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.LocalGeometry.block_size">(parq_blockmodel.LocalGeometry attribute)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.block_size">(parq_blockmodel.RegularGeometry property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/mesh.html#parq_blockmodel.mesh.BlockMeshGenerator.block_vertices_xyz">block_vertices_xyz() (parq_blockmodel.mesh.BlockMeshGenerator method)</a>
+</li>
+      <li><a href="api/mesh.html#parq_blockmodel.mesh.BlockMeshGenerator">BlockMeshGenerator (class in parq_blockmodel.mesh)</a>
+</li>
+      <li><a href="glossary/glossary.html#term-Blockmodel"><strong>Blockmodel</strong></a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.blockmodel_path">blockmodel_path (parq_blockmodel.blockmodel.ParquetBlockModel attribute)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.blockmodel_path">(parq_blockmodel.ParquetBlockModel attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.temporal.demo_data.build_waste_dump_time_series.html#parq_blockmodel.utils.temporal.demo_data.build_waste_dump_time_series">build_waste_dump_time_series() (in module parq_blockmodel.utils.temporal.demo_data)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="C">C</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.pyvista_utils.calculate_spacing.html#parq_blockmodel.utils.pyvista.pyvista_utils.calculate_spacing">calculate_spacing() (in module parq_blockmodel.utils.pyvista.pyvista_utils)</a>
+</li>
+      <li><a href="glossary/glossary.html#term-Cell"><strong>Cell</strong></a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.centroid_index">centroid_index (parq_blockmodel.blockmodel.ParquetBlockModel property)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.centroid_index">(parq_blockmodel.ParquetBlockModel property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.LocalGeometry.html#parq_blockmodel.geometry.LocalGeometry.centroids_uvw">centroids_uvw (parq_blockmodel.geometry.LocalGeometry property)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.LocalGeometry.centroids_uvw">(parq_blockmodel.LocalGeometry property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.corner">corner (parq_blockmodel.blockmodel.ParquetBlockModel property)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.LocalGeometry.html#parq_blockmodel.geometry.LocalGeometry.corner">(parq_blockmodel.geometry.LocalGeometry attribute)</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.corner">(parq_blockmodel.geometry.RegularGeometry property)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.LocalGeometry.corner">(parq_blockmodel.LocalGeometry attribute)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.corner">(parq_blockmodel.ParquetBlockModel property)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.corner">(parq_blockmodel.RegularGeometry property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.create">create() (parq_blockmodel.geometry.RegularGeometry class method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.create">(parq_blockmodel.RegularGeometry class method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.create_demo_block_model">create_demo_block_model() (parq_blockmodel.blockmodel.ParquetBlockModel class method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.create_demo_block_model">(parq_blockmodel.ParquetBlockModel class method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/modules.html#parq_blockmodel.create_demo_blockmodel">create_demo_blockmodel() (in module parq_blockmodel)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.demo_block_model.create_demo_blockmodel.html#parq_blockmodel.utils.demo_block_model.create_demo_blockmodel">(in module parq_blockmodel.utils.demo_block_model)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.create_heatmap_from_threshold">create_heatmap_from_threshold() (parq_blockmodel.blockmodel.ParquetBlockModel method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.create_heatmap_from_threshold">(parq_blockmodel.ParquetBlockModel method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.create_report">create_report() (parq_blockmodel.blockmodel.ParquetBlockModel method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.create_report">(parq_blockmodel.ParquetBlockModel method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.demo_block_model.create_toy_blockmodel.html#parq_blockmodel.utils.demo_block_model.create_toy_blockmodel">create_toy_blockmodel() (in module parq_blockmodel.utils.demo_block_model)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.create_toy_blockmodel">(parq_blockmodel.blockmodel.ParquetBlockModel class method)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.create_toy_blockmodel">(parq_blockmodel.ParquetBlockModel class method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/mesh.html#parq_blockmodel.mesh.BlockMeshGenerator.cube_faces_ccw">cube_faces_ccw() (parq_blockmodel.mesh.BlockMeshGenerator method)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter.html#parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter">CustomPlotter (class in parq_blockmodel.utils.pyvista.custom_plotter)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="D">D</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.decode_coordinates.html#parq_blockmodel.utils.spatial_encoding.decode_coordinates">decode_coordinates() (in module parq_blockmodel.utils.spatial_encoding)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates.html#parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates">decode_frame_coordinates() (in module parq_blockmodel.utils.spatial_encoding)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.decode_world_coordinates.html#parq_blockmodel.utils.spatial_encoding.decode_world_coordinates">decode_world_coordinates() (in module parq_blockmodel.utils.spatial_encoding)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex.html#parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex">dense_ijk_multiindex() (in module parq_blockmodel.utils.geometry_utils)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.pyvista_utils.df_to_poly_data.html#parq_blockmodel.utils.pyvista.pyvista_utils.df_to_poly_data">df_to_poly_data() (in module parq_blockmodel.utils.pyvista.pyvista_utils)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.pyvista_utils.df_to_pv_image_data.html#parq_blockmodel.utils.pyvista.pyvista_utils.df_to_pv_image_data">df_to_pv_image_data() (in module parq_blockmodel.utils.pyvista.pyvista_utils)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.pyvista_utils.df_to_pv_structured_grid.html#parq_blockmodel.utils.pyvista.pyvista_utils.df_to_pv_structured_grid">df_to_pv_structured_grid() (in module parq_blockmodel.utils.pyvista.pyvista_utils)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.pyvista_utils.df_to_pv_unstructured_grid.html#parq_blockmodel.utils.pyvista.pyvista_utils.df_to_pv_unstructured_grid">df_to_pv_unstructured_grid() (in module parq_blockmodel.utils.pyvista.pyvista_utils)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.downsample">downsample() (parq_blockmodel.blockmodel.ParquetBlockModel method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.downsample">(parq_blockmodel.ParquetBlockModel method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="E">E</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.encode_coordinates.html#parq_blockmodel.utils.spatial_encoding.encode_coordinates">encode_coordinates() (in module parq_blockmodel.utils.spatial_encoding)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates.html#parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates">encode_frame_coordinates() (in module parq_blockmodel.utils.spatial_encoding)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.encode_world_coordinates.html#parq_blockmodel.utils.spatial_encoding.encode_world_coordinates">encode_world_coordinates() (in module parq_blockmodel.utils.spatial_encoding)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex.html#parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex">encoded_index_to_multiindex() (in module parq_blockmodel.utils.spatial_encoding)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.extents">extents (parq_blockmodel.geometry.RegularGeometry property)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.extents">(parq_blockmodel.RegularGeometry property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="F">F</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/mesh.html#id0">face_attributes (parq_blockmodel.mesh.TriangleMesh attribute)</a>, <a href="api/mesh.html#parq_blockmodel.mesh.TriangleMesh.face_attributes">[1]</a>
+</li>
+      <li><a href="api/mesh.html#id1">face_ijk (parq_blockmodel.mesh.TriangleMesh attribute)</a>, <a href="api/mesh.html#parq_blockmodel.mesh.TriangleMesh.face_ijk">[1]</a>
+</li>
+      <li><a href="api/mesh.html#id2">faces (parq_blockmodel.mesh.TriangleMesh attribute)</a>, <a href="api/mesh.html#parq_blockmodel.mesh.TriangleMesh.faces">[1]</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.from_attrs">from_attrs() (parq_blockmodel.geometry.RegularGeometry class method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.from_attrs">(parq_blockmodel.RegularGeometry class method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.from_dataframe">from_dataframe() (parq_blockmodel.blockmodel.ParquetBlockModel class method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.from_dataframe">(parq_blockmodel.ParquetBlockModel class method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.from_geometry">from_geometry() (parq_blockmodel.blockmodel.ParquetBlockModel class method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.from_geometry">(parq_blockmodel.ParquetBlockModel class method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.from_metadata">from_metadata() (parq_blockmodel.geometry.RegularGeometry class method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.from_metadata">(parq_blockmodel.RegularGeometry class method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.from_multi_index">from_multi_index() (parq_blockmodel.geometry.RegularGeometry class method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.from_multi_index">(parq_blockmodel.RegularGeometry class method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.from_parquet">from_parquet() (parq_blockmodel.blockmodel.ParquetBlockModel class method)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.from_parquet">(parq_blockmodel.geometry.RegularGeometry class method)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.from_parquet">(parq_blockmodel.ParquetBlockModel class method)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.from_parquet">(parq_blockmodel.RegularGeometry class method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.from_parquet_metadata">from_parquet_metadata() (parq_blockmodel.geometry.RegularGeometry class method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.from_parquet_metadata">(parq_blockmodel.RegularGeometry class method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="G">G</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.geometry">geometry (parq_blockmodel.blockmodel.ParquetBlockModel attribute)</a>
+
+      <ul>
+        <li><a href="api/mesh.html#parq_blockmodel.mesh.BlockMeshGenerator.geometry">(parq_blockmodel.mesh.BlockMeshGenerator attribute)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.geometry">(parq_blockmodel.ParquetBlockModel attribute)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.get_id_encoding_params.html#parq_blockmodel.utils.spatial_encoding.get_id_encoding_params">get_id_encoding_params() (in module parq_blockmodel.utils.spatial_encoding)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params.html#parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params">get_world_id_encoding_params() (in module parq_blockmodel.utils.spatial_encoding)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="I">I</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.LocalGeometry.html#parq_blockmodel.geometry.LocalGeometry.ijk_from_row_index">ijk_from_row_index() (parq_blockmodel.geometry.LocalGeometry method)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.ijk_from_row_index">(parq_blockmodel.geometry.RegularGeometry method)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.LocalGeometry.ijk_from_row_index">(parq_blockmodel.LocalGeometry method)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.ijk_from_row_index">(parq_blockmodel.RegularGeometry method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.LocalGeometry.html#parq_blockmodel.geometry.LocalGeometry.ijk_from_uvw">ijk_from_uvw() (parq_blockmodel.geometry.LocalGeometry method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.LocalGeometry.ijk_from_uvw">(parq_blockmodel.LocalGeometry method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.ijk_from_xyz">ijk_from_xyz() (parq_blockmodel.geometry.RegularGeometry method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.ijk_from_xyz">(parq_blockmodel.RegularGeometry method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.index_c">index_c (parq_blockmodel.blockmodel.ParquetBlockModel property)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.index_c">(parq_blockmodel.ParquetBlockModel property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.index_f">index_f (parq_blockmodel.blockmodel.ParquetBlockModel property)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.index_f">(parq_blockmodel.ParquetBlockModel property)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.pyvista_utils.infer_regular_geometry_from_df.html#parq_blockmodel.utils.pyvista.pyvista_utils.infer_regular_geometry_from_df">infer_regular_geometry_from_df() (in module parq_blockmodel.utils.pyvista.pyvista_utils)</a>
+</li>
+      <li><a href="glossary/glossary.html#term-Irregular-Blockmodel"><strong>Irregular Blockmodel</strong></a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.cicd.is_github_runner.html#parq_blockmodel.utils.cicd.is_github_runner">is_github_runner() (in module parq_blockmodel.utils.cicd)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.is_integer.html#parq_blockmodel.utils.spatial_encoding.is_integer">is_integer() (in module parq_blockmodel.utils.spatial_encoding)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.is_rotated">is_rotated (parq_blockmodel.geometry.RegularGeometry property)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.is_rotated">(parq_blockmodel.RegularGeometry property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="L">L</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.categorical_utils.load_mapping_dict.html#parq_blockmodel.utils.pyvista.categorical_utils.load_mapping_dict">load_mapping_dict() (in module parq_blockmodel.utils.pyvista.categorical_utils)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.local">local (parq_blockmodel.geometry.RegularGeometry attribute)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.local">(parq_blockmodel.RegularGeometry attribute)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.WorldFrame.html#parq_blockmodel.geometry.WorldFrame.local_to_world">local_to_world() (parq_blockmodel.geometry.WorldFrame method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.WorldFrame.local_to_world">(parq_blockmodel.WorldFrame method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/modules.html#parq_blockmodel.LocalGeometry">LocalGeometry (class in parq_blockmodel)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.LocalGeometry.html#parq_blockmodel.geometry.LocalGeometry">(class in parq_blockmodel.geometry)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="M">M</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/mesh.html#id3">metadata (parq_blockmodel.mesh.TriangleMesh attribute)</a>, <a href="api/mesh.html#parq_blockmodel.mesh.TriangleMesh.metadata">[1]</a>
+</li>
+      <li>
+    module
+
+      <ul>
+        <li><a href="api/modules.html#module-parq_blockmodel">parq_blockmodel</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.blockmodel.html#module-parq_blockmodel.blockmodel">parq_blockmodel.blockmodel</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.html#module-parq_blockmodel.geometry">parq_blockmodel.geometry</a>
+</li>
+        <li><a href="api/mesh.html#module-parq_blockmodel.mesh">parq_blockmodel.mesh</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.html#module-parq_blockmodel.utils">parq_blockmodel.utils</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.cicd.html#module-parq_blockmodel.utils.cicd">parq_blockmodel.utils.cicd</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.demo_block_model.html#module-parq_blockmodel.utils.demo_block_model">parq_blockmodel.utils.demo_block_model</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.geometry_utils.html#module-parq_blockmodel.utils.geometry_utils">parq_blockmodel.utils.geometry_utils</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pandas.html#module-parq_blockmodel.utils.pandas">parq_blockmodel.utils.pandas</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pandas.aggregate.html#module-parq_blockmodel.utils.pandas.aggregate">parq_blockmodel.utils.pandas.aggregate</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pandas_accessors.html#module-parq_blockmodel.utils.pandas_accessors">parq_blockmodel.utils.pandas_accessors</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.plotly_scraper.html#module-parq_blockmodel.utils.plotly_scraper">parq_blockmodel.utils.plotly_scraper</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.html#module-parq_blockmodel.utils.pyvista">parq_blockmodel.utils.pyvista</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.categorical_utils.html#module-parq_blockmodel.utils.pyvista.categorical_utils">parq_blockmodel.utils.pyvista.categorical_utils</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.custom_plotter.html#module-parq_blockmodel.utils.pyvista.custom_plotter">parq_blockmodel.utils.pyvista.custom_plotter</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.pyvista_utils.html#module-parq_blockmodel.utils.pyvista.pyvista_utils">parq_blockmodel.utils.pyvista.pyvista_utils</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.html#module-parq_blockmodel.utils.spatial_encoding">parq_blockmodel.utils.spatial_encoding</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.temporal.html#module-parq_blockmodel.utils.temporal">parq_blockmodel.utils.temporal</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.temporal.demo_data.html#module-parq_blockmodel.utils.temporal.demo_data">parq_blockmodel.utils.temporal.demo_data</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.temporal.temporal_surfaces.html#module-parq_blockmodel.utils.temporal.temporal_surfaces">parq_blockmodel.utils.temporal.temporal_surfaces</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index.html#parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index">multiindex_to_encoded_index() (in module parq_blockmodel.utils.spatial_encoding)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="N">N</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/mesh.html#parq_blockmodel.mesh.TriangleMesh.n_faces">n_faces (parq_blockmodel.mesh.TriangleMesh property)</a>
+</li>
+      <li><a href="api/mesh.html#parq_blockmodel.mesh.TriangleMesh.n_vertices">n_vertices (parq_blockmodel.mesh.TriangleMesh property)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.name">name (parq_blockmodel.blockmodel.ParquetBlockModel attribute)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.name">(parq_blockmodel.ParquetBlockModel attribute)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="O">O</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.origin">origin (parq_blockmodel.blockmodel.ParquetBlockModel property)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.origin">(parq_blockmodel.geometry.RegularGeometry property)</a>
+</li>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.WorldFrame.html#parq_blockmodel.geometry.WorldFrame.origin">(parq_blockmodel.geometry.WorldFrame attribute)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.origin">(parq_blockmodel.ParquetBlockModel property)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.origin">(parq_blockmodel.RegularGeometry property)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.WorldFrame.origin">(parq_blockmodel.WorldFrame attribute)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="P">P</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
+    parq_blockmodel
+
+      <ul>
+        <li><a href="api/modules.html#module-parq_blockmodel">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.blockmodel
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.blockmodel.html#module-parq_blockmodel.blockmodel">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.geometry
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.html#module-parq_blockmodel.geometry">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.mesh
+
+      <ul>
+        <li><a href="api/mesh.html#module-parq_blockmodel.mesh">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.utils
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.html#module-parq_blockmodel.utils">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.utils.cicd
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.cicd.html#module-parq_blockmodel.utils.cicd">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.utils.demo_block_model
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.demo_block_model.html#module-parq_blockmodel.utils.demo_block_model">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.utils.geometry_utils
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.geometry_utils.html#module-parq_blockmodel.utils.geometry_utils">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.utils.pandas
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pandas.html#module-parq_blockmodel.utils.pandas">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.utils.pandas.aggregate
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pandas.aggregate.html#module-parq_blockmodel.utils.pandas.aggregate">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.utils.pandas_accessors
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pandas_accessors.html#module-parq_blockmodel.utils.pandas_accessors">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.utils.plotly_scraper
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.plotly_scraper.html#module-parq_blockmodel.utils.plotly_scraper">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.utils.pyvista
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.html#module-parq_blockmodel.utils.pyvista">module</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li>
+    parq_blockmodel.utils.pyvista.categorical_utils
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.categorical_utils.html#module-parq_blockmodel.utils.pyvista.categorical_utils">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.utils.pyvista.custom_plotter
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.custom_plotter.html#module-parq_blockmodel.utils.pyvista.custom_plotter">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.utils.pyvista.pyvista_utils
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.pyvista_utils.html#module-parq_blockmodel.utils.pyvista.pyvista_utils">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.utils.spatial_encoding
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.spatial_encoding.html#module-parq_blockmodel.utils.spatial_encoding">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.utils.temporal
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.temporal.html#module-parq_blockmodel.utils.temporal">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.utils.temporal.demo_data
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.temporal.demo_data.html#module-parq_blockmodel.utils.temporal.demo_data">module</a>
+</li>
+      </ul></li>
+      <li>
+    parq_blockmodel.utils.temporal.temporal_surfaces
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.utils.temporal.temporal_surfaces.html#module-parq_blockmodel.utils.temporal.temporal_surfaces">module</a>
+</li>
+      </ul></li>
+      <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel">ParquetBlockModel (class in parq_blockmodel)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel">(class in parq_blockmodel.blockmodel)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor.html#parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor">ParquetBlockModelAccessor (class in parq_blockmodel.utils.pandas_accessors)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.plot">plot() (parq_blockmodel.blockmodel.ParquetBlockModel method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.plot">(parq_blockmodel.ParquetBlockModel method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.temporal.temporal_surfaces.TemporalSurfaceManager.html#parq_blockmodel.utils.temporal.temporal_surfaces.TemporalSurfaceManager.plot_difference_between_times">plot_difference_between_times() (parq_blockmodel.utils.temporal.temporal_surfaces.TemporalSurfaceManager method)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.temporal.temporal_surfaces.TemporalSurfaceManager.html#parq_blockmodel.utils.temporal.temporal_surfaces.TemporalSurfaceManager.plot_expression">plot_expression() (parq_blockmodel.utils.temporal.temporal_surfaces.TemporalSurfaceManager method)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.plot_heatmap">plot_heatmap() (parq_blockmodel.blockmodel.ParquetBlockModel method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.plot_heatmap">(parq_blockmodel.ParquetBlockModel method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.pyvista_utils.poly_data_to_df.html#parq_blockmodel.utils.pyvista.pyvista_utils.poly_data_to_df">poly_data_to_df() (in module parq_blockmodel.utils.pyvista.pyvista_utils)</a>
+</li>
+      <li><a href="glossary/glossary.html#term-Properties"><strong>Properties</strong></a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.pyvista_utils.pv_image_data_to_df.html#parq_blockmodel.utils.pyvista.pyvista_utils.pv_image_data_to_df">pv_image_data_to_df() (in module parq_blockmodel.utils.pyvista.pyvista_utils)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.pandas_accessors.PyVistaAccessor.html#parq_blockmodel.utils.pandas_accessors.PyVistaAccessor">PyVistaAccessor (class in parq_blockmodel.utils.pandas_accessors)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="R">R</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.read">read() (parq_blockmodel.blockmodel.ParquetBlockModel method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.read">(parq_blockmodel.ParquetBlockModel method)</a>
+</li>
+      </ul></li>
+      <li><a href="glossary/glossary.html#term-Regular-Blockmodel"><strong>Regular Blockmodel</strong></a>
+</li>
+      <li><a href="api/modules.html#parq_blockmodel.RegularGeometry">RegularGeometry (class in parq_blockmodel)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry">(class in parq_blockmodel.geometry)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.geometry_utils.rotate_points.html#parq_blockmodel.utils.geometry_utils.rotate_points">rotate_points() (in module parq_blockmodel.utils.geometry_utils)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.WorldFrame.html#parq_blockmodel.geometry.WorldFrame.rotation_matrix">rotation_matrix (parq_blockmodel.geometry.WorldFrame property)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.WorldFrame.rotation_matrix">(parq_blockmodel.WorldFrame property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.LocalGeometry.html#parq_blockmodel.geometry.LocalGeometry.row_index_from_ijk">row_index_from_ijk() (parq_blockmodel.geometry.LocalGeometry method)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.row_index_from_ijk">(parq_blockmodel.geometry.RegularGeometry method)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.LocalGeometry.row_index_from_ijk">(parq_blockmodel.LocalGeometry method)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.row_index_from_ijk">(parq_blockmodel.RegularGeometry method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.row_index_from_xyz">row_index_from_xyz() (parq_blockmodel.geometry.RegularGeometry method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.row_index_from_xyz">(parq_blockmodel.RegularGeometry method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="S">S</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.temporal.demo_data.sample_point_values.html#parq_blockmodel.utils.temporal.demo_data.sample_point_values">sample_point_values() (in module parq_blockmodel.utils.temporal.demo_data)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.schema_version">schema_version (parq_blockmodel.geometry.RegularGeometry attribute)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.schema_version">(parq_blockmodel.RegularGeometry attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.LocalGeometry.html#parq_blockmodel.geometry.LocalGeometry.shape">shape (parq_blockmodel.geometry.LocalGeometry attribute)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.shape">(parq_blockmodel.geometry.RegularGeometry property)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.LocalGeometry.shape">(parq_blockmodel.LocalGeometry attribute)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.shape">(parq_blockmodel.RegularGeometry property)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.temporal.demo_data.simulate_depletion_or_drawdown.html#parq_blockmodel.utils.temporal.demo_data.simulate_depletion_or_drawdown">simulate_depletion_or_drawdown() (in module parq_blockmodel.utils.temporal.demo_data)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.srs">srs (parq_blockmodel.geometry.RegularGeometry property)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.WorldFrame.html#parq_blockmodel.geometry.WorldFrame.srs">(parq_blockmodel.geometry.WorldFrame attribute)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.srs">(parq_blockmodel.RegularGeometry property)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.WorldFrame.srs">(parq_blockmodel.WorldFrame attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.pyvista.categorical_utils.store_mapping_dict.html#parq_blockmodel.utils.pyvista.categorical_utils.store_mapping_dict">store_mapping_dict() (in module parq_blockmodel.utils.pyvista.categorical_utils)</a>
+</li>
+      <li><a href="api/mesh.html#parq_blockmodel.mesh.BlockMeshGenerator.surface_faces_ccw">surface_faces_ccw() (parq_blockmodel.mesh.BlockMeshGenerator method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="T">T</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.temporal.temporal_surfaces.TemporalSurfaceManager.html#parq_blockmodel.utils.temporal.temporal_surfaces.TemporalSurfaceManager">TemporalSurfaceManager (class in parq_blockmodel.utils.temporal.temporal_surfaces)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.to_dataframe">to_dataframe() (parq_blockmodel.geometry.RegularGeometry method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.to_dataframe">(parq_blockmodel.RegularGeometry method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.to_dataframe_xyz">to_dataframe_xyz() (parq_blockmodel.geometry.RegularGeometry method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.to_dataframe_xyz">(parq_blockmodel.RegularGeometry method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.to_dense_parquet">to_dense_parquet() (parq_blockmodel.blockmodel.ParquetBlockModel method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.to_dense_parquet">(parq_blockmodel.ParquetBlockModel method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.to_glb">to_glb() (parq_blockmodel.blockmodel.ParquetBlockModel method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.to_glb">(parq_blockmodel.ParquetBlockModel method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.to_metadata_dict">to_metadata_dict() (parq_blockmodel.geometry.RegularGeometry method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.to_metadata_dict">(parq_blockmodel.RegularGeometry method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.to_multi_index_ijk">to_multi_index_ijk() (parq_blockmodel.geometry.RegularGeometry method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.to_multi_index_ijk">(parq_blockmodel.RegularGeometry method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.to_multi_index_xyz">to_multi_index_xyz() (parq_blockmodel.geometry.RegularGeometry method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.to_multi_index_xyz">(parq_blockmodel.RegularGeometry method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.to_ply">to_ply() (parq_blockmodel.blockmodel.ParquetBlockModel method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.to_ply">(parq_blockmodel.ParquetBlockModel method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.to_pyvista">to_pyvista() (parq_blockmodel.geometry.RegularGeometry method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.to_pyvista">(parq_blockmodel.RegularGeometry method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/mesh.html#parq_blockmodel.mesh.TriangleMesh">TriangleMesh (class in parq_blockmodel.mesh)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.triangulate">triangulate() (parq_blockmodel.blockmodel.ParquetBlockModel method)</a>
+
+      <ul>
+        <li><a href="api/mesh.html#parq_blockmodel.mesh.BlockMeshGenerator.triangulate">(parq_blockmodel.mesh.BlockMeshGenerator method)</a>
+</li>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.triangulate">(parq_blockmodel.ParquetBlockModel method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="U">U</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.upsample">upsample() (parq_blockmodel.blockmodel.ParquetBlockModel method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.upsample">(parq_blockmodel.ParquetBlockModel method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.LocalGeometry.html#parq_blockmodel.geometry.LocalGeometry.uvw_from_ijk">uvw_from_ijk() (parq_blockmodel.geometry.LocalGeometry method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.LocalGeometry.uvw_from_ijk">(parq_blockmodel.LocalGeometry method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="V">V</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/mesh.html#parq_blockmodel.mesh.TriangleMesh.validate">validate() (parq_blockmodel.mesh.TriangleMesh method)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal.html#parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal">validate_axes_orthonormal() (in module parq_blockmodel.utils.geometry_utils)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.utils.geometry_utils.validate_geometry.html#parq_blockmodel.utils.geometry_utils.validate_geometry">validate_geometry() (in module parq_blockmodel.utils.geometry_utils)</a>
+</li>
+      <li><a href="api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel.validate_xyz_parquet">validate_xyz_parquet() (parq_blockmodel.blockmodel.ParquetBlockModel class method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.ParquetBlockModel.validate_xyz_parquet">(parq_blockmodel.ParquetBlockModel class method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="glossary/glossary.html#term-Variables"><strong>Variables</strong></a>
+</li>
+      <li><a href="api/mesh.html#id4">vertex_attributes (parq_blockmodel.mesh.TriangleMesh attribute)</a>, <a href="api/mesh.html#parq_blockmodel.mesh.TriangleMesh.vertex_attributes">[1]</a>
+</li>
+      <li><a href="api/mesh.html#id5">vertex_ijk (parq_blockmodel.mesh.TriangleMesh attribute)</a>, <a href="api/mesh.html#parq_blockmodel.mesh.TriangleMesh.vertex_ijk">[1]</a>
+</li>
+      <li><a href="api/mesh.html#id6">vertices (parq_blockmodel.mesh.TriangleMesh attribute)</a>, <a href="api/mesh.html#parq_blockmodel.mesh.TriangleMesh.vertices">[1]</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="W">W</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.world">world (parq_blockmodel.geometry.RegularGeometry attribute)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.world">(parq_blockmodel.RegularGeometry attribute)</a>
+</li>
+      </ul></li>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.world_id_encoding">world_id_encoding (parq_blockmodel.geometry.RegularGeometry attribute)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.world_id_encoding">(parq_blockmodel.RegularGeometry attribute)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.WorldFrame.html#parq_blockmodel.geometry.WorldFrame.world_to_local">world_to_local() (parq_blockmodel.geometry.WorldFrame method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.WorldFrame.world_to_local">(parq_blockmodel.WorldFrame method)</a>
+</li>
+      </ul></li>
+      <li><a href="api/modules.html#parq_blockmodel.WorldFrame">WorldFrame (class in parq_blockmodel)</a>
+
+      <ul>
+        <li><a href="api/_autosummary/parq_blockmodel.geometry.WorldFrame.html#parq_blockmodel.geometry.WorldFrame">(class in parq_blockmodel.geometry)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+<h2 id="X">X</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.xyz_from_ijk">xyz_from_ijk() (parq_blockmodel.geometry.RegularGeometry method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.xyz_from_ijk">(parq_blockmodel.RegularGeometry method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.xyz_from_row_index">xyz_from_row_index() (parq_blockmodel.geometry.RegularGeometry method)</a>
+
+      <ul>
+        <li><a href="api/modules.html#parq_blockmodel.RegularGeometry.xyz_from_row_index">(parq_blockmodel.RegularGeometry method)</a>
+</li>
+      </ul></li>
+  </ul></td>
+</tr></table>
+
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Greg Elphick
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, Greg Elphick.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

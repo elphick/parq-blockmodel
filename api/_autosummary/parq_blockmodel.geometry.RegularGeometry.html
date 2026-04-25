@@ -1,0 +1,1196 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>parq_blockmodel.geometry.RegularGeometry &#8212; parq-blockmodel Documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=fd3f3429" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=e3499722" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/sg-tags.js?v=d80f6fa4"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api/_autosummary/parq_blockmodel.geometry.RegularGeometry';</script>
+    <link rel="icon" href="../../_static/parq-blockmodel.svg"/>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="parq_blockmodel.geometry.WorldFrame" href="parq_blockmodel.geometry.WorldFrame.html" />
+    <link rel="prev" title="parq_blockmodel.geometry.LocalGeometry" href="parq_blockmodel.geometry.LocalGeometry.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.1" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/parq-blockmodel.svg" class="logo__image only-light" alt=""/>
+    <img src="../../_static/parq-blockmodel.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">parq-blockmodel<br>(0.2.1)</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../usage/installation.html">Installation</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="simple">
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../user_guide.html">User Guide</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../user_guide/01_geometry.html">Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../user_guide/02_geometry_coordinates.html">Geometry and Coordinate Transformations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../user_guide/03_blockmodels.html">Block Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../user_guide/04_mesh_export.html">Mesh Module</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../auto_examples/index.html">Example Gallery</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/01_regular_geometry.html">Regular Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/02_rotated_geometry.html">Rotated Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/03_visualise_blockmodel.html">Block Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/04_rotated_blockmodel.html">Rotated Blockmodel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/05_heatmap.html">Heatmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/06_reblocking.html">Reblocking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/07_mesh_export.html">Mesh Export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/08_sparse_parquet_to_pbm.html">Dense and Sparse PBM from XYZ Parquet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/09_rotated_parquet_to_pbm.html">Rotated XYZ Parquet to PBM</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../todo.html">To Do</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../glossary/glossary.html">Glossary</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../modules.html">API Reference</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 has-children"><a class="reference internal" href="parq_blockmodel.blockmodel.html">parq_blockmodel.blockmodel</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="parq_blockmodel.blockmodel.ParquetBlockModel.html">parq_blockmodel.blockmodel.ParquetBlockModel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 current active has-children"><a class="reference internal" href="parq_blockmodel.geometry.html">parq_blockmodel.geometry</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="parq_blockmodel.geometry.LocalGeometry.html">parq_blockmodel.geometry.LocalGeometry</a></li>
+<li class="toctree-l3 current active"><a class="current reference internal" href="#">parq_blockmodel.geometry.RegularGeometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parq_blockmodel.geometry.WorldFrame.html">parq_blockmodel.geometry.WorldFrame</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="parq_blockmodel.utils.html">parq_blockmodel.utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.cicd.html">parq_blockmodel.utils.cicd</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.cicd.is_github_runner.html">parq_blockmodel.utils.cicd.is_github_runner</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.demo_block_model.html">parq_blockmodel.utils.demo_block_model</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade.html">parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.demo_block_model.create_demo_blockmodel.html">parq_blockmodel.utils.demo_block_model.create_demo_blockmodel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.demo_block_model.create_toy_blockmodel.html">parq_blockmodel.utils.demo_block_model.create_toy_blockmodel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.geometry_utils.html">parq_blockmodel.utils.geometry_utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.geometry_utils.angles_to_axes.html">parq_blockmodel.utils.geometry_utils.angles_to_axes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.geometry_utils.axes_to_angles.html">parq_blockmodel.utils.geometry_utils.axes_to_angles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex.html">parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.geometry_utils.rotate_points.html">parq_blockmodel.utils.geometry_utils.rotate_points</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal.html">parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.geometry_utils.validate_geometry.html">parq_blockmodel.utils.geometry_utils.validate_geometry</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.pandas.html">parq_blockmodel.utils.pandas</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.pandas.aggregate.html">parq_blockmodel.utils.pandas.aggregate</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.pandas_accessors.html">parq_blockmodel.utils.pandas_accessors</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor.html">parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.pandas_accessors.PyVistaAccessor.html">parq_blockmodel.utils.pandas_accessors.PyVistaAccessor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.plotly_scraper.html">parq_blockmodel.utils.plotly_scraper</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser.html">parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.pyvista.html">parq_blockmodel.utils.pyvista</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.pyvista.categorical_utils.html">parq_blockmodel.utils.pyvista.categorical_utils</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.pyvista.custom_plotter.html">parq_blockmodel.utils.pyvista.custom_plotter</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.pyvista.pyvista_utils.html">parq_blockmodel.utils.pyvista.pyvista_utils</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.html">parq_blockmodel.utils.spatial_encoding</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.decode_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.decode_world_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_world_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.encode_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.encode_world_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_world_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex.html">parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.get_id_encoding_params.html">parq_blockmodel.utils.spatial_encoding.get_id_encoding_params</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params.html">parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.is_integer.html">parq_blockmodel.utils.spatial_encoding.is_integer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index.html">parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.temporal.html">parq_blockmodel.utils.temporal</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.temporal.demo_data.html">parq_blockmodel.utils.temporal.demo_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.temporal.temporal_surfaces.html">parq_blockmodel.utils.temporal.temporal_surfaces</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../license/license.html">License</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="simple">
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Developer docs:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../design_ijk_metadata.html">Developer notes: geometry &amp; metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer_testing.html">Developer Testing Guide</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel/edit/main/docs/api/_autosummary/parq_blockmodel.geometry.RegularGeometry.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel/issues/new?title=Issue%20on%20page%20%2Fapi/_autosummary/parq_blockmodel.geometry.RegularGeometry.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../_sources/api/_autosummary/parq_blockmodel.geometry.RegularGeometry.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>parq_blockmodel.geometry.RegularGeometry</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry"><code class="docutils literal notranslate"><span class="pre">RegularGeometry</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.local"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.local</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.world"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.world</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.schema_version"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.schema_version</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.world_id_encoding"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.world_id_encoding</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.__init__"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.__init__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.axis_u"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.axis_u</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.axis_v"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.axis_v</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.axis_w"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.axis_w</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.block_size"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.block_size</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.corner"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.corner</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.create"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.create()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.extents"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.extents</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.from_attrs"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.from_attrs()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.from_metadata"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.from_metadata()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.from_multi_index"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.from_multi_index()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.from_parquet"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.from_parquet()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.from_parquet_metadata"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.from_parquet_metadata()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.ijk_from_row_index"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.ijk_from_row_index()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.ijk_from_xyz"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.ijk_from_xyz()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.is_rotated"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.is_rotated</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.origin"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.origin</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.row_index_from_ijk"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.row_index_from_ijk()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.row_index_from_xyz"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.row_index_from_xyz()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.shape"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.shape</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.srs"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.srs</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.to_dataframe"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.to_dataframe()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.to_dataframe_xyz"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.to_dataframe_xyz()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.to_metadata_dict"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.to_metadata_dict()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.to_multi_index_ijk"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.to_multi_index_ijk()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.to_multi_index_xyz"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.to_multi_index_xyz()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.to_pyvista"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.to_pyvista()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.xyz_from_ijk"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.xyz_from_ijk()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.xyz_from_row_index"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.xyz_from_row_index()</span></code></a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="parq-blockmodel-geometry-regulargeometry">
+<h1>parq_blockmodel.geometry.RegularGeometry<a class="headerlink" href="#parq-blockmodel-geometry-regulargeometry" title="Link to this heading">#</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">parq_blockmodel.geometry.</span></span><span class="sig-name descname"><span class="pre">RegularGeometry</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">local</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">world</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">schema_version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'1.0'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">world_id_encoding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">corner</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_u</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_v</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_w</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">srs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry" title="Link to this definition">#</a></dt>
+<dd><p>Dense, metadata-defined block model geometry (C-order canonical).</p>
+<p>This class describes <em>all</em> block model geometry in parq-blockmodel.
+It does <strong>not</strong> store x, y, z or i, j, k per block. All coordinates
+are derived from metadata + implicit row ordering.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.local">
+<span class="sig-name descname"><span class="pre">local</span></span><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.local" title="Link to this definition">#</a></dt>
+<dd><p>The local lattice geometry (corner, block_size, shape, C-order).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="parq_blockmodel.geometry.LocalGeometry.html#parq_blockmodel.geometry.LocalGeometry" title="parq_blockmodel.geometry.LocalGeometry">LocalGeometry</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.world">
+<span class="sig-name descname"><span class="pre">world</span></span><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.world" title="Link to this definition">#</a></dt>
+<dd><p>The world embedding with origin, axes, and CRS.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="parq_blockmodel.geometry.WorldFrame.html#parq_blockmodel.geometry.WorldFrame" title="parq_blockmodel.geometry.WorldFrame">WorldFrame</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.schema_version">
+<span class="sig-name descname"><span class="pre">schema_version</span></span><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.schema_version" title="Link to this definition">#</a></dt>
+<dd><p>Version of the metadata schema. Default: “1.0”</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.world_id_encoding">
+<span class="sig-name descname"><span class="pre">world_id_encoding</span></span><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.world_id_encoding" title="Link to this definition">#</a></dt>
+<dd><p>Encoding for world IDs.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict, optional</p>
+</dd>
+</dl>
+</dd></dl>
+
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>Internal Storage Ordering (C-order canonical)</strong></p>
+<p>parq-blockmodel uses <strong>NumPy C-order</strong> as its canonical definition of
+block ordering:</p>
+<ul class="simple">
+<li><p>i varies fastest</p></li>
+<li><p>j varies next</p></li>
+<li><p>k varies slowest</p></li>
+<li><p>r = i + ni * (j + nj * k)</p></li>
+</ul>
+<p>This matches:</p>
+<ul class="simple">
+<li><p>Parquet row-oriented storage naturally</p></li>
+<li><p>NumPy operations (ravel, reshape)</p></li>
+<li><p>Efficient dense arrays</p></li>
+<li><p>Our metadata-based geometry model</p></li>
+</ul>
+<p>This does <strong>NOT</strong> match lexicographic MultiIndex sorting
+(<cite>.sort_index([“x”, “y”, “z”])</cite>) which yields x slowest, z fastest.
+MultiIndex lexicographic sorting must NOT define canonical storage.</p>
+<p>F-order is NOT used (even though OMF/VTK are sometimes described this way).
+PyVista accepts C-order 1D arrays perfectly fine.</p>
+<p><strong>Canonical = C-order. Do not switch to F-order.</strong></p>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">local</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">world</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">schema_version</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'1.0'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">world_id_encoding</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">corner</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_u</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_v</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_w</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">srs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.__init__" title="Link to this definition">#</a></dt>
+<dd><p>Initialize RegularGeometry.</p>
+<p>Can be called with either:
+1. New style: RegularGeometry(local=…, world=…)
+2. Old style: RegularGeometry(corner=…, block_size=…, shape=…, axis_u=…)
+3. Or mix default parameters with keyword overrides</p>
+</dd></dl>
+
+<p class="rubric">Methods</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.__init__" title="parq_blockmodel.geometry.RegularGeometry.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>([local, world, schema_version, ...])</p></td>
+<td><p>Initialize RegularGeometry.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.create" title="parq_blockmodel.geometry.RegularGeometry.create"><code class="xref py py-obj docutils literal notranslate"><span class="pre">create</span></code></a>([corner, block_size, shape, axis_u, ...])</p></td>
+<td><p>Convenience factory for creating RegularGeometry with keyword arguments.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.from_attrs" title="parq_blockmodel.geometry.RegularGeometry.from_attrs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_attrs</span></code></a>(attrs[, key])</p></td>
+<td><p>Reconstruct geometry from a <code class="docutils literal notranslate"><span class="pre">DataFrame.attrs</span></code>-style mapping.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.from_metadata" title="parq_blockmodel.geometry.RegularGeometry.from_metadata"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_metadata</span></code></a>(meta)</p></td>
+<td><p>Reconstruct geometry from stored metadata.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.from_multi_index" title="parq_blockmodel.geometry.RegularGeometry.from_multi_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_multi_index</span></code></a>(index[, axis_azimuth, ...])</p></td>
+<td><p>Infer geometry from an xyz centroid MultiIndex.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.from_parquet" title="parq_blockmodel.geometry.RegularGeometry.from_parquet"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_parquet</span></code></a>(filepath[, axis_azimuth, ...])</p></td>
+<td><p>Reconstruct geometry from a Parquet file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.from_parquet_metadata" title="parq_blockmodel.geometry.RegularGeometry.from_parquet_metadata"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_parquet_metadata</span></code></a>(metadata[, key])</p></td>
+<td><p>Reconstruct geometry from Parquet file metadata.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.ijk_from_row_index" title="parq_blockmodel.geometry.RegularGeometry.ijk_from_row_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ijk_from_row_index</span></code></a>(rows)</p></td>
+<td><p>Convert row index/indices into (i, j, k) using <strong>C‑order</strong>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.ijk_from_xyz" title="parq_blockmodel.geometry.RegularGeometry.ijk_from_xyz"><code class="xref py py-obj docutils literal notranslate"><span class="pre">ijk_from_xyz</span></code></a>(x, y, z[, tol])</p></td>
+<td><p>Map world-space centroid coordinates to integer logical ijk indices.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.row_index_from_ijk" title="parq_blockmodel.geometry.RegularGeometry.row_index_from_ijk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">row_index_from_ijk</span></code></a>(i, j, k)</p></td>
+<td><p>Convert (i, j, k) into row index using <strong>C‑order</strong>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.row_index_from_xyz" title="parq_blockmodel.geometry.RegularGeometry.row_index_from_xyz"><code class="xref py py-obj docutils literal notranslate"><span class="pre">row_index_from_xyz</span></code></a>(x, y, z[, tol])</p></td>
+<td><p>Map world-space centroid coordinates directly to C-order row indices.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.to_dataframe" title="parq_blockmodel.geometry.RegularGeometry.to_dataframe"><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_dataframe</span></code></a>()</p></td>
+<td><p>Backward-compatible alias for <a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.to_dataframe_xyz" title="parq_blockmodel.geometry.RegularGeometry.to_dataframe_xyz"><code class="xref py py-meth docutils literal notranslate"><span class="pre">to_dataframe_xyz()</span></code></a>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.to_dataframe_xyz" title="parq_blockmodel.geometry.RegularGeometry.to_dataframe_xyz"><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_dataframe_xyz</span></code></a>()</p></td>
+<td><p>Return a DataFrame of XYZ centroids for export/inspection.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.to_metadata_dict" title="parq_blockmodel.geometry.RegularGeometry.to_metadata_dict"><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_metadata_dict</span></code></a>()</p></td>
+<td><p>Serialize geometry metadata for Parquet storage.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.to_multi_index_ijk" title="parq_blockmodel.geometry.RegularGeometry.to_multi_index_ijk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_multi_index_ijk</span></code></a>()</p></td>
+<td><p>Export (i, j, k) indices as a MultiIndex in <strong>C‑order</strong>.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.to_multi_index_xyz" title="parq_blockmodel.geometry.RegularGeometry.to_multi_index_xyz"><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_multi_index_xyz</span></code></a>()</p></td>
+<td><p>Return XYZ centroid coordinates as a MultiIndex.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.to_pyvista" title="parq_blockmodel.geometry.RegularGeometry.to_pyvista"><code class="xref py py-obj docutils literal notranslate"><span class="pre">to_pyvista</span></code></a>(*[, frame])</p></td>
+<td><p>Return a <code class="docutils literal notranslate"><span class="pre">pyvista.ImageData</span></code> representing the dense grid.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.xyz_from_ijk" title="parq_blockmodel.geometry.RegularGeometry.xyz_from_ijk"><code class="xref py py-obj docutils literal notranslate"><span class="pre">xyz_from_ijk</span></code></a>(i, j, k)</p></td>
+<td><p>Convert logical indices to world-space centroid coordinates.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.xyz_from_row_index" title="parq_blockmodel.geometry.RegularGeometry.xyz_from_row_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">xyz_from_row_index</span></code></a>(rows)</p></td>
+<td><p>Convert C-order row index/indices to world-space centroid coordinates.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Attributes</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.axis_u" title="parq_blockmodel.geometry.RegularGeometry.axis_u"><code class="xref py py-obj docutils literal notranslate"><span class="pre">axis_u</span></code></a></p></td>
+<td><p>Backward-compatible access to U-axis.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.axis_v" title="parq_blockmodel.geometry.RegularGeometry.axis_v"><code class="xref py py-obj docutils literal notranslate"><span class="pre">axis_v</span></code></a></p></td>
+<td><p>Backward-compatible access to V-axis.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.axis_w" title="parq_blockmodel.geometry.RegularGeometry.axis_w"><code class="xref py py-obj docutils literal notranslate"><span class="pre">axis_w</span></code></a></p></td>
+<td><p>Backward-compatible access to W-axis.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.block_size" title="parq_blockmodel.geometry.RegularGeometry.block_size"><code class="xref py py-obj docutils literal notranslate"><span class="pre">block_size</span></code></a></p></td>
+<td><p>Backward-compatible access to local-axis block spacing <code class="docutils literal notranslate"><span class="pre">(dx,</span> <span class="pre">dy,</span> <span class="pre">dz)</span></code>.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">centroid_x</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">centroid_y</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">centroid_z</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.corner" title="parq_blockmodel.geometry.RegularGeometry.corner"><code class="xref py py-obj docutils literal notranslate"><span class="pre">corner</span></code></a></p></td>
+<td><p>Backward-compatible access to local corner.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.extents" title="parq_blockmodel.geometry.RegularGeometry.extents"><code class="xref py py-obj docutils literal notranslate"><span class="pre">extents</span></code></a></p></td>
+<td><p>Return the axis-aligned bounding box (xmin, xmax, ymin, ymax, zmin, zmax).</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.is_rotated" title="parq_blockmodel.geometry.RegularGeometry.is_rotated"><code class="xref py py-obj docutils literal notranslate"><span class="pre">is_rotated</span></code></a></p></td>
+<td><p>Return True if axes differ from the identity orientation.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.origin" title="parq_blockmodel.geometry.RegularGeometry.origin"><code class="xref py py-obj docutils literal notranslate"><span class="pre">origin</span></code></a></p></td>
+<td><p>Backward-compatible access to world origin.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.schema_version" title="parq_blockmodel.geometry.RegularGeometry.schema_version"><code class="xref py py-obj docutils literal notranslate"><span class="pre">schema_version</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.shape" title="parq_blockmodel.geometry.RegularGeometry.shape"><code class="xref py py-obj docutils literal notranslate"><span class="pre">shape</span></code></a></p></td>
+<td><p>Backward-compatible access to grid shape.</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.srs" title="parq_blockmodel.geometry.RegularGeometry.srs"><code class="xref py py-obj docutils literal notranslate"><span class="pre">srs</span></code></a></p></td>
+<td><p>Backward-compatible access to spatial reference system.</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.world_id_encoding" title="parq_blockmodel.geometry.RegularGeometry.world_id_encoding"><code class="xref py py-obj docutils literal notranslate"><span class="pre">world_id_encoding</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.local" title="parq_blockmodel.geometry.RegularGeometry.local"><code class="xref py py-obj docutils literal notranslate"><span class="pre">local</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.world" title="parq_blockmodel.geometry.RegularGeometry.world"><code class="xref py py-obj docutils literal notranslate"><span class="pre">world</span></code></a></p></td>
+<td><p></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<dl class="py property">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.axis_u">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">axis_u</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">floating</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.axis_u" title="Link to this definition">#</a></dt>
+<dd><p>Backward-compatible access to U-axis.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.axis_v">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">axis_v</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">floating</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.axis_v" title="Link to this definition">#</a></dt>
+<dd><p>Backward-compatible access to V-axis.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.axis_w">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">axis_w</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">floating</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.axis_w" title="Link to this definition">#</a></dt>
+<dd><p>Backward-compatible access to W-axis.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.block_size">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">block_size</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.block_size" title="Link to this definition">#</a></dt>
+<dd><p>Backward-compatible access to local-axis block spacing <code class="docutils literal notranslate"><span class="pre">(dx,</span> <span class="pre">dy,</span> <span class="pre">dz)</span></code>.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.corner">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">corner</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.corner" title="Link to this definition">#</a></dt>
+<dd><p>Backward-compatible access to local corner.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.create">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">create</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">corner</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">block_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(1.0,</span> <span class="pre">1.0,</span> <span class="pre">1.0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shape</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(1,</span> <span class="pre">1,</span> <span class="pre">1)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_u</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(1.0,</span> <span class="pre">0.0,</span> <span class="pre">0.0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_v</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.0,</span> <span class="pre">1.0,</span> <span class="pre">0.0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_w</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">(0.0,</span> <span class="pre">0.0,</span> <span class="pre">1.0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">srs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.create"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.create" title="Link to this definition">#</a></dt>
+<dd><p>Convenience factory for creating RegularGeometry with keyword arguments.</p>
+<p>This is the recommended way to construct geometries when you have
+individual parameters rather than pre-built LocalGeometry and WorldFrame.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>corner</strong> (<em>Point</em><em>, </em><em>optional</em>) – Local corner <code class="docutils literal notranslate"><span class="pre">(u₀,</span> <span class="pre">v₀,</span> <span class="pre">w₀)</span></code> of block
+<code class="docutils literal notranslate"><span class="pre">(i=0,</span> <span class="pre">j=0,</span> <span class="pre">k=0)</span></code>. Defaults to <code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">0,</span> <span class="pre">0)</span></code>.</p></li>
+<li><p><strong>block_size</strong> (<em>BlockSize</em><em>, </em><em>optional</em>) – Block dimensions <code class="docutils literal notranslate"><span class="pre">(dx,</span> <span class="pre">dy,</span> <span class="pre">dz)</span></code>
+along the local <code class="docutils literal notranslate"><span class="pre">i/j/k</span></code> (<code class="docutils literal notranslate"><span class="pre">u/v/w</span></code>) axes. Defaults to
+<code class="docutils literal notranslate"><span class="pre">(1,</span> <span class="pre">1,</span> <span class="pre">1)</span></code>.</p></li>
+<li><p><strong>shape</strong> (<em>Shape3D</em><em>, </em><em>optional</em>) – Number of blocks (nᵢ, nⱼ, nₖ). Defaults to (1, 1, 1).</p></li>
+<li><p><strong>axis_u</strong> (<em>Vector</em><em>, </em><em>optional</em>) – Orthonormal U-axis for world embedding. Defaults to (1, 0, 0).</p></li>
+<li><p><strong>axis_v</strong> (<em>Vector</em><em>, </em><em>optional</em>) – Orthonormal V-axis for world embedding. Defaults to (0, 1, 0).</p></li>
+<li><p><strong>axis_w</strong> (<em>Vector</em><em>, </em><em>optional</em>) – Orthonormal W-axis for world embedding. Defaults to (0, 0, 1).</p></li>
+<li><p><strong>srs</strong> (<em>str</em><em>, </em><em>optional</em>) – Spatial reference system identifier.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>New geometry instance.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry" title="parq_blockmodel.geometry.RegularGeometry">RegularGeometry</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.extents">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">extents</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.extents" title="Link to this definition">#</a></dt>
+<dd><p>Return the axis-aligned bounding box (xmin, xmax, ymin, ymax, zmin, zmax).</p>
+<p>For unrotated geometries this is derived directly from corner, block_size,
+and shape. For rotated geometries, we conservatively compute extents from
+the centroid cloud.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.from_attrs">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_attrs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">attrs</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'parq-blockmodel'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.from_attrs"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.from_attrs" title="Link to this definition">#</a></dt>
+<dd><p>Reconstruct geometry from a <code class="docutils literal notranslate"><span class="pre">DataFrame.attrs</span></code>-style mapping.</p>
+<p><code class="docutils literal notranslate"><span class="pre">attrs[key]</span></code> is expected to contain the dict produced by
+<a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.to_metadata_dict" title="parq_blockmodel.geometry.RegularGeometry.to_metadata_dict"><code class="xref py py-meth docutils literal notranslate"><span class="pre">to_metadata_dict()</span></code></a> (or a compatible future schema that
+<a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.from_metadata" title="parq_blockmodel.geometry.RegularGeometry.from_metadata"><code class="xref py py-meth docutils literal notranslate"><span class="pre">from_metadata()</span></code></a> can consume).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry" title="parq_blockmodel.geometry.RegularGeometry"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegularGeometry</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.from_metadata">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_metadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">meta</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.from_metadata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.from_metadata" title="Link to this definition">#</a></dt>
+<dd><p>Reconstruct geometry from stored metadata.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry" title="parq_blockmodel.geometry.RegularGeometry"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegularGeometry</span></code></a></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.from_multi_index">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_multi_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">index</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_azimuth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_dip</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_plunge</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.from_multi_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.from_multi_index" title="Link to this definition">#</a></dt>
+<dd><p>Infer geometry from an xyz centroid MultiIndex.</p>
+<p>Convenience constructor used by <code class="xref py py-meth docutils literal notranslate"><span class="pre">ParquetBlockModel.from_dataframe()</span></code>
+when no explicit geometry is provided. The index must have levels
+<code class="docutils literal notranslate"><span class="pre">(&quot;x&quot;,</span> <span class="pre">&quot;y&quot;,</span> <span class="pre">&quot;z&quot;)</span></code> in world coordinates.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>index</strong> (<em>pd.MultiIndex</em>) – Centroid coordinates with names <code class="docutils literal notranslate"><span class="pre">[&quot;x&quot;,</span> <span class="pre">&quot;y&quot;,</span> <span class="pre">&quot;z&quot;]</span></code>.</p></li>
+<li><p><strong>axis_azimuth</strong> (<em>float</em>) – Optional rotation angles (degrees) defining the orientation of
+the logical ijk axes in world space.</p></li>
+<li><p><strong>axis_dip</strong> (<em>float</em>) – Optional rotation angles (degrees) defining the orientation of
+the logical ijk axes in world space.</p></li>
+<li><p><strong>axis_plunge</strong> (<em>float</em>) – Optional rotation angles (degrees) defining the orientation of
+the logical ijk axes in world space.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry" title="parq_blockmodel.geometry.RegularGeometry">RegularGeometry</a></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.from_parquet">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_parquet</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filepath</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_azimuth</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_dip</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">axis_plunge</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0.0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000000</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.from_parquet"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.from_parquet" title="Link to this definition">#</a></dt>
+<dd><p>Reconstruct geometry from a Parquet file.</p>
+<p>Preferred path is to read geometry metadata from the Parquet
+key_value_metadata under the reserved key <code class="docutils literal notranslate"><span class="pre">&quot;parq-blockmodel&quot;</span></code>.
+If that key is missing, fall back to centroid-based inference
+using <code class="docutils literal notranslate"><span class="pre">x,</span> <span class="pre">y,</span> <span class="pre">z</span></code> columns and provided rotation angles.
+:rtype: <span class="sphinx_autodoc_typehints-type"><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry" title="parq_blockmodel.geometry.RegularGeometry"><code class="xref py py-class docutils literal notranslate"><span class="pre">RegularGeometry</span></code></a></span></p>
+<div class="admonition-todo admonition" id="id1">
+<p class="admonition-title">Todo</p>
+<p>Consider efficiency gains by staying in numpy versus using python sets.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.from_parquet_metadata">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_parquet_metadata</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">metadata</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'parq-blockmodel'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.from_parquet_metadata"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.from_parquet_metadata" title="Link to this definition">#</a></dt>
+<dd><p>Reconstruct geometry from Parquet file metadata.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>metadata</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-data docutils literal notranslate"><span class="pre">Any</span></code></span>) – Either a <code class="docutils literal notranslate"><span class="pre">pyarrow.parquet.FileMetaData</span></code> instance or a
+mapping of key-value metadata (usually <code class="docutils literal notranslate"><span class="pre">dict[str,</span> <span class="pre">str]</span></code>).</p></li>
+<li><p><strong>key</strong> (<span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">str</span></code></span>) – Metadata key under which the geometry payload is stored.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The reconstructed geometry.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry" title="parq_blockmodel.geometry.RegularGeometry">RegularGeometry</a></p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><ul class="simple">
+<li><p><strong>KeyError</strong> – If the key is not present in the provided metadata.</p></li>
+<li><p><strong>TypeError</strong> – If metadata is not a valid type.</p></li>
+<li><p><strong>ValueError</strong> – If the payload cannot be interpreted as valid geometry
+    metadata.</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.ijk_from_row_index">
+<span class="sig-name descname"><span class="pre">ijk_from_row_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rows</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.ijk_from_row_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.ijk_from_row_index" title="Link to this definition">#</a></dt>
+<dd><p>Convert row index/indices into (i, j, k) using <strong>C‑order</strong>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.ijk_from_xyz">
+<span class="sig-name descname"><span class="pre">ijk_from_xyz</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-06</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.ijk_from_xyz"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.ijk_from_xyz" title="Link to this definition">#</a></dt>
+<dd><p>Map world-space centroid coordinates to integer logical ijk indices.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.is_rotated">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_rotated</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">bool</span></em><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.is_rotated" title="Link to this definition">#</a></dt>
+<dd><p>Return True if axes differ from the identity orientation.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.origin">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">origin</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.origin" title="Link to this definition">#</a></dt>
+<dd><p>Backward-compatible access to world origin.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.row_index_from_ijk">
+<span class="sig-name descname"><span class="pre">row_index_from_ijk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">j</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.row_index_from_ijk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.row_index_from_ijk" title="Link to this definition">#</a></dt>
+<dd><p>Convert (i, j, k) into row index using <strong>C‑order</strong>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.row_index_from_xyz">
+<span class="sig-name descname"><span class="pre">row_index_from_xyz</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tol</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1e-06</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.row_index_from_xyz"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.row_index_from_xyz" title="Link to this definition">#</a></dt>
+<dd><p>Map world-space centroid coordinates directly to C-order row indices.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.shape">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">shape</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></em><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.shape" title="Link to this definition">#</a></dt>
+<dd><p>Backward-compatible access to grid shape.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.srs">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">srs</span></span><em class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></em><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.srs" title="Link to this definition">#</a></dt>
+<dd><p>Backward-compatible access to spatial reference system.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.to_dataframe">
+<span class="sig-name descname"><span class="pre">to_dataframe</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.to_dataframe"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.to_dataframe" title="Link to this definition">#</a></dt>
+<dd><p>Backward-compatible alias for <a class="reference internal" href="#parq_blockmodel.geometry.RegularGeometry.to_dataframe_xyz" title="parq_blockmodel.geometry.RegularGeometry.to_dataframe_xyz"><code class="xref py py-meth docutils literal notranslate"><span class="pre">to_dataframe_xyz()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.to_dataframe_xyz">
+<span class="sig-name descname"><span class="pre">to_dataframe_xyz</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.to_dataframe_xyz"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.to_dataframe_xyz" title="Link to this definition">#</a></dt>
+<dd><p>Return a DataFrame of XYZ centroids for export/inspection.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">DataFrame</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.to_metadata_dict">
+<span class="sig-name descname"><span class="pre">to_metadata_dict</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.to_metadata_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.to_metadata_dict" title="Link to this definition">#</a></dt>
+<dd><p>Serialize geometry metadata for Parquet storage.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">dict</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.to_multi_index_ijk">
+<span class="sig-name descname"><span class="pre">to_multi_index_ijk</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.to_multi_index_ijk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.to_multi_index_ijk" title="Link to this definition">#</a></dt>
+<dd><p>Export (i, j, k) indices as a MultiIndex in <strong>C‑order</strong>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">MultiIndex</span></code></span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.to_multi_index_xyz">
+<span class="sig-name descname"><span class="pre">to_multi_index_xyz</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.to_multi_index_xyz"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.to_multi_index_xyz" title="Link to this definition">#</a></dt>
+<dd><p>Return XYZ centroid coordinates as a MultiIndex.
+:rtype: <span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">MultiIndex</span></code></span></p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This MultiIndex preserves <strong>C‑order row layout</strong>.
+If you want lexicographic (‘x slowest, z fastest’), sort it
+explicitly:</p>
+<blockquote>
+<div><p>mi = geom.to_multi_index_xyz().sort_index()</p>
+</div></blockquote>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.to_pyvista">
+<span class="sig-name descname"><span class="pre">to_pyvista</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">frame</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'world'</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.to_pyvista"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.to_pyvista" title="Link to this definition">#</a></dt>
+<dd><p>Return a <code class="docutils literal notranslate"><span class="pre">pyvista.ImageData</span></code> representing the dense grid.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>frame</strong> (<em>str</em><em>, </em><em>optional</em>) – Coordinate frame used for the returned grid.
+- <code class="docutils literal notranslate"><span class="pre">&quot;world&quot;</span></code> (default): apply world orientation from <code class="docutils literal notranslate"><span class="pre">axis_u/v/w</span></code>.
+- <code class="docutils literal notranslate"><span class="pre">&quot;local&quot;</span></code>: return axis-aligned local grid (no rotation).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The grid representation.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>pyvista.ImageData</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In <code class="docutils literal notranslate"><span class="pre">&quot;world&quot;</span></code> mode, rotation is encoded using the ImageData
+direction matrix, so plotting reflects geometry orientation.</p>
+</div>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.xyz_from_ijk">
+<span class="sig-name descname"><span class="pre">xyz_from_ijk</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">i</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">j</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.xyz_from_ijk"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.xyz_from_ijk" title="Link to this definition">#</a></dt>
+<dd><p>Convert logical indices to world-space centroid coordinates.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.geometry.RegularGeometry.xyz_from_row_index">
+<span class="sig-name descname"><span class="pre">xyz_from_row_index</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">rows</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/geometry.html#RegularGeometry.xyz_from_row_index"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.geometry.RegularGeometry.xyz_from_row_index" title="Link to this definition">#</a></dt>
+<dd><p>Convert C-order row index/indices to world-space centroid coordinates.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p><span class="sphinx_autodoc_typehints-type"><code class="xref py py-class docutils literal notranslate"><span class="pre">tuple</span></code>[<code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>, <code class="xref py py-class docutils literal notranslate"><span class="pre">ndarray</span></code>]</span></p>
+</dd>
+</dl>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="parq_blockmodel.geometry.LocalGeometry.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">parq_blockmodel.geometry.LocalGeometry</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="parq_blockmodel.geometry.WorldFrame.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">parq_blockmodel.geometry.WorldFrame</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry"><code class="docutils literal notranslate"><span class="pre">RegularGeometry</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.local"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.local</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.world"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.world</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.schema_version"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.schema_version</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.world_id_encoding"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.world_id_encoding</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.__init__"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.__init__()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.axis_u"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.axis_u</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.axis_v"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.axis_v</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.axis_w"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.axis_w</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.block_size"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.block_size</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.corner"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.corner</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.create"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.create()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.extents"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.extents</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.from_attrs"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.from_attrs()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.from_metadata"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.from_metadata()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.from_multi_index"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.from_multi_index()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.from_parquet"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.from_parquet()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.from_parquet_metadata"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.from_parquet_metadata()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.ijk_from_row_index"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.ijk_from_row_index()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.ijk_from_xyz"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.ijk_from_xyz()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.is_rotated"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.is_rotated</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.origin"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.origin</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.row_index_from_ijk"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.row_index_from_ijk()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.row_index_from_xyz"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.row_index_from_xyz()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.shape"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.shape</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.srs"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.srs</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.to_dataframe"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.to_dataframe()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.to_dataframe_xyz"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.to_dataframe_xyz()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.to_metadata_dict"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.to_metadata_dict()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.to_multi_index_ijk"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.to_multi_index_ijk()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.to_multi_index_xyz"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.to_multi_index_xyz()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.to_pyvista"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.to_pyvista()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.xyz_from_ijk"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.xyz_from_ijk()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.geometry.RegularGeometry.xyz_from_row_index"><code class="docutils literal notranslate"><span class="pre">RegularGeometry.xyz_from_row_index()</span></code></a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Greg Elphick
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, Greg Elphick.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

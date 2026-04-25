@@ -1,0 +1,1361 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter &#8212; parq-blockmodel Documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../../_static/graphviz.css?v=fd3f3429" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../../_static/custom.css?v=e3499722" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/sg-tags.js?v=d80f6fa4"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'api/_autosummary/parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter';</script>
+    <link rel="icon" href="../../_static/parq-blockmodel.svg"/>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+    <link rel="next" title="parq_blockmodel.utils.pyvista.pyvista_utils" href="parq_blockmodel.utils.pyvista.pyvista_utils.html" />
+    <link rel="prev" title="parq_blockmodel.utils.pyvista.custom_plotter" href="parq_blockmodel.utils.pyvista.custom_plotter.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.1" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/parq-blockmodel.svg" class="logo__image only-light" alt=""/>
+    <img src="../../_static/parq-blockmodel.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">parq-blockmodel<br>(0.2.1)</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../usage/installation.html">Installation</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="simple">
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../usage/quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../user_guide.html">User Guide</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../user_guide/01_geometry.html">Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../user_guide/02_geometry_coordinates.html">Geometry and Coordinate Transformations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../user_guide/03_blockmodels.html">Block Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../user_guide/04_mesh_export.html">Mesh Module</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../auto_examples/index.html">Example Gallery</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/01_regular_geometry.html">Regular Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/02_rotated_geometry.html">Rotated Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/03_visualise_blockmodel.html">Block Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/04_rotated_blockmodel.html">Rotated Blockmodel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/05_heatmap.html">Heatmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/06_reblocking.html">Reblocking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/07_mesh_export.html">Mesh Export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/08_sparse_parquet_to_pbm.html">Dense and Sparse PBM from XYZ Parquet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../auto_examples/09_rotated_parquet_to_pbm.html">Rotated XYZ Parquet to PBM</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../todo.html">To Do</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../glossary/glossary.html">Glossary</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../modules.html">API Reference</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2 has-children"><a class="reference internal" href="parq_blockmodel.blockmodel.html">parq_blockmodel.blockmodel</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="parq_blockmodel.blockmodel.ParquetBlockModel.html">parq_blockmodel.blockmodel.ParquetBlockModel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="parq_blockmodel.geometry.html">parq_blockmodel.geometry</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="parq_blockmodel.geometry.LocalGeometry.html">parq_blockmodel.geometry.LocalGeometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parq_blockmodel.geometry.RegularGeometry.html">parq_blockmodel.geometry.RegularGeometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="parq_blockmodel.geometry.WorldFrame.html">parq_blockmodel.geometry.WorldFrame</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 current active has-children"><a class="reference internal" href="parq_blockmodel.utils.html">parq_blockmodel.utils</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.cicd.html">parq_blockmodel.utils.cicd</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.cicd.is_github_runner.html">parq_blockmodel.utils.cicd.is_github_runner</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.demo_block_model.html">parq_blockmodel.utils.demo_block_model</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade.html">parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.demo_block_model.create_demo_blockmodel.html">parq_blockmodel.utils.demo_block_model.create_demo_blockmodel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.demo_block_model.create_toy_blockmodel.html">parq_blockmodel.utils.demo_block_model.create_toy_blockmodel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.geometry_utils.html">parq_blockmodel.utils.geometry_utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.geometry_utils.angles_to_axes.html">parq_blockmodel.utils.geometry_utils.angles_to_axes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.geometry_utils.axes_to_angles.html">parq_blockmodel.utils.geometry_utils.axes_to_angles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex.html">parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.geometry_utils.rotate_points.html">parq_blockmodel.utils.geometry_utils.rotate_points</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal.html">parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.geometry_utils.validate_geometry.html">parq_blockmodel.utils.geometry_utils.validate_geometry</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.pandas.html">parq_blockmodel.utils.pandas</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.pandas.aggregate.html">parq_blockmodel.utils.pandas.aggregate</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.pandas_accessors.html">parq_blockmodel.utils.pandas_accessors</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor.html">parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.pandas_accessors.PyVistaAccessor.html">parq_blockmodel.utils.pandas_accessors.PyVistaAccessor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.plotly_scraper.html">parq_blockmodel.utils.plotly_scraper</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser.html">parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 current active has-children"><a class="reference internal" href="parq_blockmodel.utils.pyvista.html">parq_blockmodel.utils.pyvista</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.pyvista.categorical_utils.html">parq_blockmodel.utils.pyvista.categorical_utils</a></li>
+<li class="toctree-l4 current active"><a class="reference internal" href="parq_blockmodel.utils.pyvista.custom_plotter.html">parq_blockmodel.utils.pyvista.custom_plotter</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.pyvista.pyvista_utils.html">parq_blockmodel.utils.pyvista.pyvista_utils</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.html">parq_blockmodel.utils.spatial_encoding</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.decode_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.decode_world_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_world_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.encode_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.encode_world_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_world_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex.html">parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.get_id_encoding_params.html">parq_blockmodel.utils.spatial_encoding.get_id_encoding_params</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params.html">parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.is_integer.html">parq_blockmodel.utils.spatial_encoding.is_integer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index.html">parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="parq_blockmodel.utils.temporal.html">parq_blockmodel.utils.temporal</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.temporal.demo_data.html">parq_blockmodel.utils.temporal.demo_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="parq_blockmodel.utils.temporal.temporal_surfaces.html">parq_blockmodel.utils.temporal.temporal_surfaces</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../license/license.html">License</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="simple">
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Developer docs:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../design_ijk_metadata.html">Developer notes: geometry &amp; metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../developer_testing.html">Developer Testing Guide</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel/edit/main/docs/api/_autosummary/parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel/issues/new?title=Issue%20on%20page%20%2Fapi/_autosummary/parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../_sources/api/_autosummary/parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter"><code class="docutils literal notranslate"><span class="pre">CustomPlotter</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter.__init__"><code class="docutils literal notranslate"><span class="pre">CustomPlotter.__init__()</span></code></a></li>
+</ul>
+</li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="parq-blockmodel-utils-pyvista-custom-plotter-customplotter">
+<h1>parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter<a class="headerlink" href="#parq-blockmodel-utils-pyvista-custom-plotter-customplotter" title="Link to this heading">#</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">parq_blockmodel.utils.pyvista.custom_plotter.</span></span><span class="sig-name descname"><span class="pre">CustomPlotter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/utils/pyvista/custom_plotter.html#CustomPlotter"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter" title="Link to this definition">#</a></dt>
+<dd><p>A custom PyVista Plotter with Z-up enforcement, picking, and directional camera view.</p>
+<p class="rubric">Examples</p>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">grid</span> <span class="o">=</span> <span class="n">pv</span><span class="o">.</span><span class="n">ImageData</span><span class="p">(</span><span class="n">dimensions</span><span class="o">=</span><span class="p">(</span><span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">4</span><span class="p">),</span> <span class="n">spacing</span><span class="o">=</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">),</span> <span class="n">origin</span><span class="o">=</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">))</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">grid</span><span class="o">.</span><span class="n">cell_data</span><span class="p">[</span><span class="s2">&quot;block_id&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">arange</span><span class="p">(</span><span class="n">grid</span><span class="o">.</span><span class="n">n_cells</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt;</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">plotter</span> <span class="o">=</span> <span class="n">CustomPlotter</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">plotter</span><span class="o">.</span><span class="n">add_mesh</span><span class="p">(</span><span class="n">grid</span><span class="p">,</span> <span class="n">show_edges</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">plotter</span><span class="o">.</span><span class="n">set_directional_view</span><span class="p">(</span><span class="n">direction</span><span class="o">=</span><span class="s1">&#39;WSW&#39;</span><span class="p">,</span> <span class="n">elevation_deg</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">plotter</span><span class="o">.</span><span class="n">add_axes</span><span class="p">()</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">plotter</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/parq_blockmodel/utils/pyvista/custom_plotter.html#CustomPlotter.__init__"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter.__init__" title="Link to this definition">#</a></dt>
+<dd><p>Initialize a vtk plotting object.</p>
+</dd></dl>
+
+<p class="rubric">Methods</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><a class="reference internal" href="#parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter.__init__" title="parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter.__init__"><code class="xref py py-obj docutils literal notranslate"><span class="pre">__init__</span></code></a>(*args, **kwargs)</p></td>
+<td><p>Initialize a vtk plotting object.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_actor</span></code>(actor[, reset_camera, name, ...])</p></td>
+<td><p>Add an actor to render window.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_affine_transform_widget</span></code>(actor[, origin, ...])</p></td>
+<td><p>Add a 3D affine transform widget.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_arrows</span></code>(cent, direction[, mag])</p></td>
+<td><p>Add arrows to the plotter.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_axes</span></code>([interactive, line_width, color, ...])</p></td>
+<td><p>Add an interactive axes widget in the bottom left corner.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_axes_at_origin</span></code>([x_color, y_color, ...])</p></td>
+<td><p>Add axes actor at origin.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_background_image</span></code>(image_path[, scale, ...])</p></td>
+<td><p>Add a background image to a plot.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_blurring</span></code>()</p></td>
+<td><p>Add blurring.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_bounding_box</span></code>([color, corner_factor, ...])</p></td>
+<td><p>Add an unlabeled and unticked box at the boundaries of plot.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_box_axes</span></code>(*[, interactive, line_width, ...])</p></td>
+<td><p>Add an interactive color box axes widget in the bottom left corner.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_box_widget</span></code>(callback[, bounds, factor, ...])</p></td>
+<td><p>Add a box widget to the scene.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_camera3d_widget</span></code>()</p></td>
+<td><p>Add a camera3d widget allow to move the camera.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_camera_orientation_widget</span></code>([animate, ...])</p></td>
+<td><p>Add a camera orientation widget to the active renderer.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_chart</span></code>(chart, *charts)</p></td>
+<td><p>Add a chart to this renderer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_checkbox_button_widget</span></code>(callback[, ...])</p></td>
+<td><p>Add a checkbox button widget to the scene.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_composite</span></code>(dataset[, color, style, ...])</p></td>
+<td><p>Add a composite dataset to the plotter.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_cursor</span></code>([bounds, focal_point, color])</p></td>
+<td><p>Add a cursor of a PyVista or VTK dataset to the scene.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_floor</span></code>([face, i_resolution, ...])</p></td>
+<td><p>Show a floor mesh.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_key_event</span></code>(key, callback)</p></td>
+<td><p>Add a function to callback when the given key is pressed.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_legend</span></code>([labels, bcolor, border, size, ...])</p></td>
+<td><p>Add a legend to render window.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_legend_scale</span></code>([corner_offset_factor, ...])</p></td>
+<td><p>Annotate the render window with scale and distance information.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_light</span></code>(light[, only_active])</p></td>
+<td><p>Add a Light to the scene.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_line_widget</span></code>(callback[, bounds, factor, ...])</p></td>
+<td><p>Add a line widget to the scene.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_lines</span></code>(lines[, color, width, label, ...])</p></td>
+<td><p>Add lines to the plotting object.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_logo_widget</span></code>([logo, position, size, opacity])</p></td>
+<td><p>Add a logo widget to the top of the viewport.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_measurement_widget</span></code>([callback, color])</p></td>
+<td><p>Interactively measure distance with a distance widget.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_mesh</span></code>(mesh[, color, style, scalars, ...])</p></td>
+<td><p>Add any PyVista/VTK mesh or dataset that PyVista can wrap to the scene.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_mesh_clip_box</span></code>(mesh[, invert, ...])</p></td>
+<td><p>Clip a mesh using a box widget.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_mesh_clip_plane</span></code>(mesh[, normal, invert, ...])</p></td>
+<td><p>Clip a mesh using a plane widget.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_mesh_isovalue</span></code>(mesh[, scalars, ...])</p></td>
+<td><p>Create a contour of a mesh with a slider.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_mesh_slice</span></code>(mesh[, normal, ...])</p></td>
+<td><p>Slice a mesh using a plane widget.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_mesh_slice_orthogonal</span></code>(mesh[, ...])</p></td>
+<td><p>Slice a mesh with three interactive planes.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_mesh_slice_spline</span></code>(mesh[, ...])</p></td>
+<td><p>Slice a mesh with a spline widget.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_mesh_threshold</span></code>(mesh[, scalars, invert, ...])</p></td>
+<td><p>Apply a threshold on a mesh with a slider.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_north_arrow_widget</span></code>([interactive, color, ...])</p></td>
+<td><p>Add a geographic north arrow to the scene.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_on_render_callback</span></code>(callback[, render_event])</p></td>
+<td><p>Add a method to be called post-render.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_orientation_widget</span></code>(actor[, interactive, ...])</p></td>
+<td><p>Use the given actor in an orientation marker widget.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_plane_widget</span></code>(callback[, normal, origin, ...])</p></td>
+<td><p>Add a plane widget to the scene.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_point_labels</span></code>(points, labels[, italic, ...])</p></td>
+<td><p>Create a point actor with one label from list labels assigned to each point.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_point_scalar_labels</span></code>(points, labels[, ...])</p></td>
+<td><p>Label the points from a dataset with the values of their scalars.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_points</span></code>(points[, style])</p></td>
+<td><p>Add points to a mesh.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_radio_button_widget</span></code>(callback, ...[, ...])</p></td>
+<td><p>Add a radio button widget to the scene.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_ruler</span></code>(pointa, pointb[, flip_range, ...])</p></td>
+<td><p>Add ruler.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_scalar_bar</span></code>([title, mapper, n_labels, ...])</p></td>
+<td><p>Create scalar bar using the ranges as set by the last input mesh.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_silhouette</span></code>(mesh[, color, line_width, ...])</p></td>
+<td><p>Add a silhouette of a PyVista or VTK dataset to the scene.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_slider_widget</span></code>(callback, rng[, value, ...])</p></td>
+<td><p>Add a slider bar widget.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_sphere_widget</span></code>(callback[, center, ...])</p></td>
+<td><p>Add one or many sphere widgets to a scene.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_spline_widget</span></code>(callback[, bounds, ...])</p></td>
+<td><p>Create and add a spline widget to the scene.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_text</span></code>(text[, position, font_size, color, ...])</p></td>
+<td><p>Add text to plot object in the top left corner by default.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_text_slider_widget</span></code>(callback, data[, ...])</p></td>
+<td><p>Add a text slider bar widget.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_timer_event</span></code>(max_steps, duration, callback)</p></td>
+<td><p>Add a function to callback as timer event.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_title</span></code>(title[, font_size, color, font, ...])</p></td>
+<td><p>Add text to the top center of the plot.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_volume</span></code>(volume[, scalars, clim, ...])</p></td>
+<td><p>Add a volume, rendered using a smart mapper by default.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">add_volume_clip_plane</span></code>(volume[, normal, ...])</p></td>
+<td><p>Clip a volume using a plane widget.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear</span></code>()</p></td>
+<td><p>Clear plot by removing all actors and properties.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_actors</span></code>()</p></td>
+<td><p>Clear actors from all renderers.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_box_widgets</span></code>()</p></td>
+<td><p>Remove all of the box widgets.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_button_widgets</span></code>()</p></td>
+<td><p>Remove all of the button widgets.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_camera3d_widgets</span></code>()</p></td>
+<td><p>Remove all of the camera3d widgets.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_camera_widgets</span></code>()</p></td>
+<td><p>Remove all of the camera widgets.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_events_for_key</span></code>(key[, raise_on_missing])</p></td>
+<td><p>Remove the callbacks associated to the key.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_line_widgets</span></code>()</p></td>
+<td><p>Remove all of the line widgets.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_logo_widgets</span></code>()</p></td>
+<td><p>Remove all of the logo widgets.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_measure_widgets</span></code>()</p></td>
+<td><p>Remove all of the measurement widgets.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_on_render_callbacks</span></code>()</p></td>
+<td><p>Clear all callback methods previously registered with <code class="docutils literal notranslate"><span class="pre">render()</span></code>.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_plane_widgets</span></code>()</p></td>
+<td><p>Remove all of the plane widgets.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_radio_button_widgets</span></code>()</p></td>
+<td><p>Remove all of the radio button widgets.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_slider_widgets</span></code>()</p></td>
+<td><p>Remove all of the slider widgets.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_sphere_widgets</span></code>()</p></td>
+<td><p>Remove all of the sphere widgets.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">clear_spline_widgets</span></code>()</p></td>
+<td><p>Remove all of the spline widgets.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">close</span></code>()</p></td>
+<td><p>Close the render window.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_bounds</span></code>(*[, force_visibility, ...])</p></td>
+<td><p>Return the bounds of actors present in the renderer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">deep_clean</span></code>()</p></td>
+<td><p>Clean the plotter of the memory.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">disable</span></code>()</p></td>
+<td><p>Disable this renderer's camera from being interactive.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">disable_3_lights</span></code>()</p></td>
+<td><p>Please use <code class="docutils literal notranslate"><span class="pre">enable_lightkit</span></code>, this method has been deprecated.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">disable_anti_aliasing</span></code>([all_renderers])</p></td>
+<td><p>Disable anti-aliasing.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">disable_depth_of_field</span></code>()</p></td>
+<td><p>Disable depth of field plotting.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">disable_depth_peeling</span></code>()</p></td>
+<td><p>Disable depth peeling.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">disable_eye_dome_lighting</span></code>()</p></td>
+<td><p>Disable eye dome lighting (EDL).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">disable_hidden_line_removal</span></code>([all_renderers])</p></td>
+<td><p>Disable hidden line removal.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">disable_parallel_projection</span></code>()</p></td>
+<td><p>Reset the camera to use perspective projection.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">disable_picking</span></code>()</p></td>
+<td><p>Disable any active picking and remove observers.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">disable_shadows</span></code>()</p></td>
+<td><p>Disable shadows.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">disable_ssao</span></code>()</p></td>
+<td><p>Disable surface space ambient occlusion (SSAO).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">disable_stereo_render</span></code>()</p></td>
+<td><p>Disable anaglyph stereo rendering.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable</span></code>()</p></td>
+<td><p>Enable this renderer's camera to be interactive.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_2d_style</span></code>()</p></td>
+<td><p>Set the interactive style to 2D.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_3_lights</span></code>([only_active])</p></td>
+<td><p>Enable 3-lights illumination.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_anti_aliasing</span></code>([aa_type, ...])</p></td>
+<td><p>Enable anti-aliasing.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_block_picking</span></code>([callback, side])</p></td>
+<td><p>Enable composite block picking.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_cell_picking</span></code>([callback, through, ...])</p></td>
+<td><p>Enable picking of cells with a rectangle selection tool.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_custom_trackball_style</span></code>([left, ...])</p></td>
+<td><p>Set the interactive style to a custom style based on Trackball Camera.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_depth_of_field</span></code>([automatic_focal_distance])</p></td>
+<td><p>Enable depth of field plotting.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_depth_peeling</span></code>([number_of_peels, ...])</p></td>
+<td><p>Enable depth peeling to improve rendering of translucent geometry.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_element_picking</span></code>([callback, mode, ...])</p></td>
+<td><p>Select individual elements on a mesh.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_eye_dome_lighting</span></code>()</p></td>
+<td><p>Enable eye dome lighting (EDL).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_fly_to_right_click</span></code>([callback])</p></td>
+<td><p>Set the camera to track right click positions.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_general_picking</span></code>()</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_geodesic_picking</span></code>([callback, ...])</p></td>
+<td><p>Enable picking at geodesic paths.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_hidden_line_removal</span></code>([all_renderers])</p></td>
+<td><p>Enable hidden line removal.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_horizon_picking</span></code>([callback, normal, ...])</p></td>
+<td><p>Enable horizon picking.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_image_style</span></code>()</p></td>
+<td><p>Set the interactive style to Image.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_joystick_actor_style</span></code>()</p></td>
+<td><p>Set the interactive style to Joystick Actor.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_joystick_style</span></code>()</p></td>
+<td><p>Set the interactive style to Joystick Camera.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_lightkit</span></code>([only_active])</p></td>
+<td><p>Enable the default light-kit lighting.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_mesh_picking</span></code>([callback, show, ...])</p></td>
+<td><p>Enable picking of a mesh.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_parallel_projection</span></code>()</p></td>
+<td><p>Enable parallel projection.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_path_picking</span></code>([callback, ...])</p></td>
+<td><p>Enable picking at paths.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_point_picking</span></code>([callback, tolerance, ...])</p></td>
+<td><p>Enable picking at points under the cursor.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_rectangle_picking</span></code>([callback, ...])</p></td>
+<td><p>Enable rectangle based picking at cells.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_rectangle_through_picking</span></code>([callback, ...])</p></td>
+<td><p>Enable rectangle based cell picking through the scene.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_rectangle_visible_picking</span></code>([callback, ...])</p></td>
+<td><p>Enable rectangle based cell picking on visible surfaces.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_rubber_band_2d_style</span></code>()</p></td>
+<td><p>Set the interactive style to Rubber Band 2D.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_rubber_band_style</span></code>()</p></td>
+<td><p>Set the interactive style to Rubber Band Picking.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_shadows</span></code>()</p></td>
+<td><p>Enable shadows.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_ssao</span></code>([radius, bias, kernel_size, blur])</p></td>
+<td><p>Enable surface space ambient occlusion (SSAO).</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_stereo_render</span></code>()</p></td>
+<td><p>Enable anaglyph stereo rendering.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_surface_point_picking</span></code>([callback, ...])</p></td>
+<td><p>Enable picking of a point on the surface of a mesh.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_terrain_style</span></code>([mouse_wheel_zooms, ...])</p></td>
+<td><p>Set the interactive style to Terrain.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_trackball_actor_style</span></code>()</p></td>
+<td><p>Set the interactive style to Trackball Actor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_trackball_style</span></code>()</p></td>
+<td><p>Set the interactive style to Trackball Camera.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">enable_zoom_style</span></code>()</p></td>
+<td><p>Set the interactive style to Rubber Band Zoom.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_gltf</span></code>(filename[, inline_data, ...])</p></td>
+<td><p>Export the current rendering scene as a glTF file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_html</span></code>(filename)</p></td>
+<td><p>Export this plotter as an interactive scene to a HTML file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_obj</span></code>(filename)</p></td>
+<td><p>Export scene to OBJ format.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_vrml</span></code>(filename)</p></td>
+<td><p>Export the current rendering scene as a VRML file.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">export_vtksz</span></code>([filename, format])</p></td>
+<td><p>Export this plotter as a VTK.js OfflineLocalView file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">fly_to</span></code>(point)</p></td>
+<td><p>Move the current camera's focal point to a position point.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">fly_to_mouse_position</span></code>([focus])</p></td>
+<td><p>Focus on last stored mouse position.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">generate_orbital_path</span></code>([factor, n_points, ...])</p></td>
+<td><p>Generate an orbital path around the data scene.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_default_cam_pos</span></code>([negative])</p></td>
+<td><p>Return the default focal points and viewup.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_image_depth</span></code>([fill_value, ...])</p></td>
+<td><p>Return a depth image representing current render window.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_pick_position</span></code>()</p></td>
+<td><p>Get the pick position or area.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">hide_axes</span></code>()</p></td>
+<td><p>Hide the axes orientation widget.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">hide_axes_all</span></code>()</p></td>
+<td><p>Hide the axes orientation widget in all renderers.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">image_scale_context</span></code>([scale])</p></td>
+<td><p>Set the image scale in an isolated context.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">import_3ds</span></code>(filename)</p></td>
+<td><p>Import a 3DS file into the plotter.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">import_gltf</span></code>(filename[, set_camera])</p></td>
+<td><p>Import a glTF file into the plotter.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">import_obj</span></code>(filename[, filename_mtl])</p></td>
+<td><p>Import from .obj wavefront files.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">import_vrml</span></code>(filename)</p></td>
+<td><p>Import a VRML file into the plotter.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">increment_point_size_and_line_width</span></code>(increment)</p></td>
+<td><p>Increment point size and line width of all actors.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">isometric_view</span></code>()</p></td>
+<td><p>Reset the camera to a default isometric view.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">isometric_view_interactive</span></code>()</p></td>
+<td><p>Set the current interactive render window to isometric view.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">key_press_event</span></code>(*args)</p></td>
+<td><p>Listen for key press event.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">left_button_down</span></code>(*args)</p></td>
+<td><p>Register the event for a left button down click.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">link_views</span></code>([views])</p></td>
+<td><p>Link the views' cameras.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">open_gif</span></code>(filename[, loop, fps, palettesize, ...])</p></td>
+<td><p>Open a gif file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">open_movie</span></code>(filename[, framerate, quality])</p></td>
+<td><p>Establish a connection to the ffmpeg writer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">orbit_on_path</span></code>([path, focus, step, viewup, ...])</p></td>
+<td><p>Orbit on the given path focusing on the focus point.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">pick_click_position</span></code>()</p></td>
+<td><p>Get corresponding click location in the 3D plot.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">pick_mouse_position</span></code>()</p></td>
+<td><p>Get corresponding mouse location in the 3D plot.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_actor</span></code>(actor[, reset_camera, render])</p></td>
+<td><p>Remove an actor from the Renderer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_all_lights</span></code>([only_active])</p></td>
+<td><p>Remove all lights from the scene.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_background_image</span></code>()</p></td>
+<td><p>Remove the background image at the current renderer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_blurring</span></code>()</p></td>
+<td><p>Remove a single blurring pass.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_bounding_box</span></code>([render])</p></td>
+<td><p>Remove bounding box.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_bounds_axes</span></code>()</p></td>
+<td><p>Remove bounds axes.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_chart</span></code>(chart_or_index)</p></td>
+<td><p>Remove a chart from this renderer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_environment_texture</span></code>()</p></td>
+<td><p>Remove the environment texture.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_floors</span></code>([clear_kwargs, render])</p></td>
+<td><p>Remove all floor actors.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_legend</span></code>([render])</p></td>
+<td><p>Remove the legend actor.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">remove_scalar_bar</span></code>([title, render])</p></td>
+<td><p>Remove a scalar bar.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">render</span></code>()</p></td>
+<td><p>Render the main window.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">reset_camera</span></code>([render, bounds])</p></td>
+<td><p>Reset the camera of the active render window.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">reset_camera_clipping_range</span></code>()</p></td>
+<td><p>Reset camera clipping planes.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">reset_key_events</span></code>()</p></td>
+<td><p>Reset all of the key press events to their defaults.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">save_graphic</span></code>(filename[, title, raster, painter])</p></td>
+<td><p>Save a screenshot of the rendering window as a graphic file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">screenshot</span></code>([filename, ...])</p></td>
+<td><p>Take screenshot at current camera position.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_background</span></code>(color[, top, right, side, ...])</p></td>
+<td><p>Set the background color.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_chart_interaction</span></code>(interactive[, toggle])</p></td>
+<td><p>Set or toggle interaction with charts for the active renderer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_color_cycler</span></code>(color_cycler[, all_renderers])</p></td>
+<td><p>Set or reset the color cycler.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_directional_view</span></code>([direction, ...])</p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_environment_texture</span></code>(texture[, is_srgb, ...])</p></td>
+<td><p>Set the environment texture used for image based lighting.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_focus</span></code>(point)</p></td>
+<td><p>Set focus to a point.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_position</span></code>(point[, reset, render])</p></td>
+<td><p>Set camera position to a point.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_scale</span></code>([xscale, yscale, zscale, ...])</p></td>
+<td><p>Scale all the actors in the scene.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">set_viewup</span></code>(vector[, reset, render])</p></td>
+<td><p>Set camera viewup vector.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">show</span></code>([title, window_size, interactive, ...])</p></td>
+<td><p>Display the plotting window.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">show_axes</span></code>()</p></td>
+<td><p>Show the axes orientation widget.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">show_axes_all</span></code>()</p></td>
+<td><p>Show the axes orientation widget in all renderers.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">show_bounds</span></code>([mesh, bounds, axes_ranges, ...])</p></td>
+<td><p>Add bounds axes.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">show_grid</span></code>(**kwargs)</p></td>
+<td><p>Show grid lines and bounds axes labels.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">store_click_position</span></code>(*args)</p></td>
+<td><p>Store click position in viewport coordinates.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">store_mouse_position</span></code>(*args)</p></td>
+<td><p>Store mouse position.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">subplot</span></code>(index_row[, index_column])</p></td>
+<td><p>Set the active subplot.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">track_click_position</span></code>([callback, side, ...])</p></td>
+<td><p>Keep track of the click position.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">track_mouse_position</span></code>()</p></td>
+<td><p>Keep track of the mouse position.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">unlink_views</span></code>([views])</p></td>
+<td><p>Unlink the views' cameras.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">untrack_click_position</span></code>([side])</p></td>
+<td><p>Stop tracking the click position.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">untrack_mouse_position</span></code>()</p></td>
+<td><p>Stop tracking the mouse position.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">update</span></code>([stime, force_redraw])</p></td>
+<td><p>Update window, redraw, process messages query.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_bounds_axes</span></code>()</p></td>
+<td><p>Update the bounds axes of the render window.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_scalar_bar_range</span></code>(clim[, name])</p></td>
+<td><p>Update the value range of the active or named scalar bar.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">update_scalars</span></code>(scalars[, mesh, render])</p></td>
+<td><p>Update scalars of an object in the plotter.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">view_isometric</span></code>([negative, render, bounds])</p></td>
+<td><p>Reset the camera to a default isometric view.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">view_vector</span></code>(vector[, viewup, render, bounds])</p></td>
+<td><p>Point the camera in the direction of the given vector.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">view_xy</span></code>([negative, render, bounds])</p></td>
+<td><p>View the XY plane.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">view_xz</span></code>([negative, render, bounds])</p></td>
+<td><p>View the XZ plane.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">view_yx</span></code>([negative, render, bounds])</p></td>
+<td><p>View the YX plane.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">view_yz</span></code>([negative, render, bounds])</p></td>
+<td><p>View the YZ plane.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">view_zx</span></code>([negative, render, bounds])</p></td>
+<td><p>View the ZX plane.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">view_zy</span></code>([negative, render, bounds])</p></td>
+<td><p>View the ZY plane.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">where_is</span></code>(name)</p></td>
+<td><p>Return the subplot coordinates of a given actor.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">window_size_context</span></code>([window_size])</p></td>
+<td><p>Set the render window size in an isolated context.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_frame</span></code>()</p></td>
+<td><p>Write a single frame to the movie file.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">zoom_camera</span></code>(value)</p></td>
+<td><p>Zoom of the camera and render.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p class="rubric">Attributes</p>
+<div class="pst-scrollable-table-container"><table class="autosummary longtable table autosummary">
+<tbody>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">HELP_TEXT_NAME</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">HOTKEYS</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">actors</span></code></p></td>
+<td><p>Return the actors of the active renderer.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">background_color</span></code></p></td>
+<td><p>Return the background color of the active render window.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">bounds</span></code></p></td>
+<td><p>Return the bounds of all VISIBLE actors present in the active rendering window.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">bounds_size</span></code></p></td>
+<td><p>Return the size of each axis of the object's bounding box.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">camera</span></code></p></td>
+<td><p>Return the active camera of the active renderer.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">camera_position</span></code></p></td>
+<td><p>Set or return the camera position of the active render window.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">camera_set</span></code></p></td>
+<td><p>Return or set if the camera of the active renderer has been set.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">center</span></code></p></td>
+<td><p>Return the center of the active renderer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">click_position</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">image</span></code></p></td>
+<td><p>Return an image array of current render window.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">image_depth</span></code></p></td>
+<td><p>Return a depth image representing current render window.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">image_scale</span></code></p></td>
+<td><p>Get or set the scale factor when saving a screenshot.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">last_update_time</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">legend</span></code></p></td>
+<td><p>Legend actor.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">length</span></code></p></td>
+<td><p>Return the length of the diagonal of the bounding box of the scene.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">meshes</span></code></p></td>
+<td><p>Return plotter meshes.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">mouse_position</span></code></p></td>
+<td><p></p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">parallel_projection</span></code></p></td>
+<td><p>Return or set parallel projection state of active render window.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">parallel_scale</span></code></p></td>
+<td><p>Return or set parallel scale of active render window.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">pickable_actors</span></code></p></td>
+<td><p>Return or set the pickable actors.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">picked_actor</span></code></p></td>
+<td><p>Return the picked mesh.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">picked_block_index</span></code></p></td>
+<td><p>Return the picked block index.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">picked_cell</span></code></p></td>
+<td><p>Return the cell-picked object.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">picked_cells</span></code></p></td>
+<td><p>Return the cell-picked object.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">picked_mesh</span></code></p></td>
+<td><p>Return the picked mesh.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">picked_point</span></code></p></td>
+<td><p>Return the picked point.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">render_window</span></code></p></td>
+<td><p>Access the <a href="#id1"><span class="problematic" id="id2">:vtk:`vtkRenderWindow`</span></a> attached to this plotter.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">renderer</span></code></p></td>
+<td><p>Return the active renderer.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">scalar_bar</span></code></p></td>
+<td><p>First scalar bar (kept for backwards compatibility).</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">scalar_bars</span></code></p></td>
+<td><p>Scalar bars.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">scale</span></code></p></td>
+<td><p>Return the scaling of the active renderer.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">shape</span></code></p></td>
+<td><p>Return the shape of the plotter.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">suppress_rendering</span></code></p></td>
+<td><p>Get or set whether to suppress render calls.</p></td>
+</tr>
+<tr class="row-even"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">theme</span></code></p></td>
+<td><p>Return or set the theme used for this plotter.</p></td>
+</tr>
+<tr class="row-odd"><td><p><code class="xref py py-obj docutils literal notranslate"><span class="pre">window_size</span></code></p></td>
+<td><p>Return the render window size in <code class="docutils literal notranslate"><span class="pre">(width,</span> <span class="pre">height)</span></code>.</p></td>
+</tr>
+</tbody>
+</table>
+</div>
+</dd></dl>
+
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="parq_blockmodel.utils.pyvista.custom_plotter.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">parq_blockmodel.utils.pyvista.custom_plotter</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="parq_blockmodel.utils.pyvista.pyvista_utils.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">parq_blockmodel.utils.pyvista.pyvista_utils</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter"><code class="docutils literal notranslate"><span class="pre">CustomPlotter</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#parq_blockmodel.utils.pyvista.custom_plotter.CustomPlotter.__init__"><code class="docutils literal notranslate"><span class="pre">CustomPlotter.__init__()</span></code></a></li>
+</ul>
+</li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Greg Elphick
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, Greg Elphick.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

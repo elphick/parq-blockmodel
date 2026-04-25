@@ -1,0 +1,987 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Geometry and Coordinate Transformations &#8212; parq-blockmodel Documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=fd3f3429" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=e3499722" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script async="async" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'user_guide/02_geometry_coordinates';</script>
+    <link rel="icon" href="../_static/parq-blockmodel.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Block Models" href="03_blockmodels.html" />
+    <link rel="prev" title="Geometry" href="01_geometry.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.2.1" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/parq-blockmodel.svg" class="logo__image only-light" alt=""/>
+    <img src="../_static/parq-blockmodel.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">parq-blockmodel<br>(0.2.1)</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../usage/installation.html">Installation</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="simple">
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../user_guide.html">User Guide</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="01_geometry.html">Geometry</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Geometry and Coordinate Transformations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_blockmodels.html">Block Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_mesh_export.html">Mesh Module</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../auto_examples/index.html">Example Gallery</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/01_regular_geometry.html">Regular Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/02_rotated_geometry.html">Rotated Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/03_visualise_blockmodel.html">Block Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/04_rotated_blockmodel.html">Rotated Blockmodel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/05_heatmap.html">Heatmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/06_reblocking.html">Reblocking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/07_mesh_export.html">Mesh Export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/08_sparse_parquet_to_pbm.html">Dense and Sparse PBM from XYZ Parquet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/09_rotated_parquet_to_pbm.html">Rotated XYZ Parquet to PBM</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../todo.html">To Do</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../glossary/glossary.html">Glossary</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api/modules.html">API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.blockmodel.html">parq_blockmodel.blockmodel</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html">parq_blockmodel.blockmodel.ParquetBlockModel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.html">parq_blockmodel.geometry</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.LocalGeometry.html">parq_blockmodel.geometry.LocalGeometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html">parq_blockmodel.geometry.RegularGeometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.WorldFrame.html">parq_blockmodel.geometry.WorldFrame</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.html">parq_blockmodel.utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.cicd.html">parq_blockmodel.utils.cicd</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.cicd.is_github_runner.html">parq_blockmodel.utils.cicd.is_github_runner</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.demo_block_model.html">parq_blockmodel.utils.demo_block_model</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade.html">parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.demo_block_model.create_demo_blockmodel.html">parq_blockmodel.utils.demo_block_model.create_demo_blockmodel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.demo_block_model.create_toy_blockmodel.html">parq_blockmodel.utils.demo_block_model.create_toy_blockmodel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.html">parq_blockmodel.utils.geometry_utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.angles_to_axes.html">parq_blockmodel.utils.geometry_utils.angles_to_axes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.axes_to_angles.html">parq_blockmodel.utils.geometry_utils.axes_to_angles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex.html">parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.rotate_points.html">parq_blockmodel.utils.geometry_utils.rotate_points</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal.html">parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.validate_geometry.html">parq_blockmodel.utils.geometry_utils.validate_geometry</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pandas.html">parq_blockmodel.utils.pandas</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pandas.aggregate.html">parq_blockmodel.utils.pandas.aggregate</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pandas_accessors.html">parq_blockmodel.utils.pandas_accessors</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor.html">parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pandas_accessors.PyVistaAccessor.html">parq_blockmodel.utils.pandas_accessors.PyVistaAccessor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.plotly_scraper.html">parq_blockmodel.utils.plotly_scraper</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser.html">parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pyvista.html">parq_blockmodel.utils.pyvista</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pyvista.categorical_utils.html">parq_blockmodel.utils.pyvista.categorical_utils</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pyvista.custom_plotter.html">parq_blockmodel.utils.pyvista.custom_plotter</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pyvista.pyvista_utils.html">parq_blockmodel.utils.pyvista.pyvista_utils</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.html">parq_blockmodel.utils.spatial_encoding</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.decode_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.decode_world_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_world_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.encode_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.encode_world_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_world_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex.html">parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.get_id_encoding_params.html">parq_blockmodel.utils.spatial_encoding.get_id_encoding_params</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params.html">parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.is_integer.html">parq_blockmodel.utils.spatial_encoding.is_integer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index.html">parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.temporal.html">parq_blockmodel.utils.temporal</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.temporal.demo_data.html">parq_blockmodel.utils.temporal.demo_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.temporal.temporal_surfaces.html">parq_blockmodel.utils.temporal.temporal_surfaces</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../license/license.html">License</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="simple">
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Developer docs:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../design_ijk_metadata.html">Developer notes: geometry &amp; metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer_testing.html">Developer Testing Guide</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel/edit/main/docs/user_guide/02_geometry_coordinates.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel/issues/new?title=Issue%20on%20page%20%2Fuser_guide/02_geometry_coordinates.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/user_guide/02_geometry_coordinates.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Geometry and Coordinate Transformations</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#overview">Overview</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#geometry-definition">Geometry Definition</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#logical-indices-i-j-k">Logical Indices (i, j, k)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#local-coordinates">Local Coordinates</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#axis-orientation-and-rotation">Axis Orientation and Rotation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cross-model-world-id-use-case">Cross-model <code class="docutils literal notranslate"><span class="pre">world_id</span></code> use case</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#decode-world-id-from-a-dataframe-no-parquetblockmodel">Decode <code class="docutils literal notranslate"><span class="pre">world_id</span></code> from a DataFrame (no <code class="docutils literal notranslate"><span class="pre">ParquetBlockModel</span></code>)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conversion-apis">Conversion APIs</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#metadata-storage">Metadata Storage</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">Examples</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">See Also</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="geometry-and-coordinate-transformations">
+<span id="geometry-coordinates"></span><h1>Geometry and Coordinate Transformations<a class="headerlink" href="#geometry-and-coordinate-transformations" title="Link to this heading">#</a></h1>
+<section id="overview">
+<h2>Overview<a class="headerlink" href="#overview" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">parq-blockmodel</span></code> uses a precise metadata-driven geometry model to define block model layout.
+All spatial coordinates are derived from:</p>
+<ol class="arabic simple">
+<li><p><strong>Geometry metadata</strong> (stored in Parquet key-value metadata)</p></li>
+<li><p><strong>Logical indices</strong> (i, j, k) using canonical C-order</p></li>
+<li><p><strong>Axis orientation</strong> (rotation transformation to world space)</p></li>
+</ol>
+<p>The diagram below illustrates the complete flow from geometry definition to world coordinates:</p>
+<figure class="align-center" id="id1">
+digraph G {
+    rankdir=TD;
+    newrank=true;
+    splines=ortho;
+    node [shape=box, style=rounded, fontname=Arial];
+    edge [fontname=Arial, fontsize=9];
+    // Input layer
+    subgraph cluster_input {
+        label=&quot;Local Geometry Definition&quot;;
+        style=filled;
+        color=lightgrey;
+        corner [label=&quot;corner
+(i₀, j₀, k₀)&quot;, style=&quot;rounded,filled&quot;, fillcolor=lightblue];
+        blocksize [label=&quot;block_size
+(dx, dy, dz)&quot;, style=&quot;rounded,filled&quot;, fillcolor=lightblue];
+        shape [label=&quot;shape
+(nᵢ, nⱼ, nₖ)&quot;, style=&quot;rounded,filled&quot;, fillcolor=lightblue];
+    }
+    // Logical indices layer
+    subgraph cluster_logical {
+        label=&quot;Logical Indices (Canonical C-order)&quot;;
+        style=filled;
+        color=lightyellow;
+        ijk [label=&quot;(i, j, k)
+0 ≤ i &lt; nᵢ
+0 ≤ j &lt; nⱼ
+0 ≤ k &lt; nₖ&quot;, style=&quot;rounded,filled&quot;, fillcolor=lightyellow];
+        rowindex [label=&quot;Flat Row Index (block_id)
+r = i + nᵢ(j + nⱼ·k)&quot;, style=&quot;rounded,filled&quot;, fillcolor=lightyellow];
+    }
+    // Local coordinate layer
+    subgraph cluster_local {
+        label=&quot;Local Coordinates&quot;;
+        style=filled;
+        color=lightgreen;
+        local [label=&quot;Local Grid Position
+u = u₀ + (i + 0.5)·dx
+v = v₀ + (j + 0.5)·dy
+w = w₀ + (k + 0.5)·dz&quot;, style=&quot;rounded,filled&quot;, fillcolor=lightgreen];
+    }
+    // World frame definition layer
+    subgraph cluster_worldframe {
+        label=&quot;World Frame Definition&quot;;
+        style=filled;
+        color=lightcyan;
+        origin [label=&quot;origin
+(x₀, y₀, z₀)&quot;, style=&quot;rounded,filled&quot;, fillcolor=azure];
+        axes [label=&quot;Axis Vectors
+axis_u, axis_v, axis_w&quot;, style=&quot;rounded,filled&quot;, fillcolor=lightcyan];
+    }
+    // Transformation layer
+    subgraph cluster_transform {
+        label=&quot;Axis Transformation&quot;;
+        style=filled;
+        color=lightpink;
+        rotation [label=&quot;Rotation Matrix R
+R = [axis_u | axis_v | axis_w]ᵀ
+R⁻¹ = Rᵀ (orthonormal)&quot;, style=&quot;rounded,filled&quot;, fillcolor=lightsalmon];
+    }
+    // World coordinates layer
+    subgraph cluster_world {
+        label=&quot;World Coordinates&quot;;
+        style=filled;
+        color=lavender;
+        world [label=&quot;(x, y, z)\ncentroid positions\nin world space\n\nworld = origin + R &#64; local&quot;, style=&quot;rounded,filled&quot;, fillcolor=lavender];
+        world_id [label=&quot;world_id = encode_coordinates(x, y, z)\nstable 64-bit positional identifier&quot;, style=&quot;rounded,dashed,filled&quot;, fillcolor=aliceblue];
+    }
+    // Edges - Input to Logical
+    corner -&gt; ijk [label=&quot;define grid&quot;];
+    blocksize -&gt; ijk [label=&quot;cell size&quot;];
+    shape -&gt; ijk [label=&quot;bounds&quot;];
+    ijk -&gt; rowindex [label=&quot;flatten
+C-order&quot;];
+    // Edges - Logical to Local
+    ijk -&gt; local [label=&quot;apply
+offsets&quot;];
+    blocksize -&gt; local [label=&quot;scale&quot;];
+    corner -&gt; local [label=&quot;translate&quot;];
+    // Edges - Local to World
+    local -&gt; rotation [label=&quot;rotate local frame&quot;];
+    axes -&gt; rotation [label=&quot;define
+orientation&quot;, constraint=false];
+    origin -&gt; world [label=&quot;translate&quot;, constraint=false];
+    rotation -&gt; world [label=&quot;R &#64; local&quot;];
+    world -&gt; world_id [style=dashed, label=&quot;optional&quot;, constraint=false];
+    // Inverse transformations (dashed)
+    world -&gt; rotation [style=dashed, label=&quot;R⁻¹ (inverse)&quot;];
+    rotation -&gt; local [style=dashed];
+    local -&gt; ijk [style=dashed];
+
+    // Layout helpers – keep world frame left of transform
+    {rank=same; corner; blocksize; shape}
+    {rank=same; ijk; rowindex}
+    {rank=same; local}
+    {rank=same; origin; axes}
+    {rank=same; world; world_id}
+}
+<figcaption>
+<p><span class="caption-text">Geometry metadata → Logical indices (i,j,k) → Local coordinates → Rotation → World coordinates (x,y,z)</span><a class="headerlink" href="#id1" title="Link to this image">#</a></p>
+</figcaption>
+</figure>
+</section>
+<section id="geometry-definition">
+<h2>Geometry Definition<a class="headerlink" href="#geometry-definition" title="Link to this heading">#</a></h2>
+<p>The <a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry" title="parq_blockmodel.geometry.RegularGeometry"><code class="xref py py-class docutils literal notranslate"><span class="pre">parq_blockmodel.geometry.RegularGeometry</span></code></a> class encapsulates all geometry metadata
+by combining two internal components:</p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.LocalGeometry.html#parq_blockmodel.geometry.LocalGeometry" title="parq_blockmodel.geometry.LocalGeometry"><code class="xref py py-class docutils literal notranslate"><span class="pre">parq_blockmodel.geometry.LocalGeometry</span></code></a>: Handles logical (i, j, k) indexing and local
+grid positioning without rotation or CRS.</p></li>
+<li><p><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.WorldFrame.html#parq_blockmodel.geometry.WorldFrame" title="parq_blockmodel.geometry.WorldFrame"><code class="xref py py-class docutils literal notranslate"><span class="pre">parq_blockmodel.geometry.WorldFrame</span></code></a>: Handles world embedding, axis orientation, and
+coordinate transformations with optional spatial reference system (CRS).</p></li>
+</ul>
+<p>Together, they define all block model geometry. The public API exposes only <code class="docutils literal notranslate"><span class="pre">RegularGeometry</span></code>;
+the internal split is transparent for most use cases.</p>
+<p>Key metadata fields:</p>
+<dl>
+<dt><strong>corner</strong> <code class="docutils literal notranslate"><span class="pre">(u₀,</span> <span class="pre">v₀,</span> <span class="pre">w₀)</span></code></dt><dd><p>The local-space position of the (i=0, j=0, k=0) block corner (managed by <code class="docutils literal notranslate"><span class="pre">LocalGeometry</span></code>).</p>
+</dd>
+<dt><strong>origin</strong> <code class="docutils literal notranslate"><span class="pre">(x₀,</span> <span class="pre">y₀,</span> <span class="pre">z₀)</span></code></dt><dd><p>The world-space position of local coordinate <code class="docutils literal notranslate"><span class="pre">(0,</span> <span class="pre">0,</span> <span class="pre">0)</span></code> (managed by <code class="docutils literal notranslate"><span class="pre">WorldFrame</span></code>).</p>
+</dd>
+<dt><strong>block_size</strong> <code class="docutils literal notranslate"><span class="pre">(dx,</span> <span class="pre">dy,</span> <span class="pre">dz)</span></code></dt><dd><p>The size of each block along the logical/local axes. The public tuple is written as
+<code class="docutils literal notranslate"><span class="pre">(dx,</span> <span class="pre">dy,</span> <span class="pre">dz)</span></code>, but for rotated geometries these are spacings along local
+<code class="docutils literal notranslate"><span class="pre">i/j/k</span></code> (equivalently <code class="docutils literal notranslate"><span class="pre">u/v/w</span></code>), not fixed world X/Y/Z dimensions
+(managed by <code class="docutils literal notranslate"><span class="pre">LocalGeometry</span></code>).</p>
+</dd>
+<dt><strong>shape</strong> <code class="docutils literal notranslate"><span class="pre">(nᵢ,</span> <span class="pre">nⱼ,</span> <span class="pre">nₖ)</span></code></dt><dd><p>The number of blocks along each logical axis (managed by <code class="docutils literal notranslate"><span class="pre">LocalGeometry</span></code>).</p>
+</dd>
+<dt><strong>axis_u, axis_v, axis_w</strong></dt><dd><p>Orthonormal basis vectors that define the orientation of the logical axes in world space
+(managed by <code class="docutils literal notranslate"><span class="pre">WorldFrame</span></code>).</p>
+<p>Default (unrotated):</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">axis_u</span> <span class="pre">=</span> <span class="pre">(1,</span> <span class="pre">0,</span> <span class="pre">0)</span></code> → u-axis aligned with world X</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">axis_v</span> <span class="pre">=</span> <span class="pre">(0,</span> <span class="pre">1,</span> <span class="pre">0)</span></code> → v-axis aligned with world Y</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">axis_w</span> <span class="pre">=</span> <span class="pre">(0,</span> <span class="pre">0,</span> <span class="pre">1)</span></code> → w-axis aligned with world Z</p></li>
+</ul>
+</dd>
+<dt><strong>srs</strong> (optional)</dt><dd><p>Spatial Reference System (CRS) identifier for geographic context (managed by <code class="docutils literal notranslate"><span class="pre">WorldFrame</span></code>).</p>
+</dd>
+</dl>
+</section>
+<section id="logical-indices-i-j-k">
+<h2>Logical Indices (i, j, k)<a class="headerlink" href="#logical-indices-i-j-k" title="Link to this heading">#</a></h2>
+<p>Block indices are stored and processed using <strong>C-order (row-major)</strong> conventions:</p>
+<ul class="simple">
+<li><p><strong>i</strong> varies fastest (column index)</p></li>
+<li><p><strong>j</strong> varies next (row index)</p></li>
+<li><p><strong>k</strong> varies slowest (depth index)</p></li>
+</ul>
+<p>The flat row index is computed as:</p>
+<div class="math notranslate nohighlight">
+\[r = i + n_i \cdot (j + n_j \cdot k)\]</div>
+<p>This C-order layout:</p>
+<blockquote>
+<div><p>✓ Matches NumPy’s default behavior (<code class="docutils literal notranslate"><span class="pre">np.ravel</span></code>, <code class="docutils literal notranslate"><span class="pre">np.unravel_index</span></code>)
+✓ Aligns with Parquet row-oriented storage
+✓ Enables efficient dense array operations</p>
+</div></blockquote>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Do <strong>not</strong> confuse C-order with lexicographic MultiIndex sorting (x, y, z).
+Lexicographic sorting is <em>not</em> C-order and should not define canonical storage.</p>
+</div>
+</section>
+<section id="local-coordinates">
+<h2>Local Coordinates<a class="headerlink" href="#local-coordinates" title="Link to this heading">#</a></h2>
+<p>Given logical indices (i, j, k), the <strong>local grid position</strong> is computed as:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}u &amp;= u_0 + (i + 0.5) \cdot dx \\
+v &amp;= v_0 + (j + 0.5) \cdot dy \\
+w &amp;= w_0 + (k + 0.5) \cdot dz\end{split}\]</div>
+<p>The offset 0.5 positions each coordinate at the <strong>block centroid</strong> (not corner).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Keeping the familiar names <code class="docutils literal notranslate"><span class="pre">dx</span></code>, <code class="docutils literal notranslate"><span class="pre">dy</span></code>, and <code class="docutils literal notranslate"><span class="pre">dz</span></code> is intentional: they represent
+physical spacing values, but they belong to the local lattice. Rotation via
+<code class="docutils literal notranslate"><span class="pre">axis_u</span></code>, <code class="docutils literal notranslate"><span class="pre">axis_v</span></code>, and <code class="docutils literal notranslate"><span class="pre">axis_w</span></code> determines how those local spacings appear in
+world coordinates.</p>
+</div>
+</section>
+<section id="axis-orientation-and-rotation">
+<h2>Axis Orientation and Rotation<a class="headerlink" href="#axis-orientation-and-rotation" title="Link to this heading">#</a></h2>
+<p>The logical (u, v, w) coordinates are transformed to world-space (x, y, z) via a rotation matrix:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}R = \begin{bmatrix}
+    \text{axis\_u} \\
+    \text{axis\_v} \\
+    \text{axis\_w}
+\end{bmatrix}^T\end{split}\]</div>
+<p>The world coordinates are then:</p>
+<div class="math notranslate nohighlight">
+\[\begin{split}\begin{bmatrix} x \\ y \\ z \end{bmatrix} = \begin{bmatrix} o_x \\ o_y \\ o_z \end{bmatrix} + R \cdot \begin{bmatrix} u \\ v \\ w \end{bmatrix}\end{split}\]</div>
+<p><strong>Key properties:</strong></p>
+<ul class="simple">
+<li><p>Since axis vectors are <strong>orthonormal</strong>, the matrix is orthogonal: <span class="math notranslate nohighlight">\(R^{-1} = R^T\)</span></p></li>
+<li><p>The inverse transformation (world → local) is: <span class="math notranslate nohighlight">\(\begin{bmatrix} u \\ v \\ w \end{bmatrix} = R^T \cdot (\begin{bmatrix} x \\ y \\ z \end{bmatrix} - \begin{bmatrix} o_x \\ o_y \\ o_z \end{bmatrix})\)</span></p></li>
+<li><p>For unrotated geometries, R is the identity matrix (no rotation applied)</p></li>
+</ul>
+<p>Once centroid coordinates are available in world space, they can also be converted into
+<code class="docutils literal notranslate"><span class="pre">world_id</span></code> using <code class="docutils literal notranslate"><span class="pre">parq_blockmodel.utils.spatial_encoding.encode_world_coordinates</span></code>
+(or the generic <code class="docutils literal notranslate"><span class="pre">encode_frame_coordinates</span></code> alias).</p>
+<p><code class="docutils literal notranslate"><span class="pre">world_id</span></code> is a stable 64-bit positional identifier derived from world-space XYZ
+coordinates within a given CRS. It uniquely identifies a block by location and is
+intended for joins, tracking, and external references. It is not a spatial index and
+should not be used for spatial range queries.</p>
+<p>This world_id derivation is shown in the diagram as an optional downstream step from
+centroid positions.</p>
+</section>
+<section id="cross-model-world-id-use-case">
+<h2>Cross-model <code class="docutils literal notranslate"><span class="pre">world_id</span></code> use case<a class="headerlink" href="#cross-model-world-id-use-case" title="Link to this heading">#</a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">world_id</span></code> is useful when you work with multiple block models in the same SRS and
+want a stable, compact positional key for joins.</p>
+<p>Within a shared encoding contract, <code class="docutils literal notranslate"><span class="pre">world_id</span></code> is unique across those models when:</p>
+<ul class="simple">
+<li><p>all models use the same SRS,</p></li>
+<li><p>all models use the same <code class="docutils literal notranslate"><span class="pre">world_id_encoding</span></code> metadata contract
+(scale, bit layout, frame, and axis order), and</p></li>
+<li><p>the models do not contain overlapping block centroids.</p></li>
+</ul>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p><code class="docutils literal notranslate"><span class="pre">world_id</span></code> uniqueness is not a pure CRS property by itself. It depends on both
+centroid positions and a compatible encoding definition (notably offsets and scale).</p>
+</div>
+</section>
+<section id="decode-world-id-from-a-dataframe-no-parquetblockmodel">
+<h2>Decode <code class="docutils literal notranslate"><span class="pre">world_id</span></code> from a DataFrame (no <code class="docutils literal notranslate"><span class="pre">ParquetBlockModel</span></code>)<a class="headerlink" href="#decode-world-id-from-a-dataframe-no-parquetblockmodel" title="Link to this heading">#</a></h2>
+<p>If a user only has a pandas DataFrame with a <code class="docutils literal notranslate"><span class="pre">world_id</span></code> column and metadata in
+<code class="docutils literal notranslate"><span class="pre">df.attrs['parq-blockmodel']</span></code>, they can decode centroids directly:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">parq_blockmodel.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_id_encoding_params</span><span class="p">,</span> <span class="n">decode_frame_coordinates</span>
+
+<span class="c1"># Example shape:</span>
+<span class="c1"># df.columns includes: world_id, grade, density, ...</span>
+<span class="c1"># df.attrs[&quot;parq-blockmodel&quot;] includes: world_id_encoding metadata payload</span>
+
+<span class="n">meta</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">attrs</span><span class="p">[</span><span class="s2">&quot;parq-blockmodel&quot;</span><span class="p">]</span>
+<span class="n">encoding</span> <span class="o">=</span> <span class="n">meta</span><span class="p">[</span><span class="s2">&quot;world_id_encoding&quot;</span><span class="p">]</span>
+
+<span class="n">offset</span><span class="p">,</span> <span class="n">scale</span> <span class="o">=</span> <span class="n">get_id_encoding_params</span><span class="p">(</span><span class="n">encoding</span><span class="p">)</span>
+<span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">decode_frame_coordinates</span><span class="p">(</span>
+    <span class="n">df</span><span class="p">[</span><span class="s2">&quot;world_id&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">to_numpy</span><span class="p">(</span><span class="n">dtype</span><span class="o">=</span><span class="s2">&quot;int64&quot;</span><span class="p">),</span>
+    <span class="n">offset</span><span class="o">=</span><span class="n">offset</span><span class="p">,</span>
+    <span class="n">scale</span><span class="o">=</span><span class="n">scale</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">df_decoded</span> <span class="o">=</span> <span class="n">df</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+<span class="n">df_decoded</span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">x</span>
+<span class="n">df_decoded</span><span class="p">[</span><span class="s2">&quot;y&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">y</span>
+<span class="n">df_decoded</span><span class="p">[</span><span class="s2">&quot;z&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">z</span>
+
+<span class="c1"># Optional: set xyz as index</span>
+<span class="n">df_decoded</span> <span class="o">=</span> <span class="n">df_decoded</span><span class="o">.</span><span class="n">set_index</span><span class="p">([</span><span class="s2">&quot;x&quot;</span><span class="p">,</span> <span class="s2">&quot;y&quot;</span><span class="p">,</span> <span class="s2">&quot;z&quot;</span><span class="p">])</span>
+</pre></div>
+</div>
+</section>
+<section id="conversion-apis">
+<h2>Conversion APIs<a class="headerlink" href="#conversion-apis" title="Link to this heading">#</a></h2>
+<p>The <a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry" title="parq_blockmodel.geometry.RegularGeometry"><code class="xref py py-class docutils literal notranslate"><span class="pre">parq_blockmodel.geometry.RegularGeometry</span></code></a> class provides several conversion methods:</p>
+<p><strong>Forward (logical → world):</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.xyz_from_ijk" title="parq_blockmodel.geometry.RegularGeometry.xyz_from_ijk"><code class="xref py py-meth docutils literal notranslate"><span class="pre">xyz_from_ijk()</span></code></a> - Convert (i, j, k) to (x, y, z)</p></li>
+<li><p><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.xyz_from_row_index" title="parq_blockmodel.geometry.RegularGeometry.xyz_from_row_index"><code class="xref py py-meth docutils literal notranslate"><span class="pre">xyz_from_row_index()</span></code></a> - Convert flat row index to (x, y, z)</p></li>
+</ul>
+<p><strong>Inverse (world → logical):</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.ijk_from_xyz" title="parq_blockmodel.geometry.RegularGeometry.ijk_from_xyz"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ijk_from_xyz()</span></code></a> - Convert (x, y, z) to (i, j, k)</p></li>
+<li><p><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.row_index_from_xyz" title="parq_blockmodel.geometry.RegularGeometry.row_index_from_xyz"><code class="xref py py-meth docutils literal notranslate"><span class="pre">row_index_from_xyz()</span></code></a> - Convert (x, y, z) to flat row index</p></li>
+</ul>
+<p><strong>Index conversion:</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.ijk_from_row_index" title="parq_blockmodel.geometry.RegularGeometry.ijk_from_row_index"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ijk_from_row_index()</span></code></a> - Unravel flat index to (i, j, k)</p></li>
+<li><p><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.row_index_from_ijk" title="parq_blockmodel.geometry.RegularGeometry.row_index_from_ijk"><code class="xref py py-meth docutils literal notranslate"><span class="pre">row_index_from_ijk()</span></code></a> - Flatten (i, j, k) to row index</p></li>
+</ul>
+<p><strong>Export:</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.to_dataframe_xyz" title="parq_blockmodel.geometry.RegularGeometry.to_dataframe_xyz"><code class="xref py py-meth docutils literal notranslate"><span class="pre">to_dataframe_xyz()</span></code></a> - Export centroid coordinates to DataFrame</p></li>
+<li><p><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.to_multi_index_xyz" title="parq_blockmodel.geometry.RegularGeometry.to_multi_index_xyz"><code class="xref py py-meth docutils literal notranslate"><span class="pre">to_multi_index_xyz()</span></code></a> - Export as MultiIndex</p></li>
+<li><p><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.to_metadata_dict" title="parq_blockmodel.geometry.RegularGeometry.to_metadata_dict"><code class="xref py py-meth docutils literal notranslate"><span class="pre">to_metadata_dict()</span></code></a> - Serialize to dict</p></li>
+<li><p><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry.from_metadata" title="parq_blockmodel.geometry.RegularGeometry.from_metadata"><code class="xref py py-meth docutils literal notranslate"><span class="pre">from_metadata()</span></code></a> - Reconstruct from dict</p></li>
+</ul>
+</section>
+<section id="metadata-storage">
+<h2>Metadata Storage<a class="headerlink" href="#metadata-storage" title="Link to this heading">#</a></h2>
+<p>All geometry metadata is embedded in Parquet files under a reserved key (default: <code class="docutils literal notranslate"><span class="pre">&quot;parq-blockmodel&quot;</span></code>).</p>
+<p>This approach:</p>
+<p>✓ Eliminates the need for external sidecar files
+✓ Keeps data and metadata synchronized
+✓ Enables seamless data interchange
+✓ Supports efficient metadata-driven processing</p>
+<p>Metadata is serialized as JSON and stored in the Parquet file’s key-value metadata:</p>
+<div class="highlight-json notranslate"><div class="highlight"><pre><span></span><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;schema_version&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;1.0&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;corner&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">100.0</span><span class="p">,</span><span class="w"> </span><span class="mf">200.0</span><span class="p">,</span><span class="w"> </span><span class="mf">300.0</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;origin&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;block_size&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">10.0</span><span class="p">,</span><span class="w"> </span><span class="mf">10.0</span><span class="p">,</span><span class="w"> </span><span class="mf">5.0</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;shape&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">50</span><span class="p">,</span><span class="w"> </span><span class="mi">50</span><span class="p">,</span><span class="w"> </span><span class="mi">20</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;axis_u&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;axis_v&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;axis_w&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w"> </span><span class="mf">1.0</span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;srs&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;world_id_encoding&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<span class="w">    </span><span class="nt">&quot;enabled&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;column&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;world_id&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;frame&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;world_xyz&quot;</span><span class="p">,</span>
+<span class="w">    </span><span class="nt">&quot;axis_order&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;x&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;y&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;z&quot;</span><span class="p">],</span>
+<span class="w">    </span><span class="nt">&quot;quantization&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;scale&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">10.0</span><span class="p">},</span>
+<span class="w">    </span><span class="nt">&quot;offset&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;x&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">500000.0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;y&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">7000000.0</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;z&quot;</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">}</span>
+<span class="w">  </span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Link to this heading">#</a></h2>
+<p>Create a regular (unrotated) geometry:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">parq_blockmodel.geometry</span><span class="w"> </span><span class="kn">import</span> <span class="n">RegularGeometry</span><span class="p">,</span> <span class="n">LocalGeometry</span><span class="p">,</span> <span class="n">WorldFrame</span>
+
+<span class="n">geom</span> <span class="o">=</span> <span class="n">RegularGeometry</span><span class="p">(</span>
+    <span class="n">local</span><span class="o">=</span><span class="n">LocalGeometry</span><span class="p">(</span>
+        <span class="n">corner</span><span class="o">=</span><span class="p">(</span><span class="mf">100.0</span><span class="p">,</span> <span class="mf">200.0</span><span class="p">,</span> <span class="mf">300.0</span><span class="p">),</span>
+        <span class="n">block_size</span><span class="o">=</span><span class="p">(</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">),</span>
+        <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+    <span class="p">),</span>
+    <span class="n">world</span><span class="o">=</span><span class="n">WorldFrame</span><span class="p">(</span><span class="n">origin</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">))</span>
+<span class="p">)</span>
+
+<span class="c1"># Or more simply, using keyword arguments (backward compatible):</span>
+<span class="n">geom</span> <span class="o">=</span> <span class="n">RegularGeometry</span><span class="p">(</span>
+    <span class="n">corner</span><span class="o">=</span><span class="p">(</span><span class="mf">100.0</span><span class="p">,</span> <span class="mf">200.0</span><span class="p">,</span> <span class="mf">300.0</span><span class="p">),</span>
+    <span class="n">block_size</span><span class="o">=</span><span class="p">(</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">),</span>
+    <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+<span class="p">)</span>
+
+<span class="c1"># Convert logical index to world coordinates</span>
+<span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="p">,</span> <span class="n">z</span> <span class="o">=</span> <span class="n">geom</span><span class="o">.</span><span class="n">xyz_from_ijk</span><span class="p">(</span><span class="n">i</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">j</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">k</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Create a rotated geometry:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">parq_blockmodel.geometry</span><span class="w"> </span><span class="kn">import</span> <span class="n">RegularGeometry</span>
+
+<span class="c1"># Define 30-degree rotation around Z-axis</span>
+<span class="n">angle</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">radians</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span>
+<span class="n">cos_a</span><span class="p">,</span> <span class="n">sin_a</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">cos</span><span class="p">(</span><span class="n">angle</span><span class="p">),</span> <span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">angle</span><span class="p">)</span>
+
+<span class="n">geom</span> <span class="o">=</span> <span class="n">RegularGeometry</span><span class="p">(</span>
+    <span class="n">corner</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+    <span class="n">block_size</span><span class="o">=</span><span class="p">(</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">),</span>
+    <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">50</span><span class="p">,</span> <span class="mi">50</span><span class="p">,</span> <span class="mi">20</span><span class="p">),</span>
+    <span class="n">axis_u</span><span class="o">=</span><span class="p">(</span><span class="n">cos_a</span><span class="p">,</span> <span class="n">sin_a</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>    <span class="c1"># Rotated u-axis</span>
+    <span class="n">axis_v</span><span class="o">=</span><span class="p">(</span><span class="o">-</span><span class="n">sin_a</span><span class="p">,</span> <span class="n">cos_a</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>   <span class="c1"># Rotated v-axis</span>
+    <span class="n">axis_w</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">1.0</span><span class="p">),</span>        <span class="c1"># Z-axis unchanged</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="see-also">
+<h2>See Also<a class="headerlink" href="#see-also" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><a class="reference internal" href="../design_ijk_metadata.html#geometry-metadata-design"><span class="std std-ref">Developer notes: geometry &amp; metadata</span></a> - Detailed developer documentation</p></li>
+<li><p><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html#parq_blockmodel.geometry.RegularGeometry" title="parq_blockmodel.geometry.RegularGeometry"><code class="xref py py-class docutils literal notranslate"><span class="pre">parq_blockmodel.geometry.RegularGeometry</span></code></a> - Full API reference</p></li>
+<li><p><a class="reference internal" href="../api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html#parq_blockmodel.blockmodel.ParquetBlockModel" title="parq_blockmodel.blockmodel.ParquetBlockModel"><code class="xref py py-class docutils literal notranslate"><span class="pre">parq_blockmodel.blockmodel.ParquetBlockModel</span></code></a> - Block model container</p></li>
+</ul>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="01_geometry.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Geometry</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="03_blockmodels.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Block Models</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#overview">Overview</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#geometry-definition">Geometry Definition</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#logical-indices-i-j-k">Logical Indices (i, j, k)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#local-coordinates">Local Coordinates</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#axis-orientation-and-rotation">Axis Orientation and Rotation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cross-model-world-id-use-case">Cross-model <code class="docutils literal notranslate"><span class="pre">world_id</span></code> use case</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#decode-world-id-from-a-dataframe-no-parquetblockmodel">Decode <code class="docutils literal notranslate"><span class="pre">world_id</span></code> from a DataFrame (no <code class="docutils literal notranslate"><span class="pre">ParquetBlockModel</span></code>)</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conversion-apis">Conversion APIs</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#metadata-storage">Metadata Storage</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#examples">Examples</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#see-also">See Also</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Greg Elphick
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025, Greg Elphick.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

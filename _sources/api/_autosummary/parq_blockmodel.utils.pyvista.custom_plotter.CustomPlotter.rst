@@ -1,0 +1,271 @@
+parq\_blockmodel.utils.pyvista.custom\_plotter.CustomPlotter
+============================================================
+
+.. currentmodule:: parq_blockmodel.utils.pyvista.custom_plotter
+
+.. autoclass:: CustomPlotter
+   :members:
+   :special-members: __add__, __mul__
+
+   
+   .. automethod:: __init__
+
+   
+   .. rubric:: Methods
+
+   .. autosummary::
+   
+      ~CustomPlotter.__init__
+      ~CustomPlotter.add_actor
+      ~CustomPlotter.add_affine_transform_widget
+      ~CustomPlotter.add_arrows
+      ~CustomPlotter.add_axes
+      ~CustomPlotter.add_axes_at_origin
+      ~CustomPlotter.add_background_image
+      ~CustomPlotter.add_blurring
+      ~CustomPlotter.add_bounding_box
+      ~CustomPlotter.add_box_axes
+      ~CustomPlotter.add_box_widget
+      ~CustomPlotter.add_camera3d_widget
+      ~CustomPlotter.add_camera_orientation_widget
+      ~CustomPlotter.add_chart
+      ~CustomPlotter.add_checkbox_button_widget
+      ~CustomPlotter.add_composite
+      ~CustomPlotter.add_cursor
+      ~CustomPlotter.add_floor
+      ~CustomPlotter.add_key_event
+      ~CustomPlotter.add_legend
+      ~CustomPlotter.add_legend_scale
+      ~CustomPlotter.add_light
+      ~CustomPlotter.add_line_widget
+      ~CustomPlotter.add_lines
+      ~CustomPlotter.add_logo_widget
+      ~CustomPlotter.add_measurement_widget
+      ~CustomPlotter.add_mesh
+      ~CustomPlotter.add_mesh_clip_box
+      ~CustomPlotter.add_mesh_clip_plane
+      ~CustomPlotter.add_mesh_isovalue
+      ~CustomPlotter.add_mesh_slice
+      ~CustomPlotter.add_mesh_slice_orthogonal
+      ~CustomPlotter.add_mesh_slice_spline
+      ~CustomPlotter.add_mesh_threshold
+      ~CustomPlotter.add_north_arrow_widget
+      ~CustomPlotter.add_on_render_callback
+      ~CustomPlotter.add_orientation_widget
+      ~CustomPlotter.add_plane_widget
+      ~CustomPlotter.add_point_labels
+      ~CustomPlotter.add_point_scalar_labels
+      ~CustomPlotter.add_points
+      ~CustomPlotter.add_radio_button_widget
+      ~CustomPlotter.add_ruler
+      ~CustomPlotter.add_scalar_bar
+      ~CustomPlotter.add_silhouette
+      ~CustomPlotter.add_slider_widget
+      ~CustomPlotter.add_sphere_widget
+      ~CustomPlotter.add_spline_widget
+      ~CustomPlotter.add_text
+      ~CustomPlotter.add_text_slider_widget
+      ~CustomPlotter.add_timer_event
+      ~CustomPlotter.add_title
+      ~CustomPlotter.add_volume
+      ~CustomPlotter.add_volume_clip_plane
+      ~CustomPlotter.clear
+      ~CustomPlotter.clear_actors
+      ~CustomPlotter.clear_box_widgets
+      ~CustomPlotter.clear_button_widgets
+      ~CustomPlotter.clear_camera3d_widgets
+      ~CustomPlotter.clear_camera_widgets
+      ~CustomPlotter.clear_events_for_key
+      ~CustomPlotter.clear_line_widgets
+      ~CustomPlotter.clear_logo_widgets
+      ~CustomPlotter.clear_measure_widgets
+      ~CustomPlotter.clear_on_render_callbacks
+      ~CustomPlotter.clear_plane_widgets
+      ~CustomPlotter.clear_radio_button_widgets
+      ~CustomPlotter.clear_slider_widgets
+      ~CustomPlotter.clear_sphere_widgets
+      ~CustomPlotter.clear_spline_widgets
+      ~CustomPlotter.close
+      ~CustomPlotter.compute_bounds
+      ~CustomPlotter.deep_clean
+      ~CustomPlotter.disable
+      ~CustomPlotter.disable_3_lights
+      ~CustomPlotter.disable_anti_aliasing
+      ~CustomPlotter.disable_depth_of_field
+      ~CustomPlotter.disable_depth_peeling
+      ~CustomPlotter.disable_eye_dome_lighting
+      ~CustomPlotter.disable_hidden_line_removal
+      ~CustomPlotter.disable_parallel_projection
+      ~CustomPlotter.disable_picking
+      ~CustomPlotter.disable_shadows
+      ~CustomPlotter.disable_ssao
+      ~CustomPlotter.disable_stereo_render
+      ~CustomPlotter.enable
+      ~CustomPlotter.enable_2d_style
+      ~CustomPlotter.enable_3_lights
+      ~CustomPlotter.enable_anti_aliasing
+      ~CustomPlotter.enable_block_picking
+      ~CustomPlotter.enable_cell_picking
+      ~CustomPlotter.enable_custom_trackball_style
+      ~CustomPlotter.enable_depth_of_field
+      ~CustomPlotter.enable_depth_peeling
+      ~CustomPlotter.enable_element_picking
+      ~CustomPlotter.enable_eye_dome_lighting
+      ~CustomPlotter.enable_fly_to_right_click
+      ~CustomPlotter.enable_general_picking
+      ~CustomPlotter.enable_geodesic_picking
+      ~CustomPlotter.enable_hidden_line_removal
+      ~CustomPlotter.enable_horizon_picking
+      ~CustomPlotter.enable_image_style
+      ~CustomPlotter.enable_joystick_actor_style
+      ~CustomPlotter.enable_joystick_style
+      ~CustomPlotter.enable_lightkit
+      ~CustomPlotter.enable_mesh_picking
+      ~CustomPlotter.enable_parallel_projection
+      ~CustomPlotter.enable_path_picking
+      ~CustomPlotter.enable_point_picking
+      ~CustomPlotter.enable_rectangle_picking
+      ~CustomPlotter.enable_rectangle_through_picking
+      ~CustomPlotter.enable_rectangle_visible_picking
+      ~CustomPlotter.enable_rubber_band_2d_style
+      ~CustomPlotter.enable_rubber_band_style
+      ~CustomPlotter.enable_shadows
+      ~CustomPlotter.enable_ssao
+      ~CustomPlotter.enable_stereo_render
+      ~CustomPlotter.enable_surface_point_picking
+      ~CustomPlotter.enable_terrain_style
+      ~CustomPlotter.enable_trackball_actor_style
+      ~CustomPlotter.enable_trackball_style
+      ~CustomPlotter.enable_zoom_style
+      ~CustomPlotter.export_gltf
+      ~CustomPlotter.export_html
+      ~CustomPlotter.export_obj
+      ~CustomPlotter.export_vrml
+      ~CustomPlotter.export_vtksz
+      ~CustomPlotter.fly_to
+      ~CustomPlotter.fly_to_mouse_position
+      ~CustomPlotter.generate_orbital_path
+      ~CustomPlotter.get_default_cam_pos
+      ~CustomPlotter.get_image_depth
+      ~CustomPlotter.get_pick_position
+      ~CustomPlotter.hide_axes
+      ~CustomPlotter.hide_axes_all
+      ~CustomPlotter.image_scale_context
+      ~CustomPlotter.import_3ds
+      ~CustomPlotter.import_gltf
+      ~CustomPlotter.import_obj
+      ~CustomPlotter.import_vrml
+      ~CustomPlotter.increment_point_size_and_line_width
+      ~CustomPlotter.isometric_view
+      ~CustomPlotter.isometric_view_interactive
+      ~CustomPlotter.key_press_event
+      ~CustomPlotter.left_button_down
+      ~CustomPlotter.link_views
+      ~CustomPlotter.open_gif
+      ~CustomPlotter.open_movie
+      ~CustomPlotter.orbit_on_path
+      ~CustomPlotter.pick_click_position
+      ~CustomPlotter.pick_mouse_position
+      ~CustomPlotter.remove_actor
+      ~CustomPlotter.remove_all_lights
+      ~CustomPlotter.remove_background_image
+      ~CustomPlotter.remove_blurring
+      ~CustomPlotter.remove_bounding_box
+      ~CustomPlotter.remove_bounds_axes
+      ~CustomPlotter.remove_chart
+      ~CustomPlotter.remove_environment_texture
+      ~CustomPlotter.remove_floors
+      ~CustomPlotter.remove_legend
+      ~CustomPlotter.remove_scalar_bar
+      ~CustomPlotter.render
+      ~CustomPlotter.reset_camera
+      ~CustomPlotter.reset_camera_clipping_range
+      ~CustomPlotter.reset_key_events
+      ~CustomPlotter.save_graphic
+      ~CustomPlotter.screenshot
+      ~CustomPlotter.set_background
+      ~CustomPlotter.set_chart_interaction
+      ~CustomPlotter.set_color_cycler
+      ~CustomPlotter.set_directional_view
+      ~CustomPlotter.set_environment_texture
+      ~CustomPlotter.set_focus
+      ~CustomPlotter.set_position
+      ~CustomPlotter.set_scale
+      ~CustomPlotter.set_viewup
+      ~CustomPlotter.show
+      ~CustomPlotter.show_axes
+      ~CustomPlotter.show_axes_all
+      ~CustomPlotter.show_bounds
+      ~CustomPlotter.show_grid
+      ~CustomPlotter.store_click_position
+      ~CustomPlotter.store_mouse_position
+      ~CustomPlotter.subplot
+      ~CustomPlotter.track_click_position
+      ~CustomPlotter.track_mouse_position
+      ~CustomPlotter.unlink_views
+      ~CustomPlotter.untrack_click_position
+      ~CustomPlotter.untrack_mouse_position
+      ~CustomPlotter.update
+      ~CustomPlotter.update_bounds_axes
+      ~CustomPlotter.update_scalar_bar_range
+      ~CustomPlotter.update_scalars
+      ~CustomPlotter.view_isometric
+      ~CustomPlotter.view_vector
+      ~CustomPlotter.view_xy
+      ~CustomPlotter.view_xz
+      ~CustomPlotter.view_yx
+      ~CustomPlotter.view_yz
+      ~CustomPlotter.view_zx
+      ~CustomPlotter.view_zy
+      ~CustomPlotter.where_is
+      ~CustomPlotter.window_size_context
+      ~CustomPlotter.write_frame
+      ~CustomPlotter.zoom_camera
+   
+   
+
+   
+   
+   .. rubric:: Attributes
+
+   .. autosummary::
+   
+      ~CustomPlotter.HELP_TEXT_NAME
+      ~CustomPlotter.HOTKEYS
+      ~CustomPlotter.actors
+      ~CustomPlotter.background_color
+      ~CustomPlotter.bounds
+      ~CustomPlotter.bounds_size
+      ~CustomPlotter.camera
+      ~CustomPlotter.camera_position
+      ~CustomPlotter.camera_set
+      ~CustomPlotter.center
+      ~CustomPlotter.click_position
+      ~CustomPlotter.image
+      ~CustomPlotter.image_depth
+      ~CustomPlotter.image_scale
+      ~CustomPlotter.last_update_time
+      ~CustomPlotter.legend
+      ~CustomPlotter.length
+      ~CustomPlotter.meshes
+      ~CustomPlotter.mouse_position
+      ~CustomPlotter.parallel_projection
+      ~CustomPlotter.parallel_scale
+      ~CustomPlotter.pickable_actors
+      ~CustomPlotter.picked_actor
+      ~CustomPlotter.picked_block_index
+      ~CustomPlotter.picked_cell
+      ~CustomPlotter.picked_cells
+      ~CustomPlotter.picked_mesh
+      ~CustomPlotter.picked_point
+      ~CustomPlotter.render_window
+      ~CustomPlotter.renderer
+      ~CustomPlotter.scalar_bar
+      ~CustomPlotter.scalar_bars
+      ~CustomPlotter.scale
+      ~CustomPlotter.shape
+      ~CustomPlotter.suppress_rendering
+      ~CustomPlotter.theme
+      ~CustomPlotter.window_size
+   
+   
