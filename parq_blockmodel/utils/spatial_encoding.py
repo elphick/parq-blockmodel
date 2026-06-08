@@ -20,25 +20,46 @@ ENCODED_X_MAX_INT = (1 << ENCODED_X_BITS) - 1
 ENCODED_Y_MAX_INT = (1 << ENCODED_Y_BITS) - 1
 ENCODED_Z_MAX_INT = (1 << ENCODED_Z_BITS) - 1
 
-DEFAULT_BITS_PER_AXIS = 21
+DEFAULT_AXIS_BITS = (ENCODED_X_BITS, ENCODED_Y_BITS, ENCODED_Z_BITS)
 
 
-def _validate_bits_per_axis(bits_per_axis: int) -> None:
-    if bits_per_axis <= 0:
-        raise ValueError("bits_per_axis must be a positive integer.")
-    if bits_per_axis > DEFAULT_BITS_PER_AXIS:
-        raise ValueError(f"bits_per_axis must be <= {DEFAULT_BITS_PER_AXIS} for 64-bit storage.")
+def _normalize_axis_bits(
+    bits_per_axis: int | tuple[int, int, int] | list[int] | dict[str, int]
+) -> tuple[int, int, int]:
+    if isinstance(bits_per_axis, dict):
+        x_bits = int(bits_per_axis.get("x", ENCODED_X_BITS))
+        y_bits = int(bits_per_axis.get("y", ENCODED_Y_BITS))
+        z_bits = int(bits_per_axis.get("z", ENCODED_Z_BITS))
+    elif isinstance(bits_per_axis, (tuple, list)):
+        if len(bits_per_axis) != 3:
+            raise ValueError("axis bit configuration must provide exactly three values (x, y, z).")
+        x_bits = int(bits_per_axis[0])
+        y_bits = int(bits_per_axis[1])
+        z_bits = int(bits_per_axis[2])
+    else:
+        scalar = int(bits_per_axis)
+        x_bits = y_bits = z_bits = scalar
+
+    if x_bits <= 0 or y_bits <= 0 or z_bits <= 0:
+        raise ValueError("axis bit counts must be positive integers.")
+    if x_bits > ENCODED_X_BITS or y_bits > ENCODED_Y_BITS or z_bits > ENCODED_Z_BITS:
+        raise ValueError(
+            f"axis bit counts exceed supported maxima x/y/z={ENCODED_X_BITS}/{ENCODED_Y_BITS}/{ENCODED_Z_BITS}."
+        )
+    if (x_bits + y_bits + z_bits) > 64:
+        raise ValueError("axis bit counts must total <= 64 for 64-bit storage.")
+    return x_bits, y_bits, z_bits
 
 
 def get_id_encoding_params(
     id_encoding: dict | None,
-) -> tuple[tuple[float, float, float], tuple[float, float, float], int]:
-    """Return ``(offset_xyz, scale_xyz, bits_per_axis)`` from encoding metadata.
+) -> tuple[tuple[float, float, float], tuple[float, float, float], tuple[int, int, int]]:
+    """Return ``(offset_xyz, scale_xyz, axis_bits_xyz)`` from encoding metadata.
 
     ``offset_xyz`` and ``scale_xyz`` are always returned as three-float tuples ordered as ``(x, y, z)``.
     """
     if not id_encoding:
-        return (0.0, 0.0, 0.0), (10.0, 10.0, 10.0), DEFAULT_BITS_PER_AXIS
+        return (0.0, 0.0, 0.0), (10.0, 10.0, 10.0), DEFAULT_AXIS_BITS
 
     offset_payload = id_encoding.get("offset", {})
     offset = (
@@ -70,39 +91,67 @@ def get_id_encoding_params(
         shared_scale = float(scale_payload)
         scale_xyz = (shared_scale, shared_scale, shared_scale)
 
-    # Support both the new contract (`encoding.bits_per_axis`) and older payloads
-    # that may have provided `bits_per_axis` at the top level.
+    # Support asymmetric axis bits in the new contract (`encoding.axis_bits`), while
+    # preserving fallback compatibility with older payloads.
     encoding_payload = id_encoding.get("encoding", {})
-    bits_per_axis = int(encoding_payload.get("bits_per_axis", id_encoding.get("bits_per_axis", DEFAULT_BITS_PER_AXIS)))
-    _validate_bits_per_axis(bits_per_axis)
+    axis_bits_payload = (
+        encoding_payload.get("axis_bits")
+        or id_encoding.get("axis_bits")
+        or encoding_payload.get("bits_per_axis")
+        or id_encoding.get("bits_per_axis")
+        or DEFAULT_AXIS_BITS
+    )
+    axis_bits = _normalize_axis_bits(axis_bits_payload)
 
-    return offset, scale_xyz, bits_per_axis
+    return offset, scale_xyz, axis_bits
 
 
 def get_global_id_encoding_params(
     global_id_encoding: dict | None,
-) -> tuple[tuple[float, float, float], tuple[float, float, float], int]:
+) -> tuple[tuple[float, float, float], tuple[float, float, float], tuple[int, int, int]]:
     """Alias for :func:`get_id_encoding_params`."""
     return get_id_encoding_params(global_id_encoding)
 
 
-def _morton_encode_3d(ix: np.ndarray, iy: np.ndarray, iz: np.ndarray, bits_per_axis: int) -> np.ndarray:
+def _morton_encode_3d(
+    ix: np.ndarray, iy: np.ndarray, iz: np.ndarray, axis_bits: tuple[int, int, int]
+) -> np.ndarray:
+    x_bits, y_bits, z_bits = axis_bits
     encoded = np.zeros_like(ix, dtype=np.uint64)
-    for bit in range(bits_per_axis):
-        encoded |= ((ix >> bit) & 1).astype(np.uint64) << (3 * bit)
-        encoded |= ((iy >> bit) & 1).astype(np.uint64) << (3 * bit + 1)
-        encoded |= ((iz >> bit) & 1).astype(np.uint64) << (3 * bit + 2)
+    bit_position = 0
+    max_bits = max(x_bits, y_bits, z_bits)
+    for bit in range(max_bits):
+        if bit < x_bits:
+            encoded |= ((ix >> bit) & 1).astype(np.uint64) << bit_position
+            bit_position += 1
+        if bit < y_bits:
+            encoded |= ((iy >> bit) & 1).astype(np.uint64) << bit_position
+            bit_position += 1
+        if bit < z_bits:
+            encoded |= ((iz >> bit) & 1).astype(np.uint64) << bit_position
+            bit_position += 1
     return encoded
 
 
-def _morton_decode_3d(encoded: np.ndarray, bits_per_axis: int) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+def _morton_decode_3d(
+    encoded: np.ndarray, axis_bits: tuple[int, int, int]
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    x_bits, y_bits, z_bits = axis_bits
     ix = np.zeros_like(encoded, dtype=np.uint64)
     iy = np.zeros_like(encoded, dtype=np.uint64)
     iz = np.zeros_like(encoded, dtype=np.uint64)
-    for bit in range(bits_per_axis):
-        ix |= ((encoded >> (3 * bit)) & 1).astype(np.uint64) << bit
-        iy |= ((encoded >> (3 * bit + 1)) & 1).astype(np.uint64) << bit
-        iz |= ((encoded >> (3 * bit + 2)) & 1).astype(np.uint64) << bit
+    bit_position = 0
+    max_bits = max(x_bits, y_bits, z_bits)
+    for bit in range(max_bits):
+        if bit < x_bits:
+            ix |= ((encoded >> bit_position) & 1).astype(np.uint64) << bit
+            bit_position += 1
+        if bit < y_bits:
+            iy |= ((encoded >> bit_position) & 1).astype(np.uint64) << bit
+            bit_position += 1
+        if bit < z_bits:
+            iz |= ((encoded >> bit_position) & 1).astype(np.uint64) << bit
+            bit_position += 1
     return ix, iy, iz
 
 
@@ -112,7 +161,7 @@ def encode_frame_coordinates(
     z: ArrayOrFloat,
     offset: Point = (0.0, 0.0, 0.0),
     scale: float | tuple[float, float, float] = 10.0,
-    bits_per_axis: int = DEFAULT_BITS_PER_AXIS,
+    bits_per_axis: int | tuple[int, int, int] | list[int] | dict[str, int] = DEFAULT_AXIS_BITS,
 ) -> Union[np.ndarray, int]:
     """Encode xyz-like coordinates with quantization + 3D Morton/Z-order bit interleaving.
 
@@ -122,7 +171,7 @@ def encode_frame_coordinates(
     y_arr = np.asarray(y, dtype=float)
     z_arr = np.asarray(z, dtype=float)
 
-    _validate_bits_per_axis(bits_per_axis)
+    axis_bits = _normalize_axis_bits(bits_per_axis)
 
     ox, oy, oz = offset
     if isinstance(scale, (tuple, list)):
@@ -136,15 +185,17 @@ def encode_frame_coordinates(
 
     if np.any(x_q < 0) or np.any(y_q < 0) or np.any(z_q < 0):
         raise ValueError("Encoding produced negative quantized values. Check offsets.")
-    axis_max_int = (1 << bits_per_axis) - 1
-    if np.any(x_q > axis_max_int) or np.any(y_q > axis_max_int) or np.any(z_q > axis_max_int):
+    x_max_int = (1 << axis_bits[0]) - 1
+    y_max_int = (1 << axis_bits[1]) - 1
+    z_max_int = (1 << axis_bits[2]) - 1
+    if np.any(x_q > x_max_int) or np.any(y_q > y_max_int) or np.any(z_q > z_max_int):
         raise ValueError("Encoding overflow. Check offsets, scale, or coordinate extents.")
 
     encoded = _morton_encode_3d(
         x_q.astype(np.uint64),
         y_q.astype(np.uint64),
         z_q.astype(np.uint64),
-        bits_per_axis=bits_per_axis,
+        axis_bits=axis_bits,
     )
 
     if np.isscalar(x) and np.isscalar(y) and np.isscalar(z):
@@ -158,7 +209,7 @@ def encode_global_coordinates(
     z: ArrayOrFloat,
     offset: Point = (0.0, 0.0, 0.0),
     scale: float | tuple[float, float, float] = 10.0,
-    bits_per_axis: int = DEFAULT_BITS_PER_AXIS,
+    bits_per_axis: int | tuple[int, int, int] | list[int] | dict[str, int] = DEFAULT_AXIS_BITS,
 ) -> Union[np.ndarray, int]:
     """Alias for :func:`encode_frame_coordinates` for global spatial identifiers."""
     return encode_frame_coordinates(x=x, y=y, z=z, offset=offset, scale=scale, bits_per_axis=bits_per_axis)
@@ -168,14 +219,15 @@ def decode_frame_coordinates(
     encoded: Union[np.ndarray, int],
     offset: Point = (0.0, 0.0, 0.0),
     scale: float | tuple[float, float, float] = 10.0,
-    bits_per_axis: int = DEFAULT_BITS_PER_AXIS,
+    bits_per_axis: int | tuple[int, int, int] | list[int] | dict[str, int] = DEFAULT_AXIS_BITS,
 ) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Point]:
     """Decode Morton/Z-order ids back to xyz-like coordinates using offset+scale.
 
     Returns a ``(x, y, z)`` tuple of floats for scalar input ids and arrays for vectorized input.
     """
     encoded_arr = np.asarray(encoded, dtype=np.int64).astype(np.uint64)
-    x_int, y_int, z_int = _morton_decode_3d(encoded_arr, bits_per_axis=bits_per_axis)
+    axis_bits = _normalize_axis_bits(bits_per_axis)
+    x_int, y_int, z_int = _morton_decode_3d(encoded_arr, axis_bits=axis_bits)
 
     ox, oy, oz = offset
     if isinstance(scale, (tuple, list)):
@@ -196,7 +248,7 @@ def decode_global_coordinates(
     encoded: Union[np.ndarray, int],
     offset: Point = (0.0, 0.0, 0.0),
     scale: float | tuple[float, float, float] = 10.0,
-    bits_per_axis: int = DEFAULT_BITS_PER_AXIS,
+    bits_per_axis: int | tuple[int, int, int] | list[int] | dict[str, int] = DEFAULT_AXIS_BITS,
 ) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Point]:
     """Alias for :func:`decode_frame_coordinates` for global spatial identifiers."""
     return decode_frame_coordinates(encoded=encoded, offset=offset, scale=scale, bits_per_axis=bits_per_axis)

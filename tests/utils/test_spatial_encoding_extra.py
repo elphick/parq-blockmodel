@@ -20,14 +20,14 @@ def test_get_id_encoding_params_none():
     offset, scale, bits = get_id_encoding_params(None)
     assert offset == (0.0, 0.0, 0.0)
     assert scale == (10.0, 10.0, 10.0)
-    assert bits == 21
+    assert bits == (24, 24, 16)
 
 
 def test_get_id_encoding_params_empty_dict():
     offset, scale, bits = get_id_encoding_params({})
     assert offset == (0.0, 0.0, 0.0)
     assert scale == (10.0, 10.0, 10.0)
-    assert bits == 21
+    assert bits == (24, 24, 16)
 
 
 def test_get_id_encoding_params_scale_as_list():
@@ -38,7 +38,7 @@ def test_get_id_encoding_params_scale_as_list():
     offset, scale, bits = get_id_encoding_params(payload)
     assert offset == (100.0, 200.0, 5.0)
     assert scale == (10.0, 10.0, 10.0)
-    assert bits == 21
+    assert bits == (24, 24, 16)
 
 
 # ---------------------------------------------------------------------------

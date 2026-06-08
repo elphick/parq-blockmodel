@@ -45,7 +45,10 @@ from parq_blockmodel.types import Shape3D, Point, BlockSize
 from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel, create_toy_blockmodel
 from parq_blockmodel.utils.geometry_utils import angles_to_axes
 from parq_blockmodel.utils.spatial_encoding import (
-    DEFAULT_BITS_PER_AXIS,
+    DEFAULT_AXIS_BITS,
+    ENCODED_X_BITS,
+    ENCODED_Y_BITS,
+    ENCODED_Z_BITS,
     decode_global_coordinates,
     encode_global_coordinates,
     get_global_id_encoding_params,
@@ -1680,11 +1683,18 @@ class ParquetBlockModel:
         y: np.ndarray,
         z: np.ndarray,
         scale: float = 10.0,
-        bits_per_axis: int = DEFAULT_BITS_PER_AXIS,
+        bits_per_axis: tuple[int, int, int] = DEFAULT_AXIS_BITS,
     ) -> dict[str, object]:
         """Build default global_id encoding metadata from xyz ranges."""
-        if bits_per_axis <= 0 or bits_per_axis > DEFAULT_BITS_PER_AXIS:
-            raise ValueError(f"bits_per_axis must be <= {DEFAULT_BITS_PER_AXIS} for 64-bit storage.")
+        x_bits, y_bits, z_bits = tuple(int(v) for v in bits_per_axis)
+        if x_bits <= 0 or y_bits <= 0 or z_bits <= 0:
+            raise ValueError("axis bit counts must be positive integers.")
+        if x_bits > ENCODED_X_BITS or y_bits > ENCODED_Y_BITS or z_bits > ENCODED_Z_BITS:
+            raise ValueError(
+                f"axis bit counts exceed supported maxima x/y/z={ENCODED_X_BITS}/{ENCODED_Y_BITS}/{ENCODED_Z_BITS}."
+            )
+        if (x_bits + y_bits + z_bits) > 64:
+            raise ValueError("axis bit counts must total <= 64 for 64-bit storage.")
         ox = np.floor(float(np.min(x)) * scale) / scale
         oy = np.floor(float(np.min(y)) * scale) / scale
         oz = np.floor(float(np.min(z)) * scale) / scale
@@ -1692,10 +1702,12 @@ class ParquetBlockModel:
         x_span = float(np.max(x) - ox)
         y_span = float(np.max(y) - oy)
         z_span = float(np.max(z) - oz)
-        axis_max = ((1 << bits_per_axis) - 1) / scale
-        if x_span > axis_max or y_span > axis_max or z_span > axis_max:
+        x_axis_max = ((1 << x_bits) - 1) / scale
+        y_axis_max = ((1 << y_bits) - 1) / scale
+        z_axis_max = ((1 << z_bits) - 1) / scale
+        if x_span > x_axis_max or y_span > y_axis_max or z_span > z_axis_max:
             raise ValueError(
-                f"Coordinates exceed global_id span limits ({bits_per_axis} bits/axis at scale={scale}). "
+                f"Coordinates exceed global_id span limits (x/y/z bits={x_bits}/{y_bits}/{z_bits} at scale={scale}). "
                 "Provide a custom encoding strategy."
             )
 
@@ -1707,7 +1719,8 @@ class ParquetBlockModel:
             "encoding": {
                 "type": "morton_zorder",
                 "version": "1.0",
-                "bits_per_axis": bits_per_axis,
+                "bits_per_axis": x_bits,
+                "axis_bits": {"x": x_bits, "y": y_bits, "z": z_bits},
                 "signed": False,
             },
             "quantization": {
@@ -1718,11 +1731,11 @@ class ParquetBlockModel:
             "offset": {"x": ox, "y": oy, "z": oz, "units": "world"},
             "range_after_offset": {
                 "x_min": 0.0,
-                "x_max": axis_max,
+                "x_max": x_axis_max,
                 "y_min": 0.0,
-                "y_max": axis_max,
+                "y_max": y_axis_max,
                 "z_min": 0.0,
-                "z_max": axis_max,
+                "z_max": z_axis_max,
             },
             "overflow_policy": "error",
             "null_policy": "no_nulls",
