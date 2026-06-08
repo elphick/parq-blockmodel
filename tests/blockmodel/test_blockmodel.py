@@ -13,7 +13,7 @@ from parq_blockmodel import ParquetBlockModel, RegularGeometry, LocalGeometry, W
 from parq_blockmodel.utils import create_demo_blockmodel
 from parq_blockmodel.utils.demo_block_model import create_toy_blockmodel
 from parq_blockmodel.utils.geometry_utils import angles_to_axes, rotate_points
-from parq_blockmodel.utils.spatial_encoding import decode_world_coordinates, get_world_id_encoding_params
+from parq_blockmodel.utils.spatial_encoding import decode_global_coordinates, get_global_id_encoding_params
 
 
 def test_from_empty_parquet_raises_error(tmp_path):
@@ -199,19 +199,24 @@ def test_block_id_column_matches_geometry_row_indices(tmp_path):
     assert len(df["block_id"]) == int(np.prod(shape))
 
 
-def test_world_id_persisted_and_decodable(tmp_path):
-    parquet_path = tmp_path / "world_id_source.parquet"
+def test_global_id_persisted_and_decodable(tmp_path):
+    parquet_path = tmp_path / "global_id_source.parquet"
     blocks = create_demo_blockmodel(shape=(3, 2, 2), block_size=(1.0, 1.0, 1.0), corner=(500000.0, 7000000.0, 100.0)).reset_index()
     blocks[["x", "y", "z", "depth"]].to_parquet(parquet_path, index=False)
 
     pbm = ParquetBlockModel.from_parquet(parquet_path, columns=["depth"], chunk_size=4)
     persisted = pd.read_parquet(pbm.blockmodel_path)
 
-    assert "world_id" in persisted.columns
-    assert persisted["world_id"].dtype == np.int64
+    assert "global_id" in persisted.columns
+    assert persisted["global_id"].dtype == np.int64
 
-    offset, scale = get_world_id_encoding_params(pbm.geometry.world_id_encoding)
-    x_dec, y_dec, z_dec = decode_world_coordinates(persisted["world_id"].to_numpy(dtype=np.int64), offset=offset, scale=scale)
+    offset, scale, bits_per_axis = get_global_id_encoding_params(pbm.geometry.global_id_encoding)
+    x_dec, y_dec, z_dec = decode_global_coordinates(
+        persisted["global_id"].to_numpy(dtype=np.int64),
+        offset=offset,
+        scale=scale,
+        bits_per_axis=bits_per_axis,
+    )
 
     x_true, y_true, z_true = pbm.geometry.xyz_from_row_index(persisted["block_id"].to_numpy(dtype=np.uint32))
     np.testing.assert_allclose(x_dec, x_true, atol=0.05)
@@ -219,8 +224,8 @@ def test_world_id_persisted_and_decodable(tmp_path):
     np.testing.assert_allclose(z_dec, z_true, atol=0.05)
 
 
-def test_metadata_contains_schema_version_and_world_id_encoding(tmp_path):
-    parquet_path = tmp_path / "world_id_meta_source.parquet"
+def test_metadata_contains_schema_version_and_global_id_encoding(tmp_path):
+    parquet_path = tmp_path / "global_id_meta_source.parquet"
     blocks = create_demo_blockmodel(shape=(2, 2, 2), block_size=(1.0, 1.0, 1.0), corner=(500000.0, 7000000.0, 50.0)).reset_index()
     blocks[["x", "y", "z", "depth"]].to_parquet(parquet_path, index=False)
 
@@ -228,12 +233,38 @@ def test_metadata_contains_schema_version_and_world_id_encoding(tmp_path):
     geom = pbm.geometry
 
     assert geom.schema_version == "1.0"
-    assert geom.world_id_encoding is not None
-    assert geom.world_id_encoding.get("column") == "world_id"
+    assert geom.global_id_encoding is not None
+    assert geom.global_id_encoding.get("column") == "global_id"
 
     geom_meta = pq.read_metadata(pbm.blockmodel_path).metadata[b"parq-blockmodel"].decode("utf-8")
     assert "schema_version" in geom_meta
-    assert "world_id_encoding" in geom_meta
+    assert "global_id_encoding" in geom_meta
+
+
+def test_canonical_special_column_order_defaults(tmp_path):
+    parquet_path = tmp_path / "special_order_source.parquet"
+    blocks = create_demo_blockmodel(shape=(2, 2, 2), block_size=(1.0, 1.0, 1.0), corner=(0.0, 0.0, 0.0)).reset_index()
+    blocks[["x", "y", "z", "depth"]].to_parquet(parquet_path, index=False)
+
+    pbm = ParquetBlockModel.from_parquet(parquet_path, chunk_size=4)
+    persisted = pd.read_parquet(pbm.blockmodel_path)
+
+    assert persisted.columns[:8].tolist() == ["block_id", "global_id", "x", "y", "z", "i", "j", "k"]
+
+
+def test_ensure_spatial_and_validate_special_columns(tmp_path):
+    parquet_path = tmp_path / "ensure_spatial_source.parquet"
+    blocks = create_demo_blockmodel(shape=(2, 2, 2), block_size=(1.0, 1.0, 1.0), corner=(0.0, 0.0, 0.0)).reset_index()
+    blocks[["x", "y", "z", "depth"]].to_parquet(parquet_path, index=False)
+
+    pbm = ParquetBlockModel.from_parquet(parquet_path, columns=["depth"], chunk_size=4)
+    assert "x" not in pbm.columns
+    assert "i" not in pbm.columns
+
+    pbm.ensure_spatial()
+
+    assert {"x", "y", "z", "i", "j", "k"}.issubset(pbm.columns)
+    assert pbm.validate_special_columns()
 
 
 def test_parquet_blockmodel_exposes_corner_and_origin_properties(tmp_path):
@@ -503,5 +534,3 @@ def test_canonical_pbm_requires_unique_block_id(tmp_path):
 
     with pytest.raises(ValueError, match="Canonical \\.pbm requires unique block_id values"):
         ParquetBlockModel(pbm.blockmodel_path)
-
-

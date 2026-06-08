@@ -17,15 +17,17 @@ from parq_blockmodel.utils.spatial_encoding import (
 # ---------------------------------------------------------------------------
 
 def test_get_id_encoding_params_none():
-    offset, scale = get_id_encoding_params(None)
+    offset, scale, bits = get_id_encoding_params(None)
     assert offset == (0.0, 0.0, 0.0)
-    assert scale == 10.0
+    assert scale == (10.0, 10.0, 10.0)
+    assert bits == 21
 
 
 def test_get_id_encoding_params_empty_dict():
-    offset, scale = get_id_encoding_params({})
+    offset, scale, bits = get_id_encoding_params({})
     assert offset == (0.0, 0.0, 0.0)
-    assert scale == 10.0
+    assert scale == (10.0, 10.0, 10.0)
+    assert bits == 21
 
 
 def test_get_id_encoding_params_scale_as_list():
@@ -33,9 +35,10 @@ def test_get_id_encoding_params_scale_as_list():
         "offset": {"x": 100.0, "y": 200.0, "z": 5.0},
         "quantization": {"scale": [10.0, 10.0, 10.0]},
     }
-    offset, scale = get_id_encoding_params(payload)
+    offset, scale, bits = get_id_encoding_params(payload)
     assert offset == (100.0, 200.0, 5.0)
-    assert scale == 10.0
+    assert scale == (10.0, 10.0, 10.0)
+    assert bits == 21
 
 
 # ---------------------------------------------------------------------------
@@ -84,4 +87,3 @@ def test_multiindex_roundtrip():
     np.testing.assert_allclose(restored.get_level_values("x"), xs, atol=1e-1)
     np.testing.assert_allclose(restored.get_level_values("y"), ys, atol=1e-1)
     np.testing.assert_allclose(restored.get_level_values("z"), zs, atol=1e-1)
-
