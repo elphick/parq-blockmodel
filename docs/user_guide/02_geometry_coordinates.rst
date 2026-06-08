@@ -182,11 +182,12 @@ If a user only has a pandas DataFrame with a ``global_id`` column and metadata i
     meta = df.attrs["parq-blockmodel"]
     encoding = meta["global_id_encoding"]
 
-    offset, scale = get_id_encoding_params(encoding)
+    offset, scale, bits_per_axis = get_id_encoding_params(encoding)
     x, y, z = decode_frame_coordinates(
         df["global_id"].to_numpy(dtype="int64"),
         offset=offset,
         scale=scale,
+        bits_per_axis=bits_per_axis,
     )
 
     df_decoded = df.copy()
@@ -314,4 +315,3 @@ See Also
 - :ref:`geometry-metadata-design` - Detailed developer documentation
 - :class:`parq_blockmodel.geometry.RegularGeometry` - Full API reference
 - :class:`parq_blockmodel.blockmodel.ParquetBlockModel` - Block model container
-

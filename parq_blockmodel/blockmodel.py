@@ -265,7 +265,12 @@ class ParquetBlockModel:
             self.recompute_global_id()
 
     def validate_special_columns(self, sample_size: int = 1000) -> bool:
-        """Validate consistency of block_id/global_id/spatial columns against geometry metadata."""
+        """Validate consistency of special columns against geometry and encoding metadata.
+
+        Returns ``False`` when any available positional representation disagrees with another
+        (for example block_id vs ijk/xyz, or global_id vs xyz + global_id_encoding).
+        ``sample_size`` controls validation sampling for large datasets (set ``0`` to validate all rows).
+        """
         cols = [c for c in self.SPECIAL_COLUMN_ORDER if c in self.columns]
         if not cols:
             return True
@@ -1679,7 +1684,7 @@ class ParquetBlockModel:
     ) -> dict[str, object]:
         """Build default global_id encoding metadata from xyz ranges."""
         if bits_per_axis <= 0 or bits_per_axis > DEFAULT_BITS_PER_AXIS:
-            raise ValueError(f"bits_per_axis must be in [1, {DEFAULT_BITS_PER_AXIS}].")
+            raise ValueError(f"bits_per_axis must be <= {DEFAULT_BITS_PER_AXIS} for 64-bit storage.")
         ox = np.floor(float(np.min(x)) * scale) / scale
         oy = np.floor(float(np.min(y)) * scale) / scale
         oz = np.floor(float(np.min(z)) * scale) / scale

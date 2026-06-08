@@ -23,10 +23,20 @@ ENCODED_Z_MAX_INT = (1 << ENCODED_Z_BITS) - 1
 DEFAULT_BITS_PER_AXIS = 21
 
 
+def _validate_bits_per_axis(bits_per_axis: int) -> None:
+    if bits_per_axis <= 0:
+        raise ValueError("bits_per_axis must be a positive integer.")
+    if bits_per_axis > DEFAULT_BITS_PER_AXIS:
+        raise ValueError(f"bits_per_axis must be <= {DEFAULT_BITS_PER_AXIS} for 64-bit storage.")
+
+
 def get_id_encoding_params(
     id_encoding: dict | None,
 ) -> tuple[tuple[float, float, float], tuple[float, float, float], int]:
-    """Return ``(offset_xyz, scale_xyz, bits_per_axis)`` from encoding metadata."""
+    """Return ``(offset_xyz, scale_xyz, bits_per_axis)`` from encoding metadata.
+
+    ``offset_xyz`` and ``scale_xyz`` are always returned as three-float tuples ordered as ``(x, y, z)``.
+    """
     if not id_encoding:
         return (0.0, 0.0, 0.0), (10.0, 10.0, 10.0), DEFAULT_BITS_PER_AXIS
 
@@ -42,7 +52,9 @@ def get_id_encoding_params(
     scale_xyz: tuple[float, float, float]
     if isinstance(scale_payload, (list, tuple)):
         if len(scale_payload) != 3:
-            raise ValueError("quantization.scale list/tuple must provide three values (x, y, z).")
+            raise ValueError(
+                f"quantization.scale list/tuple must provide three values (x, y, z), got {len(scale_payload)}."
+            )
         scale_xyz = (
             float(scale_payload[0]),
             float(scale_payload[1]),
@@ -58,12 +70,11 @@ def get_id_encoding_params(
         shared_scale = float(scale_payload)
         scale_xyz = (shared_scale, shared_scale, shared_scale)
 
+    # Support both the new contract (`encoding.bits_per_axis`) and older payloads
+    # that may have provided `bits_per_axis` at the top level.
     encoding_payload = id_encoding.get("encoding", {})
     bits_per_axis = int(encoding_payload.get("bits_per_axis", id_encoding.get("bits_per_axis", DEFAULT_BITS_PER_AXIS)))
-    if bits_per_axis <= 0:
-        raise ValueError("bits_per_axis must be a positive integer.")
-    if bits_per_axis > DEFAULT_BITS_PER_AXIS:
-        raise ValueError(f"bits_per_axis must be <= {DEFAULT_BITS_PER_AXIS} for signed 64-bit storage.")
+    _validate_bits_per_axis(bits_per_axis)
 
     return offset, scale_xyz, bits_per_axis
 
@@ -103,13 +114,15 @@ def encode_frame_coordinates(
     scale: float | tuple[float, float, float] = 10.0,
     bits_per_axis: int = DEFAULT_BITS_PER_AXIS,
 ) -> Union[np.ndarray, int]:
-    """Encode xyz-like coordinates with quantization + 3D Morton/Z-order bit interleaving."""
+    """Encode xyz-like coordinates with quantization + 3D Morton/Z-order bit interleaving.
+
+    Returns an ``int`` for scalar inputs and an ``np.ndarray[int64]`` for array-like inputs.
+    """
     x_arr = np.asarray(x, dtype=float)
     y_arr = np.asarray(y, dtype=float)
     z_arr = np.asarray(z, dtype=float)
 
-    if bits_per_axis <= 0 or bits_per_axis > DEFAULT_BITS_PER_AXIS:
-        raise ValueError(f"bits_per_axis must be in [1, {DEFAULT_BITS_PER_AXIS}] for signed 64-bit storage.")
+    _validate_bits_per_axis(bits_per_axis)
 
     ox, oy, oz = offset
     if isinstance(scale, (tuple, list)):
@@ -157,7 +170,10 @@ def decode_frame_coordinates(
     scale: float | tuple[float, float, float] = 10.0,
     bits_per_axis: int = DEFAULT_BITS_PER_AXIS,
 ) -> Union[Tuple[np.ndarray, np.ndarray, np.ndarray], Point]:
-    """Decode Morton/Z-order ids back to xyz-like coordinates using offset+scale."""
+    """Decode Morton/Z-order ids back to xyz-like coordinates using offset+scale.
+
+    Returns a ``(x, y, z)`` tuple of floats for scalar input ids and arrays for vectorized input.
+    """
     encoded_arr = np.asarray(encoded, dtype=np.int64).astype(np.uint64)
     x_int, y_int, z_int = _morton_decode_3d(encoded_arr, bits_per_axis=bits_per_axis)
 

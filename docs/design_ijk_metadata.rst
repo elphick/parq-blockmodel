@@ -441,11 +441,12 @@ can still decode ``global_id`` values using the attached metadata payload:
     meta = df.attrs["parq-blockmodel"]
     encoding = meta["global_id_encoding"]
 
-    offset, scale = get_id_encoding_params(encoding)
+    offset, scale, bits_per_axis = get_id_encoding_params(encoding)
     x, y, z = decode_frame_coordinates(
         df["global_id"].to_numpy(dtype="int64"),
         offset=offset,
         scale=scale,
+        bits_per_axis=bits_per_axis,
     )
 
 Cross-model uniqueness depends on shared encoding policy and non-overlapping
@@ -466,4 +467,3 @@ centroid positions within the same SRS.
 - Existing xyz-centric files remain supported through centroid-based
   geometry inference, with metadata-based reconstruction becoming the
   preferred path for new, canonical pbm files.
-

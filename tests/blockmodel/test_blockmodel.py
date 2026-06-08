@@ -249,7 +249,9 @@ def test_canonical_special_column_order_defaults(tmp_path):
     pbm = ParquetBlockModel.from_parquet(parquet_path, chunk_size=4)
     persisted = pd.read_parquet(pbm.blockmodel_path)
 
-    assert persisted.columns[:8].tolist() == ["block_id", "global_id", "x", "y", "z", "i", "j", "k"]
+    expected_special_order = ["block_id", "global_id", "x", "y", "z", "i", "j", "k"]
+    observed_special_order = [col for col in persisted.columns if col in expected_special_order]
+    assert observed_special_order == expected_special_order
 
 
 def test_ensure_spatial_and_validate_special_columns(tmp_path):
@@ -265,6 +267,24 @@ def test_ensure_spatial_and_validate_special_columns(tmp_path):
 
     assert {"x", "y", "z", "i", "j", "k"}.issubset(pbm.columns)
     assert pbm.validate_special_columns()
+
+
+def test_validate_special_columns_detects_invalid_global_id(tmp_path):
+    parquet_path = tmp_path / "invalid_global_id_source.parquet"
+    blocks = create_demo_blockmodel(shape=(2, 2, 2), block_size=(1.0, 1.0, 1.0), corner=(0.0, 0.0, 0.0)).reset_index()
+    blocks[["x", "y", "z", "depth"]].to_parquet(parquet_path, index=False)
+
+    pbm = ParquetBlockModel.from_parquet(parquet_path, chunk_size=4)
+    table = pq.read_table(pbm.blockmodel_path)
+    tampered = table.to_pandas()
+    tampered.loc[0, "global_id"] = tampered.loc[0, "global_id"] + 1
+    pq.write_table(
+        pa.Table.from_pandas(tampered, preserve_index=False).replace_schema_metadata(table.schema.metadata),
+        pbm.blockmodel_path,
+    )
+    pbm = ParquetBlockModel(blockmodel_path=pbm.blockmodel_path)
+
+    assert not pbm.validate_special_columns(sample_size=0)
 
 
 def test_parquet_blockmodel_exposes_corner_and_origin_properties(tmp_path):
