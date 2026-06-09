@@ -16,6 +16,12 @@ from parq_blockmodel.utils.geometry_utils import angles_to_axes, rotate_points
 from parq_blockmodel.utils.spatial_encoding import decode_world_coordinates, get_world_id_encoding_params
 
 
+def test_canonical_special_column_order_defaults():
+    expected_special_order = ["block_id", "world_id", "i", "j", "k", "x", "y", "z"]
+
+    assert ParquetBlockModel.SPECIAL_COLUMN_ORDER == expected_special_order
+
+
 def test_from_empty_parquet_raises_error(tmp_path):
     import pandas as pd
     parquet_path = tmp_path / "bar.parquet"
@@ -503,5 +509,4 @@ def test_canonical_pbm_requires_unique_block_id(tmp_path):
 
     with pytest.raises(ValueError, match="Canonical \\.pbm requires unique block_id values"):
         ParquetBlockModel(pbm.blockmodel_path)
-
 

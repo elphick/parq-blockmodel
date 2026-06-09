@@ -155,6 +155,9 @@ def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "Pa
     N = int(np.prod(new_geometry.local.shape))
     rows = np.arange(N, dtype=np.uint32)
     reblocked_df["block_id"] = rows
+    ordered_cols = ["block_id", "world_id", "i", "j", "k", "x", "y", "z"]
+    reblocked_df = reblocked_df[[*([c for c in ordered_cols if c in reblocked_df.columns]),
+                                 *([c for c in reblocked_df.columns if c not in ordered_cols])]]
 
     table = pa.Table.from_pandas(reblocked_df.reset_index(drop=True), preserve_index=False)
     meta = dict(table.schema.metadata or {})
@@ -227,6 +230,9 @@ def upsample_blockmodel(blockmodel, new_block_size, interpolation_config) -> "Pa
     N = int(np.prod(new_geometry.local.shape))
     rows = np.arange(N, dtype=np.uint32)
     reblocked_df["block_id"] = rows
+    ordered_cols = ["block_id", "world_id", "i", "j", "k", "x", "y", "z"]
+    reblocked_df = reblocked_df[[*([c for c in ordered_cols if c in reblocked_df.columns]),
+                                 *([c for c in reblocked_df.columns if c not in ordered_cols])]]
 
     table = pa.Table.from_pandas(reblocked_df.reset_index(drop=True), preserve_index=False)
     meta = dict(table.schema.metadata or {})

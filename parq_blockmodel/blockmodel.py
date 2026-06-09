@@ -98,10 +98,12 @@ class ParquetBlockModel:
             inferred from centroid columns.
     """
 
+    SPECIAL_COLUMN_ORDER = ["block_id", "world_id", "i", "j", "k", "x", "y", "z"]
+
     # Positional columns describe geometry/placement and are excluded from
     # ``self.attributes``. Keep linear index helpers (index_c/index_f) as
     # attributes for debug/visual validation workflows.
-    POSITION_COLUMNS = {"block_id", "world_id", "i", "j", "k", "x", "y", "z"}
+    POSITION_COLUMNS = set(SPECIAL_COLUMN_ORDER)
 
     def __init__(self, blockmodel_path: Path, name: Optional[str] = None, geometry: Optional[RegularGeometry] = None):
         if blockmodel_path.suffix != ".pbm":
@@ -1594,7 +1596,7 @@ class ParquetBlockModel:
             )
         offset, scale = get_world_id_encoding_params(geometry.world_id_encoding)
 
-        read_cols = list(dict.fromkeys(output_cols + [c for c in ["block_id", "world_id", "i", "j", "k", "x", "y", "z"] if c in src_cols]))
+        read_cols = list(dict.fromkeys(output_cols + [c for c in cls.SPECIAL_COLUMN_ORDER if c in src_cols]))
         if "block_id" not in output_cols:
             output_cols = ["block_id"] + output_cols
         if "world_id" not in output_cols:
@@ -1766,5 +1768,4 @@ def _create_demo_blockmodel(*args, **kwargs):
     """
 
     return create_demo_blockmodel(*args, **kwargs)
-
 
