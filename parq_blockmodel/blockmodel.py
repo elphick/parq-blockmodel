@@ -178,7 +178,6 @@ class ParquetBlockModel:
 
     @classmethod
     def _coerce_special_column_dtypes(cls, dataframe: pd.DataFrame) -> pd.DataFrame:
-        dataframe = dataframe.copy()
         for column, dtype in cls.SPECIAL_COLUMN_DTYPES.items():
             if column in dataframe.columns:
                 dataframe[column] = dataframe[column].astype(dtype, copy=False)
@@ -1675,7 +1674,7 @@ class ParquetBlockModel:
                         df_batch["world_id"] = encode_world_coordinates(
                             x, y, z, offset=offset, scale=scale
                         ).astype(np.int64)
-                    write_df = cls._coerce_special_column_dtypes(df_batch[output_cols])
+                    write_df = cls._coerce_special_column_dtypes(df_batch[output_cols].copy())
 
                     table = pa.Table.from_pandas(write_df, preserve_index=False)
                     meta = table.schema.metadata or {}
