@@ -32,11 +32,12 @@ enough.
 	meta = df.attrs["parq-blockmodel"]
 	encoding = meta["world_id_encoding"]
 
-	offset, scale = get_id_encoding_params(encoding)
+	offset, scale, bits_per_axis = get_id_encoding_params(encoding)
 	x, y, z = decode_frame_coordinates(
 		df["world_id"].to_numpy(dtype="int64"),
 		offset=offset,
 		scale=scale,
+		bits_per_axis=bits_per_axis,
 	)
 
 	decoded = df.assign(x=x, y=y, z=z)

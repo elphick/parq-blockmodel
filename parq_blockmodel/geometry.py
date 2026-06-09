@@ -173,7 +173,7 @@ class RegularGeometry:
         local (LocalGeometry): The local lattice geometry (corner, block_size, shape, C-order).
         world (WorldFrame): The world embedding with origin, axes, and CRS.
         schema_version (str): Version of the metadata schema. Default: "1.0"
-        world_id_encoding (dict, optional): Encoding for world IDs.
+        world_id_encoding (dict, optional): Encoding for global Morton IDs.
 
     Note:
         **Internal Storage Ordering (C-order canonical)**

@@ -139,9 +139,10 @@ Once centroid coordinates are available in world space, they can also be convert
 (or the generic ``encode_frame_coordinates`` alias).
 
 ``world_id`` is a stable 64-bit positional identifier derived from world-space XYZ
-coordinates within a given CRS. It uniquely identifies a block by location and is
-intended for joins, tracking, and external references. It is not a spatial index and
-should not be used for spatial range queries.
+coordinates within a given CRS using Morton (Z-order) encoding. It uniquely identifies
+a block by location and is intended for joins, tracking, and external references. It is
+a spatial index, but Morton order is locality-preserving rather than range-exact, so
+spatial filtering should still be done using explicit XYZ bounds.
 
 This world_id derivation is shown in the diagram as an optional downstream step from
 centroid positions.
@@ -182,11 +183,12 @@ If a user only has a pandas DataFrame with a ``world_id`` column and metadata in
     meta = df.attrs["parq-blockmodel"]
     encoding = meta["world_id_encoding"]
 
-    offset, scale = get_id_encoding_params(encoding)
+    offset, scale, bits_per_axis = get_id_encoding_params(encoding)
     x, y, z = decode_frame_coordinates(
         df["world_id"].to_numpy(dtype="int64"),
         offset=offset,
         scale=scale,
+        bits_per_axis=bits_per_axis,
     )
 
     df_decoded = df.copy()
@@ -314,4 +316,3 @@ See Also
 - :ref:`geometry-metadata-design` - Detailed developer documentation
 - :class:`parq_blockmodel.geometry.RegularGeometry` - Full API reference
 - :class:`parq_blockmodel.blockmodel.ParquetBlockModel` - Block model container
-
