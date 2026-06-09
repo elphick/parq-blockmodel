@@ -172,7 +172,7 @@ class RegularGeometry:
     Attributes:
         local (LocalGeometry): The local lattice geometry (corner, block_size, shape, C-order).
         world (WorldFrame): The world embedding with origin, axes, and CRS.
-        schema_version (str): Version of the metadata schema. Default: "1.0"
+        schema_version (str): Version of the metadata schema. Default: "1.1"
         world_id_encoding (dict, optional): Encoding for global Morton IDs.
 
     Note:
@@ -205,7 +205,7 @@ class RegularGeometry:
 
     local: LocalGeometry
     world: WorldFrame
-    schema_version: str = "1.0"
+    schema_version: str = "1.1"
     world_id_encoding: Optional[dict[str, Any]] = None
 
     def __post_init__(self):
@@ -254,7 +254,7 @@ class RegularGeometry:
         self,
         local: Optional[LocalGeometry] = None,
         world: Optional[WorldFrame] = None,
-        schema_version: str = "1.0",
+        schema_version: str = "1.1",
         world_id_encoding: Optional[dict[str, Any]] = None,
         # Backward-compatible keyword arguments
         corner: Optional[Point] = None,
@@ -447,7 +447,7 @@ class RegularGeometry:
                 axis_w=tuple(meta["axis_w"]),
                 srs=meta.get("srs"),
             ),
-            schema_version=str(meta.get("schema_version", "1.0")),
+            schema_version=str(meta.get("schema_version", "1.1")),
             world_id_encoding=meta.get("world_id_encoding"),
         )
 

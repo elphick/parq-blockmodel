@@ -248,7 +248,7 @@ The decoded JSON payload looks like:
 .. code-block:: json
 
     {
-      "schema_version": "1.0",
+      "schema_version": "1.1",
       "corner": [100.0, 200.0, 300.0],
       "origin": [0.0, 0.0, 0.0],
       "block_size": [10.0, 10.0, 5.0],

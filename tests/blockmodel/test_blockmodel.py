@@ -233,7 +233,7 @@ def test_metadata_contains_schema_version_and_world_id_encoding(tmp_path):
     pbm = ParquetBlockModel.from_parquet(parquet_path, columns=["depth"], chunk_size=4)
     geom = pbm.geometry
 
-    assert geom.schema_version == "1.0"
+    assert geom.schema_version == "1.1"
     assert geom.world_id_encoding is not None
     assert geom.world_id_encoding.get("column") == "world_id"
 

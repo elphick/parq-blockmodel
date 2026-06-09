@@ -106,7 +106,7 @@ via ``to_metadata_dict`` and ``from_metadata``.
 - The **canonical geometry payload** is a plain ``dict``::
 
     {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "corner": [u0, v0, w0],
         "origin": [x0, y0, z0],
         "block_size": [dx, dy, dz],
@@ -121,7 +121,7 @@ via ``to_metadata_dict`` and ``from_metadata``.
   ``world_id`` encoding metadata::
 
     {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         ...,
         "world_id_encoding": {
             "enabled": true,
