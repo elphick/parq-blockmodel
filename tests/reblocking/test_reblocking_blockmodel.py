@@ -46,7 +46,8 @@ def test_downsample_blockmodel_builds_expected_geometry_and_block_ids(tmp_path):
 
     df = downsampled.read(columns=["block_id", "depth"], index="ijk", dense=True)
     assert len(df) == 8
-    np.testing.assert_array_equal(df["block_id"].to_numpy(), np.arange(8, dtype=np.uint32))
+    assert df["block_id"].dtype == np.int32
+    np.testing.assert_array_equal(df["block_id"].to_numpy(), np.arange(8, dtype=np.int32))
 
 
 @pytest.mark.integration
@@ -70,5 +71,5 @@ def test_upsample_blockmodel_builds_expected_geometry_and_block_ids(tmp_path):
     df = upsampled.read(columns=["block_id", "depth"], index="ijk", dense=True)
     assert len(df) == 64
     assert df["block_id"].is_unique
-    np.testing.assert_array_equal(df["block_id"].to_numpy(), np.arange(64, dtype=np.uint32))
-
+    assert df["block_id"].dtype == np.int32
+    np.testing.assert_array_equal(df["block_id"].to_numpy(), np.arange(64, dtype=np.int32))

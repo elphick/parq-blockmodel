@@ -98,7 +98,8 @@ def _order_special_columns(df: pd.DataFrame, blockmodel: "ParquetBlockModel") ->
     ordered_cols = blockmodel.SPECIAL_COLUMN_ORDER
     special_cols = [c for c in ordered_cols if c in df.columns]
     other_cols = [c for c in df.columns if c not in ordered_cols]
-    return df[special_cols + other_cols]
+    ordered_df = df[special_cols + other_cols]
+    return blockmodel._coerce_special_column_dtypes(ordered_df)
 
 
 def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "ParquetBlockModel":
@@ -160,7 +161,7 @@ def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "Pa
 
     # Canonical linear id in C-order of local (i, j, k).
     N = int(np.prod(new_geometry.local.shape))
-    rows = np.arange(N, dtype=np.uint32)
+    rows = np.arange(N, dtype=np.int32)
     reblocked_df["block_id"] = rows
     reblocked_df = _order_special_columns(reblocked_df, blockmodel)
 
@@ -233,7 +234,7 @@ def upsample_blockmodel(blockmodel, new_block_size, interpolation_config) -> "Pa
     reblocked_df["z"] = new_geometry.centroid_z
 
     N = int(np.prod(new_geometry.local.shape))
-    rows = np.arange(N, dtype=np.uint32)
+    rows = np.arange(N, dtype=np.int32)
     reblocked_df["block_id"] = rows
     reblocked_df = _order_special_columns(reblocked_df, blockmodel)
 

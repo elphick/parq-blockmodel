@@ -149,11 +149,11 @@ def test_block_id_persisted_in_dense_pbm(tmp_path):
         blocks["x"].to_numpy(),
         blocks["y"].to_numpy(),
         blocks["z"].to_numpy(),
-    ).astype(np.uint32)
+    ).astype(np.int32)
 
     assert "block_id" in persisted.columns
     assert persisted.columns[0] == "block_id"
-    assert persisted["block_id"].dtype == np.uint32
+    assert persisted["block_id"].dtype == np.int32
     assert np.array_equal(persisted["block_id"].to_numpy(), expected_block_ids)
 
 
@@ -170,7 +170,7 @@ def test_block_id_persisted_in_sparse_pbm(tmp_path):
         sparse["x"].to_numpy(),
         sparse["y"].to_numpy(),
         sparse["z"].to_numpy(),
-    ).astype(np.uint32)
+    ).astype(np.int32)
 
     assert pbm.is_sparse
     assert "block_id" in persisted.columns
@@ -219,7 +219,7 @@ def test_world_id_persisted_and_decodable(tmp_path):
     offset, scale = get_world_id_encoding_params(pbm.geometry.world_id_encoding)
     x_dec, y_dec, z_dec = decode_world_coordinates(persisted["world_id"].to_numpy(dtype=np.int64), offset=offset, scale=scale)
 
-    x_true, y_true, z_true = pbm.geometry.xyz_from_row_index(persisted["block_id"].to_numpy(dtype=np.uint32))
+    x_true, y_true, z_true = pbm.geometry.xyz_from_row_index(persisted["block_id"].to_numpy(dtype=np.int32))
     np.testing.assert_allclose(x_dec, x_true, atol=0.05)
     np.testing.assert_allclose(y_dec, y_true, atol=0.05)
     np.testing.assert_allclose(z_dec, z_true, atol=0.05)
@@ -412,8 +412,8 @@ def test_from_parquet_rotated_xyz_only_derives_correct_block_ids(tmp_path):
     x = promoted.index.get_level_values("x").to_numpy(dtype=float)
     y = promoted.index.get_level_values("y").to_numpy(dtype=float)
     z = promoted.index.get_level_values("z").to_numpy(dtype=float)
-    expected = pbm.geometry.row_index_from_xyz(x, y, z).astype(np.uint32)
-    actual = promoted["block_id"].to_numpy(dtype=np.uint32)
+    expected = pbm.geometry.row_index_from_xyz(x, y, z).astype(np.int32)
+    actual = promoted["block_id"].to_numpy(dtype=np.int32)
 
     np.testing.assert_array_equal(actual, expected)
 
@@ -509,4 +509,3 @@ def test_canonical_pbm_requires_unique_block_id(tmp_path):
 
     with pytest.raises(ValueError, match="Canonical \\.pbm requires unique block_id values"):
         ParquetBlockModel(pbm.blockmodel_path)
-

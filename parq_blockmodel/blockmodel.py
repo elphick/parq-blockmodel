@@ -99,6 +99,16 @@ class ParquetBlockModel:
     """
 
     SPECIAL_COLUMN_ORDER = ["block_id", "world_id", "i", "j", "k", "x", "y", "z"]
+    SPECIAL_COLUMN_DTYPES = {
+        "block_id": np.int32,
+        "world_id": np.int64,
+        "i": np.int32,
+        "j": np.int32,
+        "k": np.int32,
+        "x": np.float32,
+        "y": np.float32,
+        "z": np.float32,
+    }
 
     # Positional columns describe geometry/placement and are excluded from
     # ``self.attributes``. Keep linear index helpers (index_c/index_f) as
@@ -165,6 +175,14 @@ class ParquetBlockModel:
                 self._column_categorical_ordered[col] = field_type.ordered
             else:
                 self.column_dtypes[col] = field_type.to_pandas_dtype()
+
+    @classmethod
+    def _coerce_special_column_dtypes(cls, dataframe: pd.DataFrame) -> pd.DataFrame:
+        dataframe = dataframe.copy()
+        for column, dtype in cls.SPECIAL_COLUMN_DTYPES.items():
+            if column in dataframe.columns:
+                dataframe[column] = dataframe[column].astype(dtype, copy=False)
+        return dataframe
 
     @property
     def column_categorical_ordered(self) -> dict[str, bool]:
@@ -471,17 +489,17 @@ class ParquetBlockModel:
                 x = dataframe.index.get_level_values("x").to_numpy()
                 y = dataframe.index.get_level_values("y").to_numpy()
                 z = dataframe.index.get_level_values("z").to_numpy()
-                dataframe["block_id"] = geometry.row_index_from_xyz(x, y, z).astype(np.uint32)
+                dataframe["block_id"] = geometry.row_index_from_xyz(x, y, z).astype(np.int32)
             elif {"x", "y", "z"}.issubset(dataframe.columns):
                 dataframe["block_id"] = geometry.row_index_from_xyz(
                     dataframe["x"].to_numpy(), dataframe["y"].to_numpy(), dataframe["z"].to_numpy()
-                ).astype(np.uint32)
+                ).astype(np.int32)
             elif {"i", "j", "k"}.issubset(dataframe.columns):
                 dataframe["block_id"] = geometry.row_index_from_ijk(
                     dataframe["i"].to_numpy(), dataframe["j"].to_numpy(), dataframe["k"].to_numpy()
-                ).astype(np.uint32)
+                ).astype(np.int32)
             elif len(dataframe) == int(np.prod(geometry.local.shape)):
-                dataframe["block_id"] = np.arange(len(dataframe), dtype=np.uint32)
+                dataframe["block_id"] = np.arange(len(dataframe), dtype=np.int32)
             else:
                 raise ValueError("Unable to derive block_id: provide xyz or ijk coordinates.")
 
@@ -506,6 +524,7 @@ class ParquetBlockModel:
         dataframe.attrs["parq-blockmodel"] = geometry.to_metadata_dict()
 
         # Save DataFrame to Parquet and embed geometry metadata
+        dataframe = cls._coerce_special_column_dtypes(dataframe)
         table = pa.Table.from_pandas(dataframe)
         meta = table.schema.metadata or {}
         meta = dict(meta)
@@ -691,7 +710,7 @@ class ParquetBlockModel:
             columns.
         """
         centroids_df = geometry.to_dataframe()
-        centroids_df["block_id"] = np.arange(int(np.prod(geometry.local.shape)), dtype=np.uint32)
+        centroids_df["block_id"] = np.arange(int(np.prod(geometry.local.shape)), dtype=np.int32)
         if geometry.world_id_encoding is None:
             geometry.world_id_encoding = cls._build_world_id_encoding_from_xyz(
                 centroids_df["x"].to_numpy(dtype=float),
@@ -708,6 +727,7 @@ class ParquetBlockModel:
         ).astype(np.int64)
         centroids_df.attrs["parq-blockmodel"] = geometry.to_metadata_dict()
 
+        centroids_df = cls._coerce_special_column_dtypes(centroids_df)
         table = pa.Table.from_pandas(centroids_df)
         meta = table.schema.metadata or {}
         meta = dict(meta)
@@ -1621,19 +1641,19 @@ class ParquetBlockModel:
                         )
 
                     if "block_id" in df_batch.columns:
-                        block_ids = df_batch["block_id"].to_numpy(dtype=np.uint32)
+                        block_ids = df_batch["block_id"].to_numpy(dtype=np.int32)
                     elif "world_id" in df_batch.columns:
                         world_ids = df_batch["world_id"].to_numpy(dtype=np.int64)
                         xw, yw, zw = decode_world_coordinates(world_ids, offset=offset, scale=scale)
-                        block_ids = geometry.row_index_from_xyz(xw, yw, zw, tol=tol).astype(np.uint32)
+                        block_ids = geometry.row_index_from_xyz(xw, yw, zw, tol=tol).astype(np.int32)
                     elif {"x", "y", "z"}.issubset(df_batch.columns):
                         block_ids = geometry.row_index_from_xyz(
                             df_batch["x"].to_numpy(), df_batch["y"].to_numpy(), df_batch["z"].to_numpy(), tol=tol
-                        ).astype(np.uint32)
+                        ).astype(np.int32)
                     else:
                         block_ids = geometry.row_index_from_ijk(
                             df_batch["i"].to_numpy(), df_batch["j"].to_numpy(), df_batch["k"].to_numpy()
-                        ).astype(np.uint32)
+                        ).astype(np.int32)
 
                     if np.any(block_ids < 0) or np.any(block_ids >= int(np.prod(geometry.local.shape))):
                         raise ValueError("Source data contains positions outside geometry bounds.")
@@ -1655,7 +1675,7 @@ class ParquetBlockModel:
                         df_batch["world_id"] = encode_world_coordinates(
                             x, y, z, offset=offset, scale=scale
                         ).astype(np.int64)
-                    write_df = df_batch[output_cols]
+                    write_df = cls._coerce_special_column_dtypes(df_batch[output_cols])
 
                     table = pa.Table.from_pandas(write_df, preserve_index=False)
                     meta = table.schema.metadata or {}
@@ -1768,4 +1788,3 @@ def _create_demo_blockmodel(*args, **kwargs):
     """
 
     return create_demo_blockmodel(*args, **kwargs)
-
