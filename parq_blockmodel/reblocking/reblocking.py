@@ -14,7 +14,7 @@ import pyarrow.parquet as pq
 from parq_blockmodel.reblocking.conversion import tabular_to_3d_dict, dict_3d_to_tabular
 from parq_blockmodel.reblocking.downsample import downsample_attributes
 from parq_blockmodel.reblocking.upsample import upsample_attributes
-from parq_blockmodel.utils.spatial_encoding import encode_global_coordinates, get_global_id_encoding_params
+from parq_blockmodel.utils.spatial_encoding import encode_world_coordinates, get_world_id_encoding_params
 
 if TYPE_CHECKING:
     from parq_blockmodel import ParquetBlockModel
@@ -44,7 +44,7 @@ def _prepare_arrays_and_index(blockmodel) -> tuple[dict[str, np.ndarray], dict[s
     #
     # Only load true attributes; drop geometry/identity columns which
     # will be regenerated for the reblocked grid.
-    geometry_cols = {"block_id", "global_id", "x", "y", "z", "i", "j", "k"}
+    geometry_cols = {"block_id", "world_id", "x", "y", "z", "i", "j", "k"}
     cols = [c for c in blockmodel.columns if c not in geometry_cols]
     df: pd.DataFrame = blockmodel.read(columns=cols, index="ijk", dense=True)
     arrays, categories = tabular_to_3d_dict(df)
@@ -91,7 +91,7 @@ def _build_new_geometry(blockmodel, new_block_size, new_shape) -> RegularGeometr
             axis_w=blockmodel.geometry.world.axis_w,
             srs=blockmodel.geometry.world.srs,
         ),
-        global_id_encoding=blockmodel.geometry.global_id_encoding,
+        world_id_encoding=blockmodel.geometry.world_id_encoding,
     )
 
 
@@ -160,14 +160,14 @@ def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "Pa
     reblocked_df["i"] = i.astype(np.int32)
     reblocked_df["j"] = j.astype(np.int32)
     reblocked_df["k"] = k.astype(np.int32)
-    if new_geometry.global_id_encoding is None:
-        new_geometry.global_id_encoding = ParquetBlockModel._build_global_id_encoding_from_xyz(
+    if new_geometry.world_id_encoding is None:
+        new_geometry.world_id_encoding = ParquetBlockModel._build_world_id_encoding_from_xyz(
             reblocked_df["x"].to_numpy(dtype=float),
             reblocked_df["y"].to_numpy(dtype=float),
             reblocked_df["z"].to_numpy(dtype=float),
         )
-    offset, scale, bits_per_axis = get_global_id_encoding_params(new_geometry.global_id_encoding)
-    reblocked_df["global_id"] = encode_global_coordinates(
+    offset, scale, bits_per_axis = get_world_id_encoding_params(new_geometry.world_id_encoding)
+    reblocked_df["world_id"] = encode_world_coordinates(
         reblocked_df["x"].to_numpy(dtype=float),
         reblocked_df["y"].to_numpy(dtype=float),
         reblocked_df["z"].to_numpy(dtype=float),
@@ -175,7 +175,7 @@ def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "Pa
         scale=scale,
         bits_per_axis=bits_per_axis,
     ).astype(np.int64)
-    ordered_cols = ["block_id", "global_id", "x", "y", "z", "i", "j", "k"]
+    ordered_cols = ["block_id", "world_id", "x", "y", "z", "i", "j", "k"]
     ordered_cols.extend([c for c in reblocked_df.columns if c not in ordered_cols])
 
     table = pa.Table.from_pandas(reblocked_df[ordered_cols].reset_index(drop=True), preserve_index=False)
@@ -253,14 +253,14 @@ def upsample_blockmodel(blockmodel, new_block_size, interpolation_config) -> "Pa
     reblocked_df["i"] = i.astype(np.int32)
     reblocked_df["j"] = j.astype(np.int32)
     reblocked_df["k"] = k.astype(np.int32)
-    if new_geometry.global_id_encoding is None:
-        new_geometry.global_id_encoding = ParquetBlockModel._build_global_id_encoding_from_xyz(
+    if new_geometry.world_id_encoding is None:
+        new_geometry.world_id_encoding = ParquetBlockModel._build_world_id_encoding_from_xyz(
             reblocked_df["x"].to_numpy(dtype=float),
             reblocked_df["y"].to_numpy(dtype=float),
             reblocked_df["z"].to_numpy(dtype=float),
         )
-    offset, scale, bits_per_axis = get_global_id_encoding_params(new_geometry.global_id_encoding)
-    reblocked_df["global_id"] = encode_global_coordinates(
+    offset, scale, bits_per_axis = get_world_id_encoding_params(new_geometry.world_id_encoding)
+    reblocked_df["world_id"] = encode_world_coordinates(
         reblocked_df["x"].to_numpy(dtype=float),
         reblocked_df["y"].to_numpy(dtype=float),
         reblocked_df["z"].to_numpy(dtype=float),
@@ -268,7 +268,7 @@ def upsample_blockmodel(blockmodel, new_block_size, interpolation_config) -> "Pa
         scale=scale,
         bits_per_axis=bits_per_axis,
     ).astype(np.int64)
-    ordered_cols = ["block_id", "global_id", "x", "y", "z", "i", "j", "k"]
+    ordered_cols = ["block_id", "world_id", "x", "y", "z", "i", "j", "k"]
     ordered_cols.extend([c for c in reblocked_df.columns if c not in ordered_cols])
 
     table = pa.Table.from_pandas(reblocked_df[ordered_cols].reset_index(drop=True), preserve_index=False)

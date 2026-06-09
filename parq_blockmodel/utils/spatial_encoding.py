@@ -106,11 +106,11 @@ def get_id_encoding_params(
     return offset, scale_xyz, axis_bits
 
 
-def get_global_id_encoding_params(
-    global_id_encoding: dict | None,
+def get_world_id_encoding_params(
+    world_id_encoding: dict | None,
 ) -> tuple[tuple[float, float, float], tuple[float, float, float], tuple[int, int, int]]:
     """Alias for :func:`get_id_encoding_params`."""
-    return get_id_encoding_params(global_id_encoding)
+    return get_id_encoding_params(world_id_encoding)
 
 
 def _morton_encode_3d(
@@ -203,7 +203,7 @@ def encode_frame_coordinates(
     return encoded.astype(np.int64)
 
 
-def encode_global_coordinates(
+def encode_world_coordinates(
     x: ArrayOrFloat,
     y: ArrayOrFloat,
     z: ArrayOrFloat,
@@ -244,7 +244,7 @@ def decode_frame_coordinates(
     return x, y, z
 
 
-def decode_global_coordinates(
+def decode_world_coordinates(
     encoded: Union[np.ndarray, int],
     offset: Point = (0.0, 0.0, 0.0),
     scale: float | tuple[float, float, float] = 10.0,

@@ -173,7 +173,7 @@ class RegularGeometry:
         local (LocalGeometry): The local lattice geometry (corner, block_size, shape, C-order).
         world (WorldFrame): The world embedding with origin, axes, and CRS.
         schema_version (str): Version of the metadata schema. Default: "1.0"
-        global_id_encoding (dict, optional): Encoding for global Morton IDs.
+        world_id_encoding (dict, optional): Encoding for global Morton IDs.
 
     Note:
         **Internal Storage Ordering (C-order canonical)**
@@ -206,7 +206,7 @@ class RegularGeometry:
     local: LocalGeometry
     world: WorldFrame
     schema_version: str = "1.0"
-    global_id_encoding: Optional[dict[str, Any]] = None
+    world_id_encoding: Optional[dict[str, Any]] = None
 
     def __post_init__(self):
         """Validate and initialize geometry components."""
@@ -255,7 +255,7 @@ class RegularGeometry:
         local: Optional[LocalGeometry] = None,
         world: Optional[WorldFrame] = None,
         schema_version: str = "1.0",
-        global_id_encoding: Optional[dict[str, Any]] = None,
+        world_id_encoding: Optional[dict[str, Any]] = None,
         # Backward-compatible keyword arguments
         corner: Optional[Point] = None,
         block_size: Optional[BlockSize] = None,
@@ -304,7 +304,7 @@ class RegularGeometry:
         self.local = local
         self.world = world
         self.schema_version = schema_version
-        self.global_id_encoding = global_id_encoding
+        self.world_id_encoding = world_id_encoding
 
     # ----------------------------------------------------------------------
     # Centroid calculation (C‑order)
@@ -427,8 +427,8 @@ class RegularGeometry:
             "axis_w": list(self.world.axis_w),
             "srs": self.world.srs,
         }
-        if self.global_id_encoding is not None:
-            metadata["global_id_encoding"] = self.global_id_encoding
+        if self.world_id_encoding is not None:
+            metadata["world_id_encoding"] = self.world_id_encoding
         return metadata
 
     @classmethod
@@ -448,7 +448,7 @@ class RegularGeometry:
                 srs=meta.get("srs"),
             ),
             schema_version=str(meta.get("schema_version", "1.0")),
-            global_id_encoding=meta.get("global_id_encoding"),
+            world_id_encoding=meta.get("world_id_encoding"),
         )
 
     # ------------------------------------------------------------------

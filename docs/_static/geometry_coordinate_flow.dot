@@ -63,7 +63,7 @@ R⁻¹ = Rᵀ (orthonormal)", style="rounded,filled", fillcolor=lightsalmon];
         style=filled;
         color=lavender;
         world [label="(x, y, z)\ncentroid positions\nin world space\n\nworld = origin + R @ local", style="rounded,filled", fillcolor=lavender];
-        global_id [label="global_id = encode_coordinates(x, y, z)\nstable 64-bit positional identifier", style="rounded,dashed,filled", fillcolor=aliceblue];
+        world_id [label="world_id = encode_coordinates(x, y, z)\nstable 64-bit positional identifier", style="rounded,dashed,filled", fillcolor=aliceblue];
     }
     // Edges - Input to Logical
     corner -> ijk [label="define grid"];
@@ -82,7 +82,7 @@ offsets"];
 orientation", constraint=false];
     origin -> world [label="translate", constraint=false];
     rotation -> world [label="R @ local"];
-    world -> global_id [style=dashed, label="optional", constraint=false];
+    world -> world_id [style=dashed, label="optional", constraint=false];
     // Inverse transformations (dashed)
     world -> rotation [style=dashed, label="R⁻¹ (inverse)"];
     rotation -> local [style=dashed];
@@ -93,5 +93,5 @@ orientation", constraint=false];
     {rank=same; ijk; rowindex}
     {rank=same; local}
     {rank=same; origin; axes}
-    {rank=same; world; global_id}
+    {rank=same; world; world_id}
 }

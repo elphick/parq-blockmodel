@@ -135,39 +135,40 @@ The world coordinates are then:
 - For unrotated geometries, R is the identity matrix (no rotation applied)
 
 Once centroid coordinates are available in world space, they can also be converted into
-``global_id`` using ``parq_blockmodel.utils.spatial_encoding.encode_global_coordinates``
+``world_id`` using ``parq_blockmodel.utils.spatial_encoding.encode_world_coordinates``
 (or the generic ``encode_frame_coordinates`` alias).
 
-``global_id`` is a stable 64-bit positional identifier derived from world-space XYZ
-coordinates within a given CRS. It uniquely identifies a block by location and is
-intended for joins, tracking, and external references. It is not a spatial index and
-should not be used for spatial range queries.
+``world_id`` is a stable 64-bit positional identifier derived from world-space XYZ
+coordinates within a given CRS using Morton (Z-order) encoding. It uniquely identifies
+a block by location and is intended for joins, tracking, and external references. It is
+a spatial index, but Morton order is locality-preserving rather than range-exact, so
+spatial filtering should still be done using explicit XYZ bounds.
 
-This global_id derivation is shown in the diagram as an optional downstream step from
+This world_id derivation is shown in the diagram as an optional downstream step from
 centroid positions.
 
-Cross-model ``global_id`` use case
+Cross-model ``world_id`` use case
 ---------------------------------
 
-``global_id`` is useful when you work with multiple block models in the same SRS and
+``world_id`` is useful when you work with multiple block models in the same SRS and
 want a stable, compact positional key for joins.
 
-Within a shared encoding contract, ``global_id`` is unique across those models when:
+Within a shared encoding contract, ``world_id`` is unique across those models when:
 
 * all models use the same SRS,
-* all models use the same ``global_id_encoding`` metadata contract
+* all models use the same ``world_id_encoding`` metadata contract
   (scale, bit layout, frame, and axis order), and
 * the models do not contain overlapping block centroids.
 
 .. important::
 
-    ``global_id`` uniqueness is not a pure CRS property by itself. It depends on both
+    ``world_id`` uniqueness is not a pure CRS property by itself. It depends on both
     centroid positions and a compatible encoding definition (notably offsets and scale).
 
-Decode ``global_id`` from a DataFrame (no ``ParquetBlockModel``)
+Decode ``world_id`` from a DataFrame (no ``ParquetBlockModel``)
 ---------------------------------------------------------------
 
-If a user only has a pandas DataFrame with a ``global_id`` column and metadata in
+If a user only has a pandas DataFrame with a ``world_id`` column and metadata in
 ``df.attrs['parq-blockmodel']``, they can decode centroids directly:
 
 .. code-block:: python
@@ -176,15 +177,15 @@ If a user only has a pandas DataFrame with a ``global_id`` column and metadata i
     from parq_blockmodel.utils import get_id_encoding_params, decode_frame_coordinates
 
     # Example shape:
-    # df.columns includes: global_id, grade, density, ...
-    # df.attrs["parq-blockmodel"] includes: global_id_encoding metadata payload
+    # df.columns includes: world_id, grade, density, ...
+    # df.attrs["parq-blockmodel"] includes: world_id_encoding metadata payload
 
     meta = df.attrs["parq-blockmodel"]
-    encoding = meta["global_id_encoding"]
+    encoding = meta["world_id_encoding"]
 
     offset, scale, bits_per_axis = get_id_encoding_params(encoding)
     x, y, z = decode_frame_coordinates(
-        df["global_id"].to_numpy(dtype="int64"),
+        df["world_id"].to_numpy(dtype="int64"),
         offset=offset,
         scale=scale,
         bits_per_axis=bits_per_axis,
@@ -251,9 +252,9 @@ Metadata is serialized as JSON and stored in the Parquet file's key-value metada
       "axis_v": [0.0, 1.0, 0.0],
       "axis_w": [0.0, 0.0, 1.0],
       "srs": null,
-      "global_id_encoding": {
+      "world_id_encoding": {
         "enabled": true,
-        "column": "global_id",
+        "column": "world_id",
         "frame": "world_xyz",
         "axis_order": ["x", "y", "z"],
         "quantization": {"scale": 10.0},
