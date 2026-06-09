@@ -238,12 +238,17 @@ This approach:
 ✓ Enables seamless data interchange
 ✓ Supports efficient metadata-driven processing
 
-Metadata is serialized as JSON and stored in the Parquet file's key-value metadata:
+Metadata is serialized as JSON and stored in the Parquet file's key-value metadata.
+At the Parquet layer the reserved key is ``"parq-blockmodel"``, and the value
+is the UTF-8 encoded JSON payload returned by
+:meth:`~parq_blockmodel.geometry.RegularGeometry.to_metadata_dict`.
+
+The decoded JSON payload looks like:
 
 .. code-block:: json
 
     {
-      "schema_version": "1.0",
+      "schema_version": "1.1",
       "corner": [100.0, 200.0, 300.0],
       "origin": [0.0, 0.0, 0.0],
       "block_size": [10.0, 10.0, 5.0],
@@ -257,10 +262,97 @@ Metadata is serialized as JSON and stored in the Parquet file's key-value metada
         "column": "world_id",
         "frame": "world_xyz",
         "axis_order": ["x", "y", "z"],
-        "quantization": {"scale": 10.0},
-        "offset": {"x": 500000.0, "y": 7000000.0, "z": 0.0}
+        "encoding": {
+          "type": "morton_zorder",
+          "version": "1.0",
+          "bits_per_axis": 24,
+          "axis_bits": {"x": 24, "y": 24, "z": 16},
+          "signed": false
+        },
+        "quantization": {
+          "scale": 10.0,
+          "rounding": "nearest",
+          "precision_decimals": 1
+        },
+        "offset": {
+          "x": 500000.0,
+          "y": 7000000.0,
+          "z": 0.0,
+          "units": "world"
+        },
+        "range_after_offset": {
+          "x_min": 0.0,
+          "x_max": 1677721.5,
+          "y_min": 0.0,
+          "y_max": 1677721.5,
+          "z_min": 0.0,
+          "z_max": 6553.5
+        },
+        "overflow_policy": "error",
+        "null_policy": "no_nulls"
       }
     }
+
+If you inspect the raw Parquet metadata directly, the same payload appears under
+the reserved key:
+
+.. code-block:: python
+
+    import json
+    import pyarrow.parquet as pq
+
+    parquet_meta = pq.read_metadata("model.pbm").metadata
+    payload = json.loads(parquet_meta[b"parq-blockmodel"].decode("utf-8"))
+
+    payload["world_id_encoding"]["offset"]
+    # {"x": 500000.0, "y": 7000000.0, "z": 0.0, "units": "world"}
+
+``world_id_encoding`` defines how the persisted ``world_id`` column is built:
+
+* ``column`` names the Parquet column that stores the encoded identifier.
+* ``axis_order`` declares that the encoding is applied in ``(x, y, z)`` order.
+* ``encoding.axis_bits`` gives the bit budget for each axis; the default layout
+  is x=24, y=24, z=16 within the 64-bit integer.
+* ``quantization.scale`` gives the multiplier used before integer encoding
+  (``10.0`` means world coordinates are quantized to 0.1-unit precision).
+* ``offset`` stores the world-coordinate origin subtracted before quantization;
+  this keeps the encoded integers non-negative and anchored to the model extent.
+* ``range_after_offset`` records the representable coordinate span after applying
+  the offset and quantization, which is useful for validating custom encodings.
+
+Canonical special columns
+-------------------------
+
+Canonical ``.pbm`` files persist the foundational/special columns in this
+semantic order:
+
+.. code-block:: text
+
+    block_id, world_id, i, j, k, x, y, z
+
+Their on-disk dtypes are:
+
+.. list-table::
+   :header-rows: 1
+
+   * - Column
+     - Meaning
+     - Parquet / pandas dtype
+   * - ``block_id``
+     - Canonical dense row index in C-order over ``(i, j, k)``
+     - ``int32``
+   * - ``world_id``
+     - Encoded 64-bit world-space identifier using ``world_id_encoding``
+     - ``int64``
+   * - ``i``, ``j``, ``k``
+     - Logical grid indices
+     - ``int32``
+   * - ``x``, ``y``, ``z``
+     - World-space centroid coordinates derived from geometry
+     - ``float32``
+
+These columns are treated as the positional foundation of the model and are
+ordered ahead of attribute columns when a canonical ``.pbm`` file is written.
 
 Examples
 --------

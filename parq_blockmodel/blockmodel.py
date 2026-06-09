@@ -101,10 +101,19 @@ class ParquetBlockModel:
     """
 
     # Positional columns describe geometry/placement and are excluded from
-    # ``self.attributes``. Keep linear index helpers (index_c/index_f) as
-    # attributes for debug/visual validation workflows.
+    # ``self.attributes``.
     POSITION_COLUMNS = {"block_id", "world_id", "i", "j", "k", "x", "y", "z"}
-    SPECIAL_COLUMN_ORDER = ["block_id", "world_id", "x", "y", "z", "i", "j", "k"]
+    SPECIAL_COLUMN_ORDER = ["block_id", "world_id", "i", "j", "k", "x", "y", "z"]
+    SPECIAL_COLUMN_DTYPES = {
+        "block_id": np.int32,
+        "world_id": np.int64,
+        "i": np.int32,
+        "j": np.int32,
+        "k": np.int32,
+        "x": np.float32,
+        "y": np.float32,
+        "z": np.float32,
+    }
 
     def __init__(self, blockmodel_path: Path, name: Optional[str] = None, geometry: Optional[RegularGeometry] = None):
         if blockmodel_path.suffix != ".pbm":
@@ -193,8 +202,23 @@ class ParquetBlockModel:
         ordered.extend([c for c in columns if c not in cls.SPECIAL_COLUMN_ORDER])
         return ordered
 
+    @classmethod
+    def _coerce_special_column_dtypes(
+        cls,
+        dataframe: pd.DataFrame,
+        columns: Optional[typing.Iterable[str]] = None,
+    ) -> pd.DataFrame:
+        selected = set(columns) if columns is not None else set(cls.SPECIAL_COLUMN_DTYPES)
+        for column, dtype in cls.SPECIAL_COLUMN_DTYPES.items():
+            if column not in selected:
+                continue
+            if column in dataframe.columns:
+                dataframe[column] = dataframe[column].astype(dtype, copy=False)
+        return dataframe
+
     def _persist_dataframe(self, dataframe: pd.DataFrame) -> None:
         dataframe = dataframe[self._ordered_columns(list(dataframe.columns))]
+        dataframe = self._coerce_special_column_dtypes(dataframe)
         table = pa.Table.from_pandas(dataframe, preserve_index=False)
         meta = dict(table.schema.metadata or {})
         meta[b"parq-blockmodel"] = json.dumps(self.geometry.to_metadata_dict()).encode("utf-8")
@@ -378,33 +402,6 @@ class ParquetBlockModel:
     def sparsity(self) -> float:
         dense_count = int(np.prod(self.geometry.local.shape))
         return 1.0 - (int(self.pf.metadata.num_rows) / dense_count)
-
-    @property
-    def index_c(self) -> np.ndarray:
-        """Zero-based C-order indices for the **dense ijk grid**.
-
-        The returned array has length ``ni * nj * nk`` and corresponds to
-        linearised logical indices ``(i, j, k)`` using NumPy C‑order:
-
-        ``r = i + ni * (j + nj * k)``.
-
-        This is mainly a low‑level helper for downstream APIs that need a
-        stable mapping between a flat row index and ijk; most callers
-        should use :meth:`read` with ``index="ijk"`` instead.
-        """
-        shape = self.geometry.local.shape
-        return np.arange(np.prod(shape)).reshape(shape, order='C').ravel(order='C')
-
-    @property
-    def index_f(self) -> np.ndarray:
-        """Zero-based Fortran-order indices for the **dense ijk grid**.
-
-        Uses the same ijk logical grid as :pyattr:`index_c`, but flattened
-        with ``order="F"``. This is useful when interacting with tools
-        (such as some VTK/PyVista paths) that expect F‑order layouts.
-        """
-        shape = self.geometry.local.shape
-        return np.arange(np.prod(shape)).reshape(shape, order='C').ravel(order='F')
 
     def validate_sparse(self) -> bool:
         dense_count = int(np.prod(self.geometry.local.shape))
@@ -648,6 +645,8 @@ class ParquetBlockModel:
         if "z" not in dataframe.columns:
             dataframe["z"] = z_calc
 
+        dataframe = cls._coerce_special_column_dtypes(dataframe, columns=["block_id", "i", "j", "k", "x", "y", "z"])
+
         if "world_id" not in dataframe.columns:
             x = dataframe["x"].to_numpy(dtype=float)
             y = dataframe["y"].to_numpy(dtype=float)
@@ -660,6 +659,7 @@ class ParquetBlockModel:
                 x, y, z, offset=offset, scale=scale, bits_per_axis=bits_per_axis
             ).astype(np.int64)
 
+        dataframe = cls._coerce_special_column_dtypes(dataframe)
         dataframe = dataframe[cls._ordered_columns(list(dataframe.columns))]
 
         # Attach geometry metadata to attrs for completeness
@@ -1844,6 +1844,10 @@ class ParquetBlockModel:
                         df_batch["i"] = i.astype(np.int32)
                         df_batch["j"] = j.astype(np.int32)
                         df_batch["k"] = k.astype(np.int32)
+                    df_batch = cls._coerce_special_column_dtypes(
+                        df_batch,
+                        columns=["block_id", "i", "j", "k", "x", "y", "z"],
+                    )
                     if "world_id" not in df_batch.columns:
                         x = df_batch["x"].to_numpy(dtype=float)
                         y = df_batch["y"].to_numpy(dtype=float)
@@ -1851,6 +1855,7 @@ class ParquetBlockModel:
                         df_batch["world_id"] = encode_world_coordinates(
                             x, y, z, offset=offset, scale=scale, bits_per_axis=bits_per_axis
                         ).astype(np.int64)
+                    df_batch = cls._coerce_special_column_dtypes(df_batch)
                     write_df = df_batch[cls._ordered_columns(output_cols)]
 
                     table = pa.Table.from_pandas(write_df, preserve_index=False)
