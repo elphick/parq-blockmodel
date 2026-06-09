@@ -143,11 +143,11 @@ def test_block_id_persisted_in_dense_pbm(tmp_path):
         blocks["x"].to_numpy(),
         blocks["y"].to_numpy(),
         blocks["z"].to_numpy(),
-    ).astype(np.uint32)
+    ).astype(np.int32)
 
     assert "block_id" in persisted.columns
     assert persisted.columns[0] == "block_id"
-    assert persisted["block_id"].dtype == np.uint32
+    assert persisted["block_id"].dtype == np.int32
     assert np.array_equal(persisted["block_id"].to_numpy(), expected_block_ids)
 
 
@@ -164,11 +164,12 @@ def test_block_id_persisted_in_sparse_pbm(tmp_path):
         sparse["x"].to_numpy(),
         sparse["y"].to_numpy(),
         sparse["z"].to_numpy(),
-    ).astype(np.uint32)
+    ).astype(np.int32)
 
     assert pbm.is_sparse
     assert "block_id" in persisted.columns
     assert persisted.columns[0] == "block_id"
+    assert persisted["block_id"].dtype == np.int32
     assert persisted["block_id"].is_unique
     assert np.array_equal(persisted["block_id"].to_numpy(), expected_block_ids)
 
@@ -249,9 +250,17 @@ def test_canonical_special_column_order_defaults(tmp_path):
     pbm = ParquetBlockModel.from_parquet(parquet_path, chunk_size=4)
     persisted = pd.read_parquet(pbm.blockmodel_path)
 
-    expected_special_order = ["block_id", "world_id", "x", "y", "z", "i", "j", "k"]
+    expected_special_order = ["block_id", "world_id", "i", "j", "k", "x", "y", "z"]
     observed_special_order = [col for col in persisted.columns if col in expected_special_order]
     assert observed_special_order == expected_special_order
+    assert persisted["block_id"].dtype == np.int32
+    assert persisted["world_id"].dtype == np.int64
+    assert persisted["i"].dtype == np.int32
+    assert persisted["j"].dtype == np.int32
+    assert persisted["k"].dtype == np.int32
+    assert persisted["x"].dtype == np.float32
+    assert persisted["y"].dtype == np.float32
+    assert persisted["z"].dtype == np.float32
 
 
 def test_ensure_spatial_and_validate_special_columns(tmp_path):
