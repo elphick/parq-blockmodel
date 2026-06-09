@@ -94,6 +94,13 @@ def _build_new_geometry(blockmodel, new_block_size, new_shape) -> RegularGeometr
     )
 
 
+def _order_special_columns(df: pd.DataFrame, blockmodel: "ParquetBlockModel") -> pd.DataFrame:
+    ordered_cols = blockmodel.SPECIAL_COLUMN_ORDER
+    special_cols = [c for c in ordered_cols if c in df.columns]
+    other_cols = [c for c in df.columns if c not in ordered_cols]
+    return df[special_cols + other_cols]
+
+
 def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "ParquetBlockModel":
     """
     Downsample a block model to a coarser grid with specified aggregation methods for each attribute.
@@ -155,9 +162,7 @@ def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "Pa
     N = int(np.prod(new_geometry.local.shape))
     rows = np.arange(N, dtype=np.uint32)
     reblocked_df["block_id"] = rows
-    ordered_cols = ["block_id", "world_id", "i", "j", "k", "x", "y", "z"]
-    reblocked_df = reblocked_df[[*([c for c in ordered_cols if c in reblocked_df.columns]),
-                                 *([c for c in reblocked_df.columns if c not in ordered_cols])]]
+    reblocked_df = _order_special_columns(reblocked_df, blockmodel)
 
     table = pa.Table.from_pandas(reblocked_df.reset_index(drop=True), preserve_index=False)
     meta = dict(table.schema.metadata or {})
@@ -230,9 +235,7 @@ def upsample_blockmodel(blockmodel, new_block_size, interpolation_config) -> "Pa
     N = int(np.prod(new_geometry.local.shape))
     rows = np.arange(N, dtype=np.uint32)
     reblocked_df["block_id"] = rows
-    ordered_cols = ["block_id", "world_id", "i", "j", "k", "x", "y", "z"]
-    reblocked_df = reblocked_df[[*([c for c in ordered_cols if c in reblocked_df.columns]),
-                                 *([c for c in reblocked_df.columns if c not in ordered_cols])]]
+    reblocked_df = _order_special_columns(reblocked_df, blockmodel)
 
     table = pa.Table.from_pandas(reblocked_df.reset_index(drop=True), preserve_index=False)
     meta = dict(table.schema.metadata or {})
