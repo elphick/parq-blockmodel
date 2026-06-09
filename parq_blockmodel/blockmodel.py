@@ -204,8 +204,15 @@ class ParquetBlockModel:
         return ordered
 
     @classmethod
-    def _coerce_special_column_dtypes(cls, dataframe: pd.DataFrame) -> pd.DataFrame:
+    def _coerce_special_column_dtypes(
+        cls,
+        dataframe: pd.DataFrame,
+        columns: Optional[typing.Iterable[str]] = None,
+    ) -> pd.DataFrame:
+        selected = set(columns) if columns is not None else set(cls.SPECIAL_COLUMN_DTYPES)
         for column, dtype in cls.SPECIAL_COLUMN_DTYPES.items():
+            if column not in selected:
+                continue
             if column in dataframe.columns:
                 dataframe[column] = dataframe[column].astype(dtype, copy=False)
         return dataframe
@@ -666,7 +673,7 @@ class ParquetBlockModel:
         if "z" not in dataframe.columns:
             dataframe["z"] = z_calc
 
-        dataframe = cls._coerce_special_column_dtypes(dataframe)
+        dataframe = cls._coerce_special_column_dtypes(dataframe, columns=["block_id", "i", "j", "k", "x", "y", "z"])
 
         if "world_id" not in dataframe.columns:
             x = dataframe["x"].to_numpy(dtype=float)
@@ -1865,7 +1872,10 @@ class ParquetBlockModel:
                         df_batch["i"] = i.astype(np.int32)
                         df_batch["j"] = j.astype(np.int32)
                         df_batch["k"] = k.astype(np.int32)
-                    df_batch = cls._coerce_special_column_dtypes(df_batch)
+                    df_batch = cls._coerce_special_column_dtypes(
+                        df_batch,
+                        columns=["block_id", "i", "j", "k", "x", "y", "z"],
+                    )
                     if "world_id" not in df_batch.columns:
                         x = df_batch["x"].to_numpy(dtype=float)
                         y = df_batch["y"].to_numpy(dtype=float)
