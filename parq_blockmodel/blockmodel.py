@@ -101,8 +101,7 @@ class ParquetBlockModel:
     """
 
     # Positional columns describe geometry/placement and are excluded from
-    # ``self.attributes``. Keep linear index helpers (index_c/index_f) as
-    # attributes for debug/visual validation workflows.
+    # ``self.attributes``.
     POSITION_COLUMNS = {"block_id", "world_id", "i", "j", "k", "x", "y", "z"}
     SPECIAL_COLUMN_ORDER = ["block_id", "world_id", "i", "j", "k", "x", "y", "z"]
     SPECIAL_COLUMN_DTYPES = {
@@ -403,33 +402,6 @@ class ParquetBlockModel:
     def sparsity(self) -> float:
         dense_count = int(np.prod(self.geometry.local.shape))
         return 1.0 - (int(self.pf.metadata.num_rows) / dense_count)
-
-    @property
-    def index_c(self) -> np.ndarray:
-        """Zero-based C-order indices for the **dense ijk grid**.
-
-        The returned array has length ``ni * nj * nk`` and corresponds to
-        linearised logical indices ``(i, j, k)`` using NumPy C‑order:
-
-        ``r = i + ni * (j + nj * k)``.
-
-        This is mainly a low‑level helper for downstream APIs that need a
-        stable mapping between a flat row index and ijk; most callers
-        should use :meth:`read` with ``index="ijk"`` instead.
-        """
-        shape = self.geometry.local.shape
-        return np.arange(np.prod(shape)).reshape(shape, order='C').ravel(order='C')
-
-    @property
-    def index_f(self) -> np.ndarray:
-        """Zero-based Fortran-order indices for the **dense ijk grid**.
-
-        Uses the same ijk logical grid as :pyattr:`index_c`, but flattened
-        with ``order="F"``. This is useful when interacting with tools
-        (such as some VTK/PyVista paths) that expect F‑order layouts.
-        """
-        shape = self.geometry.local.shape
-        return np.arange(np.prod(shape)).reshape(shape, order='C').ravel(order='F')
 
     def validate_sparse(self) -> bool:
         dense_count = int(np.prod(self.geometry.local.shape))

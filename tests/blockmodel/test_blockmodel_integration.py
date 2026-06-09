@@ -3,7 +3,7 @@
 Targets uncovered branches in parq_blockmodel/blockmodel.py:
 - Constructor guard (non-.pbm suffix)
 - centroid_index property (xyz-column and derived-from-block_id paths)
-- sparsity / index_c / index_f properties
+- sparsity property
 - from_dataframe (entire method)
 - from_geometry (entire method)
 - from_parquet overwrite=True
@@ -84,7 +84,7 @@ def test_centroid_index_cached_on_second_access(tmp_path):
 
 
 # ===========================================================================
-# sparsity / index_c / index_f properties
+# sparsity property
 # ===========================================================================
 
 
@@ -99,15 +99,6 @@ def test_sparsity_nonzero_for_sparse_model(tmp_path):
     blocks.iloc[:-5].to_parquet(parquet_path, index=False)
     pbm = ParquetBlockModel.from_parquet(parquet_path)
     assert 0.0 < pbm.sparsity < 1.0
-
-
-def test_index_c_and_index_f_shape(tmp_path):
-    pbm = _make_pbm(tmp_path, shape=(2, 3, 4))
-    total = 2 * 3 * 4
-    assert pbm.index_c.shape == (total,)
-    assert pbm.index_f.shape == (total,)
-    # C-order and F-order differ (non-cube grid)
-    assert not np.array_equal(pbm.index_c, pbm.index_f)
 
 
 def _xyz_df(shape=(2, 2, 2)):
@@ -339,7 +330,6 @@ def test_repr_contains_name_and_path(tmp_path):
     r = repr(pbm)
     assert "my_model" in r
     assert ".pbm" in r
-
 
 
 
