@@ -1,4 +1,5 @@
 import os
+import platform
 import sys
 
 import numpy as np
@@ -55,7 +56,8 @@ extensions = ['sphinx.ext.autodoc', 'sphinx.ext.autosummary',  # to document the
               'sphinx.ext.graphviz'  # for rendering graphviz diagrams
               ]
 
-graphviz_dot = r'C:\Program Files\Graphviz\bin\dot.exe'
+if platform.system() == 'Windows':
+    graphviz_dot = r'C:\Program Files\Graphviz\bin\dot.exe'
 graphviz_output_format = 'svg'
 
 todo_include_todos = True
