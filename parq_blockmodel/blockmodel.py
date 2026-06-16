@@ -280,7 +280,7 @@ class ParquetBlockModel:
             pd.DataFrame: The validated (and possibly coerced) DataFrame.
 
         Raises:
-            pandera.errors.SchemaError: If the chunk fails validation.
+            pandera.errors.SchemaErrors: If the chunk fails validation (when pandera raises in lazy mode).
         """
         return schema.validate(dataframe, lazy=True)
 
