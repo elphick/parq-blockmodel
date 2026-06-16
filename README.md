@@ -18,3 +18,40 @@
 A Python package for efficient storage, manipulation, and analysis of mining block models using Parquet files. 
 parq-blockmodel provides tools for reading, writing, indexing, and transforming large-scale block model datasets, 
 leveraging the performance of Apache Arrow and Parquet for scalable geoscience data workflows.
+
+## Installation
+
+Install the base package from PyPI:
+
+```bash
+pip install parq-blockmodel
+```
+
+Install the optional schema validation support when you want to validate block
+model attributes with Pandera schemas or load schema definitions from YAML:
+
+```bash
+pip install "parq-blockmodel[schema]"
+```
+
+## Schema validation
+
+`ParquetBlockModel` accepts an optional `schema=` argument on its main
+constructors. You can pass either a Pandera `DataFrameSchema` object or a path
+to a YAML schema file, then validate the resulting model in chunks:
+
+```python
+from pathlib import Path
+
+from parq_blockmodel import ParquetBlockModel
+
+pbm = ParquetBlockModel.from_parquet(
+    Path("path/to/blockmodel.parquet"),
+    schema=Path("schemas/blockmodel.schema.yaml"),
+)
+
+pbm.validate()
+pbm.validate(sample_chunks=1)  # quick spot-check for large models
+```
+
+See the installation guide and user guide for more detail.
