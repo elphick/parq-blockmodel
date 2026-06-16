@@ -81,7 +81,9 @@ The flat row index is computed as:
 This C-order layout:
 
     ✓ Matches NumPy's default behavior (``np.ravel``, ``np.unravel_index``)
+
     ✓ Aligns with Parquet row-oriented storage
+
     ✓ Enables efficient dense array operations
 
 .. note::
