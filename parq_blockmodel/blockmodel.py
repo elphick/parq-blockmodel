@@ -66,6 +66,7 @@ if typing.TYPE_CHECKING:
     import pyvista as pv  # type: ignore[import]
     import plotly.graph_objects as go
     import parq_blockmodel.mesh  # type: ignore[import]
+    from pandera import DataFrameSchema  # type: ignore[import]
 
 
 class ParquetBlockModel:
@@ -115,12 +116,14 @@ class ParquetBlockModel:
         "z": np.float32,
     }
 
-    def __init__(self, blockmodel_path: Path, name: Optional[str] = None, geometry: Optional[RegularGeometry] = None):
+    def __init__(self, blockmodel_path: Path, name: Optional[str] = None, geometry: Optional[RegularGeometry] = None,
+                 schema: Optional[Union[Path, "DataFrameSchema"]] = None):
         if blockmodel_path.suffix != ".pbm":
             raise ValueError("The provided file must have a '.pbm' extension.")
         self.blockmodel_path = blockmodel_path
         self.name = name or blockmodel_path.stem
         self.geometry = geometry or RegularGeometry.from_parquet(self.blockmodel_path)
+        self.schema: Optional["DataFrameSchema"] = self._load_schema(schema) if schema is not None else None
         self.pf: ParquetFile = ParquetFile(blockmodel_path)
         # Lazy view over the backing Parquet file for large models.
         self.data: LazyParquetDF = LazyParquetDF(self.blockmodel_path)
@@ -215,6 +218,110 @@ class ParquetBlockModel:
             if column in dataframe.columns:
                 dataframe[column] = dataframe[column].astype(dtype, copy=False)
         return dataframe
+
+    @classmethod
+    def _load_schema(cls, schema: Union[Path, "DataFrameSchema"]) -> "DataFrameSchema":
+        """Load and return a pandera :class:`DataFrameSchema`.
+
+        Accepts either a ready-made :class:`~pandera.DataFrameSchema` object or a
+        :class:`~pathlib.Path` pointing to a YAML schema file (loaded via
+        ``df_eval.utils.pandera_io_compat.from_yaml`` to preserve custom metadata).
+
+        Args:
+            schema: A pandera ``DataFrameSchema`` instance, or a :class:`Path` to a
+                YAML schema file.
+
+        Returns:
+            DataFrameSchema: The loaded schema.
+
+        Raises:
+            ImportError: If ``pandera`` or ``df-eval`` is not installed.
+            TypeError: If ``schema`` is not a recognised type.
+        """
+        try:
+            from pandera import DataFrameSchema as _DataFrameSchema
+        except ImportError as exc:  # pragma: no cover
+            raise ImportError(
+                "Schema support requires 'pandera'. Install it with: "
+                "pip install 'parq-blockmodel[schema]'"
+            ) from exc
+
+        if isinstance(schema, _DataFrameSchema):
+            return schema
+
+        if isinstance(schema, (str, Path)):
+            try:
+                from df_eval.utils.pandera_io_compat import from_yaml
+            except ImportError as exc:  # pragma: no cover
+                raise ImportError(
+                    "Loading a schema from a YAML file requires 'df-eval'. Install it with: "
+                    "pip install 'parq-blockmodel[schema]'"
+                ) from exc
+            return from_yaml(schema)
+
+        raise TypeError(
+            f"schema must be a pandera DataFrameSchema or a path to a YAML file, got {type(schema)!r}"
+        )
+
+    @classmethod
+    def _validate_chunk(cls, dataframe: pd.DataFrame, schema: "DataFrameSchema") -> pd.DataFrame:
+        """Validate and coerce a single DataFrame chunk against *schema*.
+
+        The schema is applied with ``lazy=True`` so all column errors are
+        collected before raising, and ``inplace=False`` so the original
+        chunk is not mutated.  Coercion (type casting) is performed when the
+        schema has ``coerce=True`` set on its columns.
+
+        Args:
+            dataframe: A pandas DataFrame chunk to validate.
+            schema: A pandera ``DataFrameSchema`` to validate against.
+
+        Returns:
+            pd.DataFrame: The validated (and possibly coerced) DataFrame.
+
+        Raises:
+            pandera.errors.SchemaError: If the chunk fails validation.
+        """
+        return schema.validate(dataframe, lazy=True)
+
+    def validate(self, schema: Optional["DataFrameSchema"] = None, sample_chunks: int = 0) -> bool:
+        """Validate the block model data against a pandera schema.
+
+        Reads the backing ``.pbm`` file in chunks and validates each chunk
+        against the supplied (or stored) schema.
+
+        Args:
+            schema: A pandera ``DataFrameSchema`` to validate against.  When
+                ``None`` (default) ``self.schema`` is used.
+            sample_chunks: Number of chunks to validate.  ``0`` (default)
+                validates every chunk; a positive integer limits validation to
+                that many leading chunks, which is useful for quick spot-checks
+                on large models.
+
+        Returns:
+            bool: ``True`` when all validated chunks pass.
+
+        Raises:
+            ValueError: If no schema is available (neither passed nor stored).
+            pandera.errors.SchemaErrors: If any chunk fails validation (when
+                pandera raises in lazy mode).
+        """
+        active_schema = schema or self.schema
+        if active_schema is None:
+            raise ValueError(
+                "No schema provided. Either pass a schema to validate() or set self.schema "
+                "via the constructor / entry-point methods."
+            )
+
+        chunks_seen = 0
+        for batch in self._iter_batches(self.columns):
+            df_batch = pa.Table.from_batches([batch]).to_pandas(ignore_metadata=True)
+            self._validate_chunk(df_batch, active_schema)
+            chunks_seen += 1
+            if sample_chunks and chunks_seen >= sample_chunks:
+                break
+
+        return True
 
     def _persist_dataframe(self, dataframe: pd.DataFrame) -> None:
         dataframe = dataframe[self._ordered_columns(list(dataframe.columns))]
@@ -472,6 +579,7 @@ class ParquetBlockModel:
                      axis_dip: float = 0.0,
                      axis_plunge: float = 0.0,
                      chunk_size: int = 1_000_000,
+                     schema: Optional[Union[Path, "DataFrameSchema"]] = None,
                      ) -> "ParquetBlockModel":
         """Create a :class:`ParquetBlockModel` from a source Parquet file.
 
@@ -503,6 +611,11 @@ class ParquetBlockModel:
             axis_dip (float, default 0.0): Optional rotation angle. See ``axis_azimuth``.
             axis_plunge (float, default 0.0): Optional rotation angle. See ``axis_azimuth``.
             chunk_size (int, default 1_000_000): Batch size for reading Parquet data.
+            schema (DataFrameSchema or Path, optional): Optional pandera schema used to
+                validate and coerce each chunk during the canonical write.  Accepts a
+                :class:`~pandera.DataFrameSchema` object or a :class:`~pathlib.Path` to
+                a YAML schema file.  When provided the schema is also stored on the
+                resulting instance (``self.schema``).
 
         Returns:
             ParquetBlockModel: A block model backed by a newly written ``.pbm`` file
@@ -523,6 +636,8 @@ class ParquetBlockModel:
 
         cls._validate_geometry(parquet_path, geometry=geometry, chunk_size=chunk_size)
 
+        loaded_schema = cls._load_schema(schema) if schema is not None else None
+
         # Canonical ParquetBlockModel files use a single ``.pbm`` suffix. We
         # write the PBM file alongside the source Parquet file by replacing
         # only the final extension.
@@ -531,8 +646,9 @@ class ParquetBlockModel:
                                  output_path=new_filepath,
                                  geometry=geometry,
                                  columns=columns,
-                                 chunk_size=chunk_size)
-        return cls(blockmodel_path=new_filepath, geometry=geometry)
+                                 chunk_size=chunk_size,
+                                 schema=loaded_schema)
+        return cls(blockmodel_path=new_filepath, geometry=geometry, schema=loaded_schema)
 
     @classmethod
     def from_dataframe(cls, dataframe: pd.DataFrame,
@@ -544,6 +660,7 @@ class ParquetBlockModel:
                        axis_dip: float = 0.0,
                        axis_plunge: float = 0.0,
                        chunk_size: int = 1_000_000,
+                       schema: Optional[Union[Path, "DataFrameSchema"]] = None,
                        ) -> "ParquetBlockModel":
         """Create a :class:`ParquetBlockModel` from a pandas DataFrame.
 
@@ -575,6 +692,11 @@ class ParquetBlockModel:
             axis_dip (float, default 0.0): Optional rotation angle. See ``axis_azimuth``.
             axis_plunge (float, default 0.0): Optional rotation angle. See ``axis_azimuth``.
             chunk_size (int, default 1_000_000): Batch size for writing Parquet data.
+            schema (DataFrameSchema or Path, optional): Optional pandera schema used to
+                validate and coerce the DataFrame before writing.  Accepts a
+                :class:`~pandera.DataFrameSchema` object or a :class:`~pathlib.Path` to
+                a YAML schema file.  When provided the schema is also stored on the
+                resulting instance (``self.schema``).
 
         Returns:
             ParquetBlockModel: A block model backed by the newly written ``.pbm`` file.
@@ -607,6 +729,8 @@ class ParquetBlockModel:
             dataframe.index, axis_azimuth=axis_azimuth, axis_dip=axis_dip, axis_plunge=axis_plunge)
         if not isinstance(geometry, RegularGeometry):
             raise TypeError("geometry must be a RegularGeometry instance.")
+
+        loaded_schema = cls._load_schema(schema) if schema is not None else None
 
         dataframe = dataframe.copy()
 
@@ -662,6 +786,9 @@ class ParquetBlockModel:
         dataframe = cls._coerce_special_column_dtypes(dataframe)
         dataframe = dataframe[cls._ordered_columns(list(dataframe.columns))]
 
+        if loaded_schema is not None:
+            dataframe = cls._validate_chunk(dataframe, loaded_schema)
+
         # Attach geometry metadata to attrs for completeness
         dataframe.attrs["parq-blockmodel"] = geometry.to_metadata_dict()
 
@@ -676,7 +803,7 @@ class ParquetBlockModel:
         # Validate geometry
         cls._validate_geometry(pbm_path, geometry, chunk_size=chunk_size)
 
-        return cls(blockmodel_path=pbm_path, name=name, geometry=geometry)
+        return cls(blockmodel_path=pbm_path, name=name, geometry=geometry, schema=loaded_schema)
 
     @classmethod
     def create_demo_block_model(cls, filename: Path, **demo_kwargs) -> "ParquetBlockModel":
@@ -823,7 +950,8 @@ class ParquetBlockModel:
     @classmethod
     def from_geometry(cls, geometry: RegularGeometry,
                       path: Path,
-                      name: Optional[str] = None
+                      name: Optional[str] = None,
+                      schema: Optional[Union[Path, "DataFrameSchema"]] = None,
                       ) -> "ParquetBlockModel":
         """Create a :class:`ParquetBlockModel` from a geometry only.
 
@@ -843,6 +971,11 @@ class ParquetBlockModel:
             embedded geometry metadata.
         name : str, optional
             Optional name for the resulting :class:`ParquetBlockModel`.
+        schema : DataFrameSchema or Path, optional
+            Optional pandera schema stored on the resulting instance
+            (``self.schema``).  Accepts a
+            :class:`~pandera.DataFrameSchema` object or a
+            :class:`~pathlib.Path` to a YAML schema file.
 
         Returns
         -------
@@ -881,7 +1014,8 @@ class ParquetBlockModel:
         table = table.replace_schema_metadata(meta)
         pq.write_table(table, path)
 
-        return cls(blockmodel_path=path, name=name, geometry=geometry)
+        return cls(blockmodel_path=path, name=name, geometry=geometry,
+                   schema=cls._load_schema(schema) if schema is not None else None)
 
     def create_report(self, columns: Optional[list[str]] = None,
                       column_batch_size: int = 10,
@@ -1748,8 +1882,16 @@ class ParquetBlockModel:
                              geometry: RegularGeometry,
                              columns: Optional[list[str]],
                              chunk_size: int = 1_000_000,
-                             tol: float = 1e-6) -> None:
-        """Stream a source parquet file into canonical PBM with block_id and metadata."""
+                             tol: float = 1e-6,
+                             schema: Optional["DataFrameSchema"] = None) -> None:
+        """Stream a source parquet file into canonical PBM with block_id and metadata.
+
+        When *schema* is provided it is applied to each chunk via
+        :meth:`_validate_chunk` after spatial columns have been coerced.
+        This resolves common int→float schema conflicts that arise when
+        different chunks carry the same column with different numeric
+        precision.
+        """
         pf = pq.ParquetFile(input_path)
         src_cols = pf.schema.names
 
@@ -1856,6 +1998,10 @@ class ParquetBlockModel:
                             x, y, z, offset=offset, scale=scale, bits_per_axis=bits_per_axis
                         ).astype(np.int64)
                     df_batch = cls._coerce_special_column_dtypes(df_batch)
+
+                    if schema is not None:
+                        df_batch = cls._validate_chunk(df_batch, schema)
+
                     write_df = df_batch[cls._ordered_columns(output_cols)]
 
                     table = pa.Table.from_pandas(write_df, preserve_index=False)
@@ -1866,6 +2012,11 @@ class ParquetBlockModel:
 
                     if writer is None:
                         writer = pq.ParquetWriter(tmp_path, table.schema)
+                    else:
+                        # Cast to the writer's schema to handle cross-chunk type differences
+                        # (e.g. int vs float for the same column) when no pandera schema is provided.
+                        if table.schema != writer.schema:
+                            table = table.cast(writer.schema)
                     writer.write_table(table)
             finally:
                 if writer is not None:
