@@ -9,11 +9,48 @@ import pytest
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+import parq_blockmodel.blockmodel as blockmodel_module
 from parq_blockmodel import ParquetBlockModel, RegularGeometry, LocalGeometry, WorldFrame
+from parq_blockmodel.reporting import BlockModelReport
 from parq_blockmodel.utils import create_demo_blockmodel
 from parq_blockmodel.utils.demo_block_model import create_toy_blockmodel
 from parq_blockmodel.utils.geometry_utils import angles_to_axes, rotate_points
 from parq_blockmodel.utils.spatial_encoding import decode_world_coordinates, get_world_id_encoding_params
+
+
+class FakeParquetProfileReport:
+    HTML = "<html><body>fake report</body></html>"
+    last_init: dict[str, object] | None = None
+    last_show_notebook: bool | None = None
+
+    def __init__(self, parquet_path, columns=None, batch_size=1, show_progress=True, title="", dataset_metadata=None,
+                 column_descriptions=None):
+        FakeParquetProfileReport.last_init = {
+            "parquet_path": Path(parquet_path),
+            "columns": list(columns) if columns is not None else None,
+            "batch_size": batch_size,
+            "show_progress": show_progress,
+            "title": title,
+        }
+        self.parquet_path = Path(parquet_path)
+        self.columns = list(columns) if columns is not None else None
+        self.batch_size = batch_size
+        self.show_progress = show_progress
+        self.title = title
+        self.dataset_metadata = dataset_metadata
+        self.column_descriptions = column_descriptions
+
+    def profile(self):
+        return self
+
+    def save_html(self, output_html: Path) -> None:
+        Path(output_html).write_text(self.HTML, encoding="utf-8")
+
+    def to_html(self) -> str:
+        return self.HTML
+
+    def show(self, notebook: bool = False):
+        FakeParquetProfileReport.last_show_notebook = notebook
 
 
 def test_from_empty_parquet_raises_error(tmp_path):
@@ -39,6 +76,71 @@ def test_create_demo_block_model_creates_file(tmp_path):
     # Clean up the created file
     os.remove(filename) if filename.exists() else None
     os.remove(model.blockmodel_path) if filename.exists() else None
+
+
+def test_create_report_returns_wrapper_and_saves_html(tmp_path, monkeypatch):
+    parquet_path = tmp_path / "report_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+
+    monkeypatch.setattr(blockmodel_module, "ParquetProfileReport", FakeParquetProfileReport)
+
+    report = pbm.create_report(show_progress=False)
+
+    assert isinstance(report, BlockModelReport)
+    assert report.output_path == pbm.blockmodel_path.with_suffix(".html")
+    assert pbm.report_path == report.output_path
+    assert report.output_path.exists()
+    assert report.output_path.read_text(encoding="utf-8") == FakeParquetProfileReport.HTML
+    assert report.columns_per_batch == 10
+    assert FakeParquetProfileReport.last_init is not None
+    assert FakeParquetProfileReport.last_init["columns"] == pbm.columns
+
+
+def test_create_report_can_save_later_and_disable_chunking(tmp_path, monkeypatch):
+    parquet_path = tmp_path / "report_full_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+
+    monkeypatch.setattr(blockmodel_module, "ParquetProfileReport", FakeParquetProfileReport)
+
+    report = pbm.create_report(columns=["depth"], columns_per_batch=None, write_html=False, show_progress=False)
+
+    assert isinstance(report, BlockModelReport)
+    assert report.columns_per_batch is None
+    assert not report.output_path.exists()
+    assert FakeParquetProfileReport.last_init is not None
+    assert FakeParquetProfileReport.last_init["batch_size"] is None
+
+    custom_path = tmp_path / "profiles" / "depth.html"
+    saved_path = report.save(custom_path)
+    assert saved_path == custom_path
+    assert custom_path.exists()
+    assert custom_path.read_text(encoding="utf-8") == FakeParquetProfileReport.HTML
+
+
+def test_create_report_memory_budget_derives_column_batch_size(tmp_path, monkeypatch):
+    parquet_path = tmp_path / "report_budget_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+    selected_columns = pbm.columns[:3]
+    estimated_sizes = {
+        selected_columns[0]: 100,
+        selected_columns[1]: 150,
+        selected_columns[2]: 100,
+    }
+
+    monkeypatch.setattr(blockmodel_module, "ParquetProfileReport", FakeParquetProfileReport)
+    monkeypatch.setattr(
+        blockmodel_module,
+        "resolve_report_columns_per_batch",
+        lambda parquet_file, columns, columns_per_batch, memory_budget: (2, 260),
+    )
+
+    report = pbm.create_report(columns=selected_columns, write_html=False, show_progress=False, memory_budget="260B")
+
+    assert isinstance(report, BlockModelReport)
+    assert report.columns_per_batch == 2
+    assert report.memory_budget_bytes == 260
+    assert FakeParquetProfileReport.last_init is not None
+    assert FakeParquetProfileReport.last_init["batch_size"] == 2
 
 
 def test_block_model_with_categorical_data(tmp_path):

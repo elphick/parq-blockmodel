@@ -16,6 +16,7 @@ Welcome to parq-blockmodel's documentation!
    usage/quickstart
    user_guide
    auto_examples/index
+   api/reporting
    todo
    glossary/*
    api/modules

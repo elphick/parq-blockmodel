@@ -13,4 +13,10 @@ except metadata.PackageNotFoundError:
     # Package is not installed
     pass
 
-__all__ = ["ParquetBlockModel", "create_demo_blockmodel", "RegularGeometry", "LocalGeometry", "WorldFrame"]
+__all__ = [
+    "ParquetBlockModel",
+    "create_demo_blockmodel",
+    "RegularGeometry",
+    "LocalGeometry",
+    "WorldFrame",
+]
