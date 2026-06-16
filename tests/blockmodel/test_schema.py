@@ -197,7 +197,7 @@ def test_validate_chunk_raises_on_invalid_data():
         columns={"grade": Column(float, coerce=False)},
         strict=False,
     )
-    with pytest.raises(Exception):
+    with pytest.raises(pandera.errors.SchemaErrors):
         ParquetBlockModel._validate_chunk(df, schema)
 
 

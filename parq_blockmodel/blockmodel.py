@@ -1014,8 +1014,8 @@ class ParquetBlockModel:
         table = table.replace_schema_metadata(meta)
         pq.write_table(table, path)
 
-        return cls(blockmodel_path=path, name=name, geometry=geometry,
-                   schema=cls._load_schema(schema) if schema is not None else None)
+        loaded_schema = cls._load_schema(schema) if schema is not None else None
+        return cls(blockmodel_path=path, name=name, geometry=geometry, schema=loaded_schema)
 
     def create_report(self, columns: Optional[list[str]] = None,
                       column_batch_size: int = 10,
