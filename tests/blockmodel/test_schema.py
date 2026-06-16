@@ -1,7 +1,6 @@
 """Tests for pandera schema support in ParquetBlockModel."""
 from pathlib import Path
 
-import numpy as np
 import pandas as pd
 import pytest
 import pyarrow as pa
@@ -9,7 +8,7 @@ import pyarrow.parquet as pq
 
 pandera = pytest.importorskip("pandera", reason="pandera not installed")
 
-from pandera import DataFrameSchema, Column, dtypes
+from pandera import DataFrameSchema, Column
 
 from parq_blockmodel import ParquetBlockModel, RegularGeometry, LocalGeometry, WorldFrame
 from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel
@@ -214,6 +213,18 @@ def test_validate_returns_true_with_valid_schema(tmp_path):
     )
     assert pbm.validate(schema=schema) is True
 
+
+def test_validate_accepts_yaml_schema_path(tmp_path):
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    from df_eval.utils.pandera_io_compat import to_yaml
+
+    parquet_path = _make_demo_parquet(tmp_path)
+    schema = _simple_schema()
+    yaml_path = tmp_path / "schema.yaml"
+    to_yaml(schema, str(yaml_path))
+
+    pbm = ParquetBlockModel.from_parquet(parquet_path)
+    assert pbm.validate(schema=yaml_path) is True
 
 def test_validate_uses_stored_schema_when_none_passed(tmp_path):
     parquet_path = _make_demo_parquet(tmp_path)

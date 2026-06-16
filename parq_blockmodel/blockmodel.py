@@ -284,7 +284,7 @@ class ParquetBlockModel:
         """
         return schema.validate(dataframe, lazy=True)
 
-    def validate(self, schema: Optional["DataFrameSchema"] = None, sample_chunks: int = 0) -> bool:
+    def validate(self, schema: Optional[Union[Path, "DataFrameSchema"]] = None, sample_chunks: int = 0) -> bool:
         """Validate the block model data against a pandera schema.
 
         Reads the backing ``.pbm`` file in chunks and validates each chunk
@@ -306,7 +306,13 @@ class ParquetBlockModel:
             pandera.errors.SchemaErrors: If any chunk fails validation (when
                 pandera raises in lazy mode).
         """
-        active_schema = schema or self.schema
+        if sample_chunks < 0:
+            raise ValueError("sample_chunks must be >= 0")
+
+        if schema is None:
+            active_schema = self.schema
+        else:
+            active_schema = self._load_schema(schema)
         if active_schema is None:
             raise ValueError(
                 "No schema provided. Either pass a schema to validate() or set self.schema "
