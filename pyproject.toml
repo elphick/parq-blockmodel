@@ -1,12 +1,12 @@
 [project]
 name = "parq-blockmodel"
-version = "0.3.0"
+version = "0.4.0"
 description = "A Python package for efficient storage, manipulation, and analysis of mining block models using Parquet files."
 authors = [
     { name = "Greg", email = "11791585+elphick@users.noreply.github.com" }
 ]
 readme = "README.md"
-requires-python = ">=3.11,<3.13"
+requires-python = ">=3.11,<3.14"
 dependencies = [
     "numpy>=1.25.2,<2.1",  # 2.1 max for numba->ydata-profiling compatibility
     "pyarrow>=16.0",
@@ -19,18 +19,21 @@ dependencies = [
 profiling = ["ydata-profiling>=4.16.1", "setuptools<81"]  # ydata-profiling still imports pkg_resources; keep setuptools<81
 progress = ["tqdm>=4.67.1"]
 temporal = ["rioxarray>=0.18.0", "imageio>=2.37.0,<3", "imageio-ffmpeg>=0.6.0,<1"]
-viz = ["plotly>=5.24.1", "kaleido>=1.1.0,<2"]
+viz = ["plotly>=6.1.1,<7", "kaleido>=1.1.0,<2"]
 mesh = ["plyfile>=1.0.0"]
+schema = ["pandera>=0.19,<0.21", "df-eval>=0.1.4"]
 all = [
     "ydata-profiling>=4.16.1",
     "setuptools<81",
     "tqdm>=4.67.1",
     "rioxarray>=0.18.0",
-    "plotly>=5.24.1",
+    "plotly>=6.1.1,<7",
     "kaleido>=1.1.0,<2",
     "imageio>=2.37.0,<3",
     "imageio-ffmpeg>=0.6.0,<1",
     "plyfile>=1.0.0",
+    "pandera>=0.19,<0.21",
+    "df-eval>=0.1.4",
 ]
 
 [dependency-groups]
@@ -43,7 +46,7 @@ dev = [
     "sphinx-autodoc-typehints>=2.1.1,<3",
     "matplotlib>=3.7.2,<4",
     "coverage>=7.8.0,<8",
-    "plotly>=5.24.1",
+    "plotly>=6.1.1,<7",
     "kaleido>=1.1.0,<2",
     "trame>=3.10.2,<4",
     "trame-vtk>=2.9.0,<3",

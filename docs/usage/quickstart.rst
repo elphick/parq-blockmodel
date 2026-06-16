@@ -7,13 +7,31 @@ First we define the imports...
 
 ..  code-block:: python
 
+    from pathlib import Path
+
     from parq_blockmodel import ParquetBlockModel
 
 Create an instance of the block model, which will read the specified parquet file.
 
 ..  code-block:: python
 
-    pbm: ParquetBlockModel = ParquetBlockModel.from_parquet("path/to/your/parquet_file.parquet")
+    pbm: ParquetBlockModel = ParquetBlockModel.from_parquet(
+        Path("path/to/your/parquet_file.parquet")
+    )
+
+If you have installed ``parq-blockmodel[schema]``, you can attach a Pandera
+schema while loading the model and then validate the canonical ``.pbm`` file in
+chunks:
+
+..  code-block:: python
+
+    pbm = ParquetBlockModel.from_parquet(
+        Path("path/to/your/parquet_file.parquet"),
+        schema=Path("schemas/blockmodel.schema.yaml"),
+    )
+
+    pbm.validate()
+    pbm.validate(sample_chunks=1)  # quick spot-check on large models
 
 If the `viz` extra is installed, you can visualize the block model using the `plot` method:
 
