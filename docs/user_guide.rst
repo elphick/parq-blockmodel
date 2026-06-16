@@ -10,7 +10,7 @@ It is complemented by the examples.
    Please check back later for updates.
 
 Geometry, ijk indexing, and ``.pbm`` files
------------------------------------------
+-------------------------------------------
 
 ``parq-blockmodel`` works with regular 3D block models that are stored in
 Parquet files and wrapped by the :class:`parq_blockmodel.blockmodel.ParquetBlockModel`
@@ -42,6 +42,8 @@ promote them into canonical ``.pbm`` containers with embedded geometry.
 
 For a deeper, developer-oriented discussion of how geometry and metadata
 are encoded, see :ref:`geometry-metadata-design`.
+
+Profiling and HTML report generation are covered in :doc:`user_guide/05_reports`.
 
 .. toctree::
    :maxdepth: 2

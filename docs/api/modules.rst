@@ -10,6 +10,7 @@ API Reference
 
     blockmodel
     geometry
+    reporting
     utils
 
 

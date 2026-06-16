@@ -29,7 +29,6 @@ the ijk‑first representation.
 """
 import logging
 import math
-import shutil
 import typing
 import warnings
 from pathlib import Path
@@ -56,19 +55,19 @@ from parq_blockmodel.utils.spatial_encoding import (
 from pyarrow.parquet import ParquetFile
 from tqdm import tqdm
 
-from parq_tools import ParquetProfileReport, filter_parquet_file, LazyParquetDF
+from parq_tools import ParquetProfileReport, LazyParquetDF
 from parq_tools.utils import atomic_output_file
 
 from parq_blockmodel.geometry import RegularGeometry, LocalGeometry, WorldFrame
+from parq_blockmodel.reporting.utils import resolve_report_columns_per_batch
 from parq_blockmodel.reblocking.reblocking import downsample_blockmodel, upsample_blockmodel
 
 if typing.TYPE_CHECKING:
     import pyvista as pv  # type: ignore[import]
     import plotly.graph_objects as go
     import parq_blockmodel.mesh  # type: ignore[import]
+    from parq_blockmodel.reporting import BlockModelReport  # type: ignore[import]
     from pandera import DataFrameSchema  # type: ignore[import]
-
-
 class ParquetBlockModel:
     """A class to represent a **regular** Parquet block model.
 
@@ -1024,32 +1023,69 @@ class ParquetBlockModel:
         return cls(blockmodel_path=path, name=name, geometry=geometry, schema=loaded_schema)
 
     def create_report(self, columns: Optional[list[str]] = None,
-                      column_batch_size: int = 10,
+                      columns_per_batch: Optional[int] = 10,
                       show_progress: bool = True,
-                      open_in_browser: bool = False
-                      ) -> Path:
+                      open_in_browser: bool = False,
+                      report_path: Optional[Union[str, Path]] = None,
+                      write_html: bool = True,
+                      memory_budget: Optional[Union[int, float, str]] = None,
+                      ) -> "BlockModelReport":
         """
         Create a ydata-profiling report for the block model.
-        The report will be of the same name as the block model, with a '.html' extension.
+        By default the generated HTML is saved beside the block model with a
+        ``.html`` suffix, and the returned report object can be re-saved later.
 
         Args:
             columns: List of column names to include in the profile. If None, all columns are used.
-            column_batch_size: The number of columns to process in each batch. If None, processes all columns at once.
+            columns_per_batch: Number of columns to process in each profiling batch.
+                Use None to profile all requested columns in one pass.
             show_progress: bool: If True, displays a progress bar during profiling.
             open_in_browser: bool: If True, opens the report in a web browser after generation.
+            report_path: Optional output path for the HTML report.
+            write_html: If True, save the report HTML before returning it.
+            memory_budget: Optional heuristic per-batch memory budget in bytes or
+                as a string such as ``"512MB"`` or ``"2GiB"``. When provided,
+                the method derives ``columns_per_batch`` automatically from Parquet
+                column-chunk metadata. If the full selected column set fits within
+                the budget estimate, profiling runs without column chunking.
 
         Returns
-            Path: The path to the generated profile report.
+            BlockModelReport: The generated report wrapper. Use
+            :meth:`BlockModelReport.save` to write it again.
 
         """
-        report: ParquetProfileReport = ParquetProfileReport(self.blockmodel_path, columns=columns,
-                                                            batch_size=column_batch_size,
-                                                            show_progress=show_progress).profile()
+        selected_columns = list(columns) if columns is not None else list(self.columns)
+        effective_columns_per_batch, memory_budget_bytes = resolve_report_columns_per_batch(
+            parquet_file=self.pf,
+            columns=selected_columns,
+            columns_per_batch=columns_per_batch,
+            memory_budget=memory_budget,
+        )
+        resolved_output_path = Path(report_path) if report_path is not None else self.blockmodel_path.with_suffix('.html')
+
+        from parq_blockmodel.reporting import BlockModelReport
+
+        raw_report: ParquetProfileReport = ParquetProfileReport(
+            self.blockmodel_path,
+            columns=selected_columns,
+            batch_size=effective_columns_per_batch,
+            show_progress=show_progress,
+            title=f"{self.name} Profile Report",
+        ).profile()
+        report = BlockModelReport(
+            report=raw_report,
+            output_path=resolved_output_path,
+            columns=selected_columns,
+            columns_per_batch=effective_columns_per_batch,
+            memory_budget_bytes=memory_budget_bytes,
+        )
+
+        if write_html:
+            report.save()
         if open_in_browser:
             report.show(notebook=False)
-        if not columns:
-            self.report_path = self.blockmodel_path.with_suffix('.html')
-        return self.report_path
+        self.report_path = report.output_path
+        return report
 
     def downsample(self, new_block_size, aggregation_config) -> "ParquetBlockModel":
         """

@@ -8,7 +8,6 @@ representation that can be stored in a parquet file.
 """
 import tempfile
 
-import pandas as pd
 from pathlib import Path
 
 from parq_blockmodel import ParquetBlockModel
@@ -29,8 +28,11 @@ pbm
 # Create Report
 # -------------
 # We'll create a report for the Parquet Block Model.
+# Use ``columns_per_batch=None`` to profile all requested columns in one pass.
+# Set ``open_in_browser=True`` in interactive use if you want it displayed immediately.
 
-pbm.create_report(open_in_browser=True, show_progress=True)
+report = pbm.create_report(columns_per_batch=None, show_progress=True)
+print(f"Report saved to: {report.output_path}")
 
 # %%
 # Visualise the Model
