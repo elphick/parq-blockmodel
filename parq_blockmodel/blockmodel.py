@@ -257,7 +257,7 @@ class ParquetBlockModel:
                     "Loading a schema from a YAML file requires 'df-eval'. Install it with: "
                     "pip install 'parq-blockmodel[schema]'"
                 ) from exc
-            return from_yaml(schema)
+            return from_yaml(str(schema))
 
         raise TypeError(
             f"schema must be a pandera DataFrameSchema or a path to a YAML file, got {type(schema)!r}"
