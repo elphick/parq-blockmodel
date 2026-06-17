@@ -4,7 +4,7 @@ os.environ["YDATA_SUPPRESS_BANNER"] = "1"
 
 from importlib import metadata
 from .blockmodel import ParquetBlockModel
-from .geometry import RegularGeometry, LocalGeometry, WorldFrame
+from .geometry import RegularGeometry, LocalGeometry, WorldFrame, Extents
 from .utils.demo_block_model import create_demo_blockmodel
 
 try:
@@ -19,4 +19,5 @@ __all__ = [
     "RegularGeometry",
     "LocalGeometry",
     "WorldFrame",
+    "Extents",
 ]

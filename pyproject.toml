@@ -1,12 +1,20 @@
 [project]
 name = "parq-blockmodel"
-version = "0.4.1"
+version = "0.4.2"
 description = "A Python package for efficient storage, manipulation, and analysis of mining block models using Parquet files."
 authors = [
     { name = "Greg", email = "11791585+elphick@users.noreply.github.com" }
 ]
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
+
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+
 dependencies = [
     "numpy>=1.25.2,<2.1",  # 2.1 max for numba->ydata-profiling compatibility
     "pyarrow>=16.0",

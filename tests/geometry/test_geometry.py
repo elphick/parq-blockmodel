@@ -257,3 +257,238 @@ def test_create_corner_not_double_translated():
     np.testing.assert_allclose([geom.centroid_x[0], geom.centroid_y[0], geom.centroid_z[0]], [11.0, 22.0, 33.0])
 
 
+# ============================================================================
+# Extents tests
+# ============================================================================
+
+def test_extents_orthogonal_axis_aligned_bounds():
+    """Test axis-aligned bounds for orthogonal geometry."""
+    geom = make_geometry(
+        corner=(0.0, 0.0, 0.0),
+        block_size=(1.0, 1.0, 1.0),
+        shape=(2, 2, 2),
+    )
+    min_xyz, max_xyz = geom.extents.axis_aligned_bounds
+    # Bounds should be exactly the grid bounds for orthogonal geometry
+    np.testing.assert_allclose(min_xyz, (0.0, 0.0, 0.0))
+    np.testing.assert_allclose(max_xyz, (2.0, 2.0, 2.0))
+
+
+def test_extents_orthogonal_convenience_properties():
+    """Test convenience properties for orthogonal geometry."""
+    geom = make_geometry(
+        corner=(0.0, 0.0, 0.0),
+        block_size=(1.0, 1.0, 1.0),
+        shape=(2, 2, 2),
+    )
+    extents = geom.extents
+    assert extents.xmin == 0.0
+    assert extents.xmax == 2.0
+    assert extents.ymin == 0.0
+    assert extents.ymax == 2.0
+    assert extents.zmin == 0.0
+    assert extents.zmax == 2.0
+    assert extents.xy_bbox == (0.0, 0.0, 2.0, 2.0)
+    assert extents.extent_xy == [0.0, 2.0, 0.0, 2.0]
+
+
+def test_extents_orthogonal_corners():
+    """Test corners for orthogonal geometry."""
+    geom = make_geometry(
+        corner=(0.0, 0.0, 0.0),
+        block_size=(1.0, 1.0, 1.0),
+        shape=(2, 2, 2),
+    )
+    corners = geom.extents.corners
+    # Should have 8 corners
+    assert corners.shape == (8, 3)
+    # Expected corners for a 2x2x2 grid of 1x1x1 blocks
+    expected_corners = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [2.0, 0.0, 0.0],
+            [0.0, 2.0, 0.0],
+            [2.0, 2.0, 0.0],
+            [0.0, 0.0, 2.0],
+            [2.0, 0.0, 2.0],
+            [0.0, 2.0, 2.0],
+            [2.0, 2.0, 2.0],
+        ],
+        dtype=float,
+    )
+    np.testing.assert_allclose(corners, expected_corners)
+
+
+def test_extents_orthogonal_corners_with_offset():
+    """Test corners for orthogonal geometry with non-zero origin."""
+    geom = make_geometry(
+        corner=(10.0, 20.0, 30.0),
+        block_size=(2.0, 3.0, 4.0),
+        shape=(2, 2, 2),
+    )
+    corners = geom.extents.corners
+    # Expected corners
+    expected_corners = np.array(
+        [
+            [10.0, 20.0, 30.0],
+            [14.0, 20.0, 30.0],  # 10 + 2*2
+            [10.0, 26.0, 30.0],  # 20 + 2*3
+            [14.0, 26.0, 30.0],
+            [10.0, 20.0, 38.0],  # 30 + 2*4
+            [14.0, 20.0, 38.0],
+            [10.0, 26.0, 38.0],
+            [14.0, 26.0, 38.0],
+        ],
+        dtype=float,
+    )
+    np.testing.assert_allclose(corners, expected_corners)
+
+
+def test_extents_rotated_axis_aligned_bounds():
+    """Test axis-aligned bounds for rotated geometry."""
+    from math import cos, sin, radians
+
+    angle = radians(45)
+    axis_u = (cos(angle), sin(angle), 0.0)
+    axis_v = (-sin(angle), cos(angle), 0.0)
+    axis_w = (0.0, 0.0, 1.0)
+
+    geom = make_geometry(
+        corner=(0.0, 0.0, 0.0),
+        block_size=(1.0, 1.0, 1.0),
+        shape=(1, 1, 1),
+        axis_u=axis_u,
+        axis_v=axis_v,
+        axis_w=axis_w,
+    )
+
+    min_xyz, max_xyz = geom.extents.axis_aligned_bounds
+    
+    # For 45-degree rotation with 1x1x1 blocks:
+    # Block extends from local (0,0,0) to (1,1,1)
+    # The rotation matrix R has columns (axis_u, axis_v, axis_w)
+    # Corners in local: (0,0,0), (1,0,0), (0,1,0), (1,1,0), (0,0,1), (1,0,1), (0,1,1), (1,1,1)
+    # After transformation R @ local_point:
+    # (0,0,0) -> (0, 0, 0)
+    # (1,0,0) -> (cos(45), sin(45), 0) ≈ (0.707, 0.707, 0)
+    # (0,1,0) -> (-sin(45), cos(45), 0) ≈ (-0.707, 0.707, 0)
+    # (1,1,0) -> (0, √2, 0) ≈ (0, 1.414, 0)
+    # (0,0,1) -> (0, 0, 1)
+    # (1,0,1) -> (0.707, 0.707, 1)
+    # (0,1,1) -> (-0.707, 0.707, 1)
+    # (1,1,1) -> (0, 1.414, 1)
+    # X range: [-0.707, 0.707]
+    # Y range: [0, 1.414]
+    # Z range: [0, 1]
+    sqrt2 = np.sqrt(2)
+    expected_xmin, expected_xmax = -0.5 / np.sqrt(2) - 0.5 / np.sqrt(2), 0.5 / np.sqrt(2) + 0.5 / np.sqrt(2)
+    expected_ymin, expected_ymax = 0.0, sqrt2
+    expected_zmin, expected_zmax = 0.0, 1.0
+
+    np.testing.assert_allclose(
+        min_xyz,
+        (expected_xmin, expected_ymin, expected_zmin),
+        atol=1e-10,
+    )
+    np.testing.assert_allclose(
+        max_xyz,
+        (expected_xmax, expected_ymax, expected_zmax),
+        atol=1e-10,
+    )
+
+
+def test_extents_rotated_corners_enclose_blocks():
+    """Test that corners correctly enclose rotated blocks."""
+    from math import cos, sin, radians
+
+    angle = radians(30)
+    axis_u = (cos(angle), sin(angle), 0.0)
+    axis_v = (-sin(angle), cos(angle), 0.0)
+    axis_w = (0.0, 0.0, 1.0)
+
+    geom = make_geometry(
+        corner=(0.0, 0.0, 0.0),
+        block_size=(2.0, 2.0, 2.0),
+        shape=(2, 2, 2),
+        axis_u=axis_u,
+        axis_v=axis_v,
+        axis_w=axis_w,
+    )
+
+    corners = geom.extents.corners
+    assert corners.shape == (8, 3)
+
+    # All centroids should be inside the oriented bounding box
+    centroids = np.column_stack([geom.centroid_x, geom.centroid_y, geom.centroid_z])
+    min_xyz, max_xyz = geom.extents.axis_aligned_bounds
+
+    # Every centroid should be within the axis-aligned bounds
+    for i in range(centroids.shape[0]):
+        x, y, z = centroids[i]
+        assert min_xyz[0] <= x <= max_xyz[0], f"Centroid {i}: x={x} outside bounds [{min_xyz[0]}, {max_xyz[0]}]"
+        assert min_xyz[1] <= y <= max_xyz[1], f"Centroid {i}: y={y} outside bounds [{min_xyz[1]}, {max_xyz[1]}]"
+        assert min_xyz[2] <= z <= max_xyz[2], f"Centroid {i}: z={z} outside bounds [{min_xyz[2]}, {max_xyz[2]}]"
+
+
+def test_extents_no_state_duplication():
+    """Test that Extents is a lightweight view with no duplicated state."""
+    geom = make_geometry(
+        corner=(1.0, 2.0, 3.0),
+        block_size=(1.0, 1.0, 1.0),
+        shape=(2, 2, 2),
+    )
+    extents1 = geom.extents
+    extents2 = geom.extents
+
+    # Both should reference the same geometry
+    assert extents1._geometry is extents2._geometry
+    # Properties should compute consistently
+    np.testing.assert_allclose(
+        extents1.axis_aligned_bounds[0],
+        extents2.axis_aligned_bounds[0],
+    )
+
+
+def test_extents_corners_match_bounds():
+    """Test that corners are consistent with axis-aligned bounds."""
+    geom = make_geometry(
+        corner=(0.0, 0.0, 0.0),
+        block_size=(1.0, 1.0, 1.0),
+        shape=(2, 2, 2),
+    )
+    corners = geom.extents.corners
+    min_xyz, max_xyz = geom.extents.axis_aligned_bounds
+
+    # All corners should lie on the boundary of or inside the bounds
+    for corner in corners:
+        x, y, z = corner
+        assert min_xyz[0] <= x <= max_xyz[0]
+        assert min_xyz[1] <= y <= max_xyz[1]
+        assert min_xyz[2] <= z <= max_xyz[2]
+
+    # At least one corner should touch each boundary
+    x_coords = corners[:, 0]
+    y_coords = corners[:, 1]
+    z_coords = corners[:, 2]
+
+    np.testing.assert_allclose(x_coords.min(), min_xyz[0], atol=1e-10)
+    np.testing.assert_allclose(x_coords.max(), max_xyz[0], atol=1e-10)
+    np.testing.assert_allclose(y_coords.min(), min_xyz[1], atol=1e-10)
+    np.testing.assert_allclose(y_coords.max(), max_xyz[1], atol=1e-10)
+    np.testing.assert_allclose(z_coords.min(), min_xyz[2], atol=1e-10)
+    np.testing.assert_allclose(z_coords.max(), max_xyz[2], atol=1e-10)
+
+
+def test_extents_with_world_origin():
+    """Test that Extents accounts for world origin correctly."""
+    from parq_blockmodel import WorldFrame
+
+    geom = RegularGeometry(
+        local=LocalGeometry(corner=(0.0, 0.0, 0.0), block_size=(1.0, 1.0, 1.0), shape=(2, 2, 2)),
+        world=WorldFrame(origin=(100.0, 200.0, 300.0)),
+    )
+    min_xyz, max_xyz = geom.extents.axis_aligned_bounds
+    # Bounds should be offset by world origin
+    np.testing.assert_allclose(min_xyz, (100.0, 200.0, 300.0))
+    np.testing.assert_allclose(max_xyz, (102.0, 202.0, 302.0))
+

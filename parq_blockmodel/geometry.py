@@ -162,6 +162,152 @@ class WorldFrame:
         return self.rotation_matrix.T @ (world_points - origin)
 
 
+class Extents:
+    """Read-only geometry view for extent-related queries.
+
+    Extents provides axis-aligned and oriented bounding box representations
+    of a RegularGeometry without duplicating any geometry state.
+
+    All properties are derived from the underlying RegularGeometry:
+    - Local corner, block size, shape
+    - World rotation matrix and origin
+    - Centroid positions
+
+    Attributes:
+        _geometry: The RegularGeometry being queried (not owned).
+    """
+
+    def __init__(self, geometry: "RegularGeometry"):
+        """Initialize Extents as a read-only view over a RegularGeometry.
+
+        Args:
+            geometry: The RegularGeometry instance to query.
+        """
+        self._geometry = geometry
+
+    @property
+    def axis_aligned_bounds(self) -> tuple[tuple[float, float, float], tuple[float, float, float]]:
+        """Return axis-aligned bounding box as (min_xyz, max_xyz).
+
+        Computes bounds from centroid cloud expanded by half-block size in the
+        rotated coordinate frame. Works correctly for both orthogonal and
+        rotated geometries.
+
+        Returns:
+            Tuple of (min_point, max_point), each a 3-tuple (x, y, z).
+        """
+        geom = self._geometry
+
+        # Get centroid bounds and block dimensions
+        cx_min, cx_max = float(geom.centroid_x.min()), float(geom.centroid_x.max())
+        cy_min, cy_max = float(geom.centroid_y.min()), float(geom.centroid_y.max())
+        cz_min, cz_max = float(geom.centroid_z.min()), float(geom.centroid_z.max())
+
+        dx, dy, dz = geom.local.block_size
+
+        # For axis-aligned bounds, we expand by half-block size in each local axis,
+        # then account for rotation. We compute expansion vectors from block half-sizes
+        # along each rotated axis.
+        half_block = np.array([dx / 2, dy / 2, dz / 2], dtype=float)
+
+        # Rotation matrix maps local axes to world axes
+        R = geom.world.rotation_matrix  # shape (3, 3)
+
+        # Compute the extent contribution from each local axis
+        # Each axis contributes +/- its half-block size along that direction
+        ex_u = np.abs(R[:, 0]) * half_block[0]  # Contribution from U-axis
+        ex_v = np.abs(R[:, 1]) * half_block[1]  # Contribution from V-axis
+        ex_w = np.abs(R[:, 2]) * half_block[2]  # Contribution from W-axis
+
+        # Total expansion in each world axis
+        expansion = ex_u + ex_v + ex_w  # shape (3,)
+
+        min_xyz = (cx_min - expansion[0], cy_min - expansion[1], cz_min - expansion[2])
+        max_xyz = (cx_max + expansion[0], cy_max + expansion[1], cz_max + expansion[2])
+
+        return min_xyz, max_xyz
+
+    @property
+    def corners(self) -> NDArray[np.floating]:
+        """Return world-space oriented bounding box corners.
+
+        Computes the 8 corners of the exact block model extent in world
+        coordinates. Corners are derived from the local grid corner,
+        block size, and shape.
+
+        Returns:
+            Array of shape (8, 3) with corners in world coordinates.
+            Corners ordered as:
+            [0,0,0], [1,0,0], [0,1,0], [1,1,0],
+            [0,0,1], [1,0,1], [0,1,1], [1,1,1]
+            where indices refer to (i, j, k) binary selection.
+        """
+        geom = self._geometry
+        corner = np.asarray(geom.local.corner, dtype=float).reshape(3, 1)
+        dx, dy, dz = geom.local.block_size
+        ni, nj, nk = geom.local.shape
+
+        # The 8 corners of the oriented bounding box in local coordinates
+        # Start from corner, extend by (ni*dx, nj*dy, nk*dz)
+        local_corners = np.array(
+            [
+                [corner[0, 0], corner[1, 0], corner[2, 0]],  # [0, 0, 0]
+                [corner[0, 0] + ni * dx, corner[1, 0], corner[2, 0]],  # [1, 0, 0]
+                [corner[0, 0], corner[1, 0] + nj * dy, corner[2, 0]],  # [0, 1, 0]
+                [corner[0, 0] + ni * dx, corner[1, 0] + nj * dy, corner[2, 0]],  # [1, 1, 0]
+                [corner[0, 0], corner[1, 0], corner[2, 0] + nk * dz],  # [0, 0, 1]
+                [corner[0, 0] + ni * dx, corner[1, 0], corner[2, 0] + nk * dz],  # [1, 0, 1]
+                [corner[0, 0], corner[1, 0] + nj * dy, corner[2, 0] + nk * dz],  # [0, 1, 1]
+                [corner[0, 0] + ni * dx, corner[1, 0] + nj * dy, corner[2, 0] + nk * dz],  # [1, 1, 1]
+            ],
+            dtype=float,
+        )
+
+        # Transform to world coordinates
+        world_corners = geom.world.local_to_world(local_corners.T).T  # (8, 3)
+        return world_corners
+
+    @property
+    def xmin(self) -> float:
+        """Minimum X coordinate."""
+        return self.axis_aligned_bounds[0][0]
+
+    @property
+    def xmax(self) -> float:
+        """Maximum X coordinate."""
+        return self.axis_aligned_bounds[1][0]
+
+    @property
+    def ymin(self) -> float:
+        """Minimum Y coordinate."""
+        return self.axis_aligned_bounds[0][1]
+
+    @property
+    def ymax(self) -> float:
+        """Maximum Y coordinate."""
+        return self.axis_aligned_bounds[1][1]
+
+    @property
+    def zmin(self) -> float:
+        """Minimum Z coordinate."""
+        return self.axis_aligned_bounds[0][2]
+
+    @property
+    def zmax(self) -> float:
+        """Maximum Z coordinate."""
+        return self.axis_aligned_bounds[1][2]
+
+    @property
+    def xy_bbox(self) -> tuple[float, float, float, float]:
+        """Return 2D bounding box in XY as (xmin, ymin, xmax, ymax)."""
+        return (self.xmin, self.ymin, self.xmax, self.ymax)
+
+    @property
+    def extent_xy(self) -> list[float]:
+        """Return 2D extent as [xmin, xmax, ymin, ymax] (for compatibility)."""
+        return [self.xmin, self.xmax, self.ymin, self.ymax]
+
+
 class RegularGeometry:
     """Dense, metadata-defined block model geometry (C-order canonical).
 
@@ -604,29 +750,16 @@ class RegularGeometry:
         return self.world.srs
 
     @property
-    def extents(self) -> tuple[float, float, float, float, float, float]:
-        """Return the axis-aligned bounding box (xmin, xmax, ymin, ymax, zmin, zmax).
+    def extents(self) -> Extents:
+        """Return an Extents view for geometry extent queries.
 
-        For unrotated geometries this is derived directly from corner, block_size,
-        and shape. For rotated geometries, we conservatively compute extents from
-        the centroid cloud.
+        The Extents object provides access to axis-aligned bounds, oriented
+        corners, and convenience properties (xmin, ymin, etc.).
+
+        Returns:
+            Extents: A read-only view for extent-related spatial queries.
         """
-
-        if not self.is_rotated:
-            cx, cy, cz = self.local.corner
-            dx, dy, dz = self.local.block_size
-            ni, nj, nk = self.local.shape
-            xmin, ymin, zmin = cx, cy, cz
-            xmax = cx + ni * dx
-            ymax = cy + nj * dy
-            zmax = cz + nk * dz
-            return xmin, xmax, ymin, ymax, zmin, zmax
-
-        # Rotated: fall back to centroid cloud bounds
-        xs = self.centroid_x
-        ys = self.centroid_y
-        zs = self.centroid_z
-        return float(xs.min()), float(xs.max()), float(ys.min()), float(ys.max()), float(zs.min()), float(zs.max())
+        return Extents(self)
 
     # ------------------------------------------------------------------
     # PyVista helper

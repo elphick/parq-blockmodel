@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import logging
 import math
 import re
 from numbers import Integral, Real
 from typing import Optional, Union
 
 import pyarrow.parquet as pq
+
+logger = logging.getLogger(__name__)
 
 
 _MEMORY_FACTORS = {
@@ -128,9 +131,16 @@ def resolve_report_columns_per_batch(
     memory_budget_bytes = parse_memory_budget(memory_budget)
     estimated_sizes = estimate_report_column_uncompressed_sizes(parquet_file, columns)
     total_estimated_bytes = sum(estimated_sizes.values())
+    
+    logger.debug(f"Memory budget resolution: total_estimated_bytes={total_estimated_bytes} bytes, memory_budget_bytes={memory_budget_bytes} bytes")
+    logger.debug(f"Per-column sizes: {estimated_sizes}")
+    logger.debug(f"Fits in budget? {total_estimated_bytes <= memory_budget_bytes}")
+    
     if total_estimated_bytes <= memory_budget_bytes:
+        logger.debug(f"All columns fit within budget -> returning batch_size=None (native profiler)")
         return None, memory_budget_bytes
 
     batch_size = max_report_batch_size_within_budget(columns, estimated_sizes, memory_budget_bytes)
+    logger.debug(f"Budget insufficient -> calculated batch_size={batch_size}")
     return batch_size, memory_budget_bytes
 
