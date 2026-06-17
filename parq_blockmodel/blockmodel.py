@@ -68,6 +68,9 @@ if typing.TYPE_CHECKING:
     import parq_blockmodel.mesh  # type: ignore[import]
     from parq_blockmodel.reporting import BlockModelReport  # type: ignore[import]
     from pandera import DataFrameSchema  # type: ignore[import]
+
+logger = logging.getLogger(__name__)
+
 class ParquetBlockModel:
     """A class to represent a **regular** Parquet block model.
 
@@ -1055,6 +1058,9 @@ class ParquetBlockModel:
 
         """
         selected_columns = list(columns) if columns is not None else list(self.columns)
+        
+        logging.basicConfig(level=logging.DEBUG)
+        
         effective_columns_per_batch, memory_budget_bytes = resolve_report_columns_per_batch(
             parquet_file=self.pf,
             columns=selected_columns,
@@ -1217,29 +1223,29 @@ class ParquetBlockModel:
 
     def _get_heatmap_data(self, axis, summed_data
                           ) -> tuple[tuple[np.ndarray, ...], tuple[str, ...], tuple[tuple[float, float], tuple[float, float]]]:
-        ex = self.geometry.extents  # (xmin, xmax, ymin, ymax, zmin, zmax)
+        ex = self.geometry.extents  # Extents object with xmin, xmax, ymin, ymax, zmin, zmax properties
 
         if axis == "z":
             x = np.arange(summed_data.shape[0])
             y = np.arange(summed_data.shape[1])
             z = summed_data
             labels = "Easting", "Northing"
-            x_extent = (ex[0], ex[1])
-            y_extent = (ex[2], ex[3])
+            x_extent = (ex.xmin, ex.xmax)
+            y_extent = (ex.ymin, ex.ymax)
         elif axis == "x":
             x = np.arange(summed_data.shape[1])
             y = np.arange(summed_data.shape[2])
             z = summed_data
             labels = "Northing", "RL"
-            x_extent = (ex[2], ex[3])
-            y_extent = (ex[4], ex[5])
+            x_extent = (ex.ymin, ex.ymax)
+            y_extent = (ex.zmin, ex.zmax)
         elif axis == "y":
             x = np.arange(summed_data.shape[0])
             y = np.arange(summed_data.shape[2])
             z = summed_data
             labels = "Easting", "RL"
-            x_extent = (ex[0], ex[1])
-            y_extent = (ex[4], ex[5])
+            x_extent = (ex.xmin, ex.xmax)
+            y_extent = (ex.zmin, ex.zmax)
         else:
             raise ValueError("Invalid axis. Choose from 'x', 'y', or 'z'.")
         return (x, y, z), labels, (x_extent, y_extent)
@@ -1957,7 +1963,12 @@ class ParquetBlockModel:
             raise ValueError("Cannot derive block_id from source parquet: requires block_id, world_id, ijk, or xyz columns.")
 
         if geometry.world_id_encoding is None:
-            xmin, xmax, ymin, ymax, zmin, zmax = geometry.extents
+            xmin = geometry.extents.xmin
+            xmax = geometry.extents.xmax
+            ymin = geometry.extents.ymin
+            ymax = geometry.extents.ymax
+            zmin = geometry.extents.zmin
+            zmax = geometry.extents.zmax
             geometry.world_id_encoding = cls._build_world_id_encoding_from_xyz(
                 np.array([xmin, xmax], dtype=float),
                 np.array([ymin, ymax], dtype=float),
