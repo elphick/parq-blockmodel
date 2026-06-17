@@ -1025,6 +1025,65 @@ class ParquetBlockModel:
         loaded_schema = cls._load_schema(schema) if schema is not None else None
         return cls(blockmodel_path=path, name=name, geometry=geometry, schema=loaded_schema)
 
+    def rename(self, new_pbm_filepath: Path, rename_to_new_pbm_stem: bool = True) -> "ParquetBlockModel":
+        """Rename the underlying .pbm file and refresh path-bound caches.
+
+        Parameters
+        ----------
+        new_pbm_filepath : Path
+            Target .pbm file path.
+        rename_to_new_pbm_stem : bool, default True
+            If True, update self.name to the new file stem.
+
+        Returns
+        -------
+        ParquetBlockModel
+            Self (mutated).
+
+        Notes
+        -----
+        This method only relocates the file on disk and refreshes internal
+        caches. Any computed columns held in memory (not persisted to the
+        original .pbm) will not be saved to the new location. Persist them first:
+
+        >>> pbm.write(df_with_new_columns).rename(Path("new_location.pbm"))
+        """
+        new_pbm_filepath = Path(new_pbm_filepath)
+
+        if new_pbm_filepath.suffix != ".pbm":
+            raise ValueError("new_pbm_filepath must have a '.pbm' extension.")
+        if not self.blockmodel_path.exists():
+            raise FileNotFoundError(f"Current .pbm file does not exist: {self.blockmodel_path}")
+        if new_pbm_filepath.exists():
+            raise FileExistsError(f"Target file already exists: {new_pbm_filepath}")
+        if not new_pbm_filepath.parent.exists():
+            raise FileNotFoundError(f"Target directory does not exist: {new_pbm_filepath.parent}")
+
+        if self.blockmodel_path.resolve() == new_pbm_filepath.resolve():
+            if rename_to_new_pbm_stem:
+                self.name = new_pbm_filepath.stem
+            return self
+
+        # Release file-backed handles before rename (important on Windows).
+        self.pf = None
+        self.data = None
+
+        self.blockmodel_path.rename(new_pbm_filepath)
+
+        # Refresh path-dependent state.
+        self.blockmodel_path = new_pbm_filepath
+        self.pf = ParquetFile(self.blockmodel_path)
+        self.data = LazyParquetDF(self.blockmodel_path)
+        self.columns = pq.read_schema(self.blockmodel_path).names
+        self.attributes = [col for col in self.columns if col not in self.POSITION_COLUMNS]
+        self._centroid_index = None
+        self._extract_column_dtypes()
+
+        if rename_to_new_pbm_stem:
+            self.name = self.blockmodel_path.stem
+
+        return self
+
     def create_report(self, columns: Optional[list[str]] = None,
                       columns_per_batch: Optional[int] = 10,
                       show_progress: bool = True,
@@ -1457,6 +1516,106 @@ class ParquetBlockModel:
 
         return df
 
+    def write(
+            self,
+            dataframe: pd.DataFrame,
+            *,
+            merge: bool = False,
+            index_columns: Optional[list[str]] = None,
+            batch_size: int = 1_000_000,
+            allow_overwrite: bool = True,
+            show_progress: bool = False,
+            **pq_write_kwargs: object,
+    ) -> "ParquetBlockModel":
+        """Persist data to the backing ``.pbm`` file.
+
+        Parameters
+        ----------
+        dataframe : pd.DataFrame
+            Data to persist.
+        merge : bool, default False
+            If False, rewrite the file using only ``dataframe`` columns.
+            If True, append columns from ``dataframe`` to existing parquet rows
+            using key alignment (streamed via parq-tools).
+        index_columns : list[str], optional
+            Key columns used for merge alignment. Defaults to ``["block_id"]`` when
+            available, then ``["i", "j", "k"]``, then ``["x", "y", "z"]``.
+        batch_size : int, default 1_000_000
+            Streaming batch size used when ``merge=True``.
+        allow_overwrite : bool, default True
+            Forwarded to merge helper.
+        show_progress : bool, default False
+            Forwarded to merge helper.
+        **pq_write_kwargs : object
+            Extra args forwarded to parquet writer (merge mode).
+        """
+        if batch_size <= 0:
+            raise ValueError("batch_size must be > 0")
+
+        # Windows cannot atomically replace files while parquet readers are alive.
+        self.pf = None  # type: ignore[assignment]
+        self.data = None  # type: ignore[assignment]
+
+        if merge:
+            if index_columns is None:
+                if "block_id" in self.columns:
+                    index_columns = ["block_id"]
+                elif all(c in self.columns for c in ["i", "j", "k"]):
+                    index_columns = ["i", "j", "k"]
+                elif all(c in self.columns for c in ["x", "y", "z"]):
+                    index_columns = ["x", "y", "z"]
+                else:
+                    raise ValueError(
+                        "Unable to infer index_columns for merge. "
+                        "Provide index_columns explicitly."
+                    )
+
+            from parq_tools import concat_parquet_file_with_dataframe
+
+            concat_parquet_file_with_dataframe(
+                parquet_path=self.blockmodel_path,
+                df=dataframe,
+                output_path=None,
+                index_columns=index_columns,
+                batch_size=batch_size,
+                allow_overwrite=allow_overwrite,
+                show_progress=show_progress,
+                **pq_write_kwargs,
+            )
+        else:
+            if len(dataframe) != int(ParquetFile(self.blockmodel_path).metadata.num_rows):
+                raise ValueError(
+                    f"DataFrame row count ({len(dataframe)}) does not match "
+                    f"block model rows ({int(ParquetFile(self.blockmodel_path).metadata.num_rows)})."
+                )
+            missing_columns = [col for col in self.columns if col not in dataframe.columns]
+            if missing_columns:
+                raise ValueError(
+                    "DataFrame is missing required on-disk columns for strict write: "
+                    f"{missing_columns}. Use merge=True to append only new columns."
+                )
+            self._persist_dataframe(dataframe)
+            return self
+
+        schema = pq.read_schema(self.blockmodel_path)
+        current_meta = dict(schema.metadata or {})
+        geom_payload = json.dumps(self.geometry.to_metadata_dict()).encode("utf-8")
+        if current_meta.get(b"parq-blockmodel") != geom_payload:
+            table = pq.read_table(self.blockmodel_path)
+            meta = dict(table.schema.metadata or {})
+            meta[b"parq-blockmodel"] = geom_payload
+            table = table.replace_schema_metadata(meta)
+            pq.write_table(table, self.blockmodel_path)
+
+        self.pf = ParquetFile(self.blockmodel_path)
+        self.data = LazyParquetDF(self.blockmodel_path)
+        self.columns = pq.read_schema(self.blockmodel_path).names
+        self.attributes = [col for col in self.columns if col not in self.POSITION_COLUMNS]
+        self._centroid_index = None
+        self._extract_column_dtypes()
+
+        return self
+
     def triangulate(
         self,
         attributes: Optional[list[str]] = None,
@@ -1818,7 +1977,9 @@ class ParquetBlockModel:
                     raise ValueError("world_id column present but metadata has no world_id_encoding payload.")
                 offset, scale, bits_per_axis = get_world_id_encoding_params(geometry.world_id_encoding)
                 world_ids = np.asarray(batch.column(0), dtype=np.int64)
-                x, y, z = decode_world_coordinates(world_ids, offset=offset, scale=scale, bits_per_axis=bits_per_axis)
+                x, y, z = decode_world_coordinates(
+                    world_ids, offset=offset, scale=scale, bits_per_axis=bits_per_axis
+                )
                 block_ids = geometry.row_index_from_xyz(x, y, z, tol=tol).astype(np.uint32)
             elif has_xyz:
                 x = np.asarray(batch.column(0), dtype=float)
