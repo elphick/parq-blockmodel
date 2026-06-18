@@ -3,6 +3,8 @@ from collections import Counter
 
 import pandas as pd
 
+from parq_blockmodel.reblocking.conversion import to_numeric
+
 
 def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
     """
@@ -71,6 +73,7 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
     # Manage fill_ratio if needed
     fill_ratio_vars: set[str] = set()
     fill_ratio_var: str | None = None
+    fill_ratio = None
     for attr, config in aggregation_config.items():
         if config.get('fill_ratio'): # if the fill_ratio key exists...
             fill_ratio_vars.add(config.get('fill_ratio'))
@@ -96,32 +99,49 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
         if not isinstance(replacement, dict):
             raise ValueError("The replace value must be a dictionary of the form {old_value: new_value}")
 
-        # Reshape and transpose
-        reshaped = data.reshape(new_shape).transpose(transpose_axes)
-
         if method == 'sum':
+            data_numeric, restore_fn = to_numeric(data, operation="downsampling", attribute=attr)
+            reshaped = data_numeric.reshape(new_shape).transpose(transpose_axes)
             if fill:
-                result[attr] = np.nansum(reshaped, axis=(3, 4, 5)) / fill_ratio
+                if fill_ratio is None:
+                    raise ValueError(f"fill_ratio '{fill}' was requested but is not configured")
+                aggregated = np.nansum(reshaped, axis=(3, 4, 5), dtype=np.float64) / fill_ratio
             else:
-                result[attr] = np.nansum(reshaped, axis=(3, 4, 5))
+                aggregated = np.nansum(reshaped, axis=(3, 4, 5), dtype=np.float64)
+            result[attr] = restore_fn(aggregated)
 
         elif method == 'mean':
-            result[attr] = np.nanmean(reshaped, axis=(3, 4, 5))
+            data_numeric, restore_fn = to_numeric(data, operation="downsampling", attribute=attr)
+            reshaped = data_numeric.reshape(new_shape).transpose(transpose_axes)
+            aggregated = np.nanmean(reshaped, axis=(3, 4, 5), dtype=np.float64)
+            result[attr] = restore_fn(aggregated)
 
         elif method == 'weighted_mean':
+            data_numeric, restore_fn = to_numeric(data, operation="downsampling", attribute=attr)
+            reshaped = data_numeric.reshape(new_shape).transpose(transpose_axes)
             weight = weight_arrays.get(attr)
             if weight is None:
                 raise ValueError(f"Missing weight array for attribute '{attr}'")
-            weight_reshaped = weight.reshape(new_shape).transpose(transpose_axes)
+            weight_numeric, _ = to_numeric(weight, operation="downsampling", attribute=config.get('weight'))
+            weight_reshaped = weight_numeric.reshape(new_shape).transpose(transpose_axes)
             if fill:
-                weighted_sum = np.nansum(reshaped * weight_reshaped, axis=(3, 4, 5)) / fill_ratio
+                if fill_ratio is None:
+                    raise ValueError(f"fill_ratio '{fill}' was requested but is not configured")
+                weighted_sum = np.nansum(reshaped * weight_reshaped, axis=(3, 4, 5), dtype=np.float64) / fill_ratio
             else:
-                weighted_sum = np.nansum(reshaped * weight_reshaped, axis=(3, 4, 5))
-            total_weight = np.nansum(weight_reshaped, axis=(3, 4, 5))
-            result[attr] = np.divide(weighted_sum, total_weight, out=np.full_like(weighted_sum, np.nan), where=total_weight != 0)
+                weighted_sum = np.nansum(reshaped * weight_reshaped, axis=(3, 4, 5), dtype=np.float64)
+            total_weight = np.nansum(weight_reshaped, axis=(3, 4, 5), dtype=np.float64)
+            aggregated = np.divide(
+                weighted_sum,
+                total_weight,
+                out=np.full_like(weighted_sum, np.nan, dtype=np.float64),
+                where=total_weight != 0,
+            )
+            result[attr] = restore_fn(aggregated)
 
         elif method == 'mode':
             # Mode aggregation for categorical data
+            reshaped = data.reshape(new_shape).transpose(transpose_axes)
             nx, ny, nz = reshaped.shape[:3]
             mode_array = np.empty((nx, ny, nz), dtype=object)
             for i in range(nx):

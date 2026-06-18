@@ -1,4 +1,4 @@
-from typing import Optional
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -79,13 +79,22 @@ def dict_3d_to_tabular(
     return df
 
 
-def to_numeric(arr, categories=None):
+def _warn_dtype_promotion(original_dtype, operation: str, attribute: str | None, reason: str) -> None:
+    attr_text = f" for attribute '{attribute}'" if attribute else ""
+    warnings.warn(
+        f"{operation}{attr_text}: keeping promoted dtype because {reason} (original dtype: {original_dtype}).",
+        RuntimeWarning,
+        stacklevel=3,
+    )
+
+
+def to_numeric(arr, categories=None, *, operation: str = "reblocking", attribute: str | None = None):
     """
     Convert array to numeric for interpolation.
     Returns numeric array and a restoration function.
     """
     if categories is not None:
-        arr_numeric = arr.astype(float)
+        arr_numeric = np.asarray(arr, dtype=np.float64)
 
         def restore_fn(x):
             x = np.round(x).astype(int)
@@ -96,21 +105,58 @@ def to_numeric(arr, categories=None):
         return arr_numeric, restore_fn
 
     if pd.api.types.is_integer_dtype(arr):
-        arr_numeric = arr.astype(float)
-        if pd.api.types.is_extension_array_dtype(arr):
-            # Pandas nullable integer (Int64, Int32, etc.)
-            def restore_fn(x):
-                return pd.array(x, dtype=arr.dtype)
-        elif pd.isna(arr).any():
-            # Fallback for legacy nullable integer
-            def restore_fn(x):
-                return pd.array(x, dtype="Int64")
-        else:
-            def restore_fn(x):
-                return np.round(x).astype(arr.dtype)
+        arr_numeric = np.asarray(arr, dtype=np.float64)
+        is_extension_dtype = pd.api.types.is_extension_array_dtype(arr.dtype)
+        target_numpy_dtype = np.dtype(getattr(arr.dtype, "numpy_dtype", arr.dtype))
+
+        def restore_fn(x):
+            values = np.asarray(x, dtype=np.float64)
+            rounded = np.rint(values)
+            finite_mask = np.isfinite(rounded)
+
+            if finite_mask.any():
+                info = np.iinfo(target_numpy_dtype)
+                finite_values = rounded[finite_mask]
+                if finite_values.min() < info.min or finite_values.max() > info.max:
+                    _warn_dtype_promotion(
+                        arr.dtype,
+                        operation=operation,
+                        attribute=attribute,
+                        reason=(
+                            "integer result exceeds representable range "
+                            f"[{info.min}, {info.max}]"
+                        ),
+                    )
+                    return values
+
+            if is_extension_dtype:
+                rounded_with_na = rounded.copy()
+                rounded_with_na[~finite_mask] = np.nan
+                return pd.array(rounded_with_na, dtype=arr.dtype)
+
+            if not finite_mask.all():
+                _warn_dtype_promotion(
+                    arr.dtype,
+                    operation=operation,
+                    attribute=attribute,
+                    reason="integer result contains NaN/Inf",
+                )
+                return values
+
+            return rounded.astype(target_numpy_dtype, copy=False)
+
         return arr_numeric, restore_fn
 
-    arr_numeric = arr.astype(float)
+    if pd.api.types.is_float_dtype(arr):
+        arr_numeric = np.asarray(arr, dtype=np.float64)
+        target_dtype = np.dtype(arr.dtype)
+
+        def restore_fn(x):
+            return np.asarray(x, dtype=target_dtype)
+
+        return arr_numeric, restore_fn
+
+    arr_numeric = np.asarray(arr, dtype=np.float64)
 
     def restore_fn(x):
         return x

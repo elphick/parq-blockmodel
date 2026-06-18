@@ -18,7 +18,7 @@ import plotly.io as pio
 # -- Project information -----------------------------------------------------
 
 project = 'parq-blockmodel'
-copyright = '2025, Greg Elphick'
+copyright = '2026, Greg Elphick'
 author = 'Greg Elphick'
 version = parq_blockmodel.__version__
 
