@@ -13,7 +13,8 @@ def test_downsample_attributes_mean():
     attributes = {'value': arr}
     config = {'value': {'method': 'mean'}}
     result = downsample_attributes(attributes, 2, 2, 2, config)
-    assert np.isclose(result['value'][0,0,0], arr.mean())
+    assert result['value'].dtype == arr.dtype
+    assert result['value'][0,0,0] == np.rint(arr.mean()).astype(arr.dtype)
 
 def test_downsample_attributes_mode():
     arr = np.array([[[1,1],[2,2]],[[1,1],[2,2]]])
@@ -29,6 +30,46 @@ def test_upsample_attributes_linear():
     result = upsample_attributes(attributes, 2, 2, 2, config)
     assert result['value'].shape == (4,4,4)
     assert np.allclose(result['value'], 1)
+
+
+def test_upsample_attributes_preserves_float32_dtype():
+    arr = np.arange(8, dtype=np.float32).reshape(2, 2, 2)
+    result = upsample_attributes({'value': arr}, 2, 2, 2, {'value': 'linear'})
+    assert result['value'].dtype == np.float32
+
+
+def test_downsample_attributes_preserves_float32_dtype():
+    arr = np.arange(64, dtype=np.float32).reshape(4, 4, 4)
+    result = downsample_attributes({'value': arr}, 2, 2, 2, {'value': {'method': 'mean'}})
+    assert result['value'].dtype == np.float32
+
+
+def test_downsample_attributes_int_overflow_warns_and_keeps_promoted_dtype():
+    arr = np.full((2, 2, 2), 100, dtype=np.int8)
+    config = {'value': {'method': 'sum'}}
+
+    with pytest.warns(RuntimeWarning, match='exceeds representable range'):
+        result = downsample_attributes({'value': arr}, 2, 2, 2, config)
+
+    assert result['value'].dtype == np.float64
+
+
+def test_downsample_integer_mean_uses_bankers_rounding_on_ties():
+    attrs = {
+        'tie_to_even': np.array([2, 2, 2, 2, 3, 3, 3, 3], dtype=np.int32).reshape(2, 2, 2),
+        'tie_to_odd': np.array([3, 3, 3, 3, 4, 4, 4, 4], dtype=np.int32).reshape(2, 2, 2),
+    }
+    config = {
+        'tie_to_even': {'method': 'mean'},
+        'tie_to_odd': {'method': 'mean'},
+    }
+
+    result = downsample_attributes(attrs, 2, 2, 2, config)
+
+    assert result['tie_to_even'].dtype == np.int32
+    assert result['tie_to_odd'].dtype == np.int32
+    assert result['tie_to_even'][0, 0, 0] == 2  # np.rint(2.5) -> 2
+    assert result['tie_to_odd'][0, 0, 0] == 4   # np.rint(3.5) -> 4
 
 def test_tabular_to_3d_dict_and_back_dense():
     # Create a dense 2x2x2 grid for i, j, k

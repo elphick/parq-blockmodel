@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 
 from parq_blockmodel import ParquetBlockModel
+from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel
 
 
 @pytest.mark.integration
@@ -71,4 +72,29 @@ def test_upsample_blockmodel_builds_expected_geometry_and_block_ids(tmp_path):
     assert len(df) == 64
     assert df["block_id"].is_unique
     np.testing.assert_array_equal(df["block_id"].to_numpy(), np.arange(64, dtype=np.uint32))
+
+
+@pytest.mark.integration
+def test_upsample_blockmodel_preserves_float32_attribute_dtype(tmp_path):
+    df = create_demo_blockmodel(shape=(2, 2, 2), index_type="world_centroids")
+    df["depth"] = df["depth"].astype(np.float32)
+    pbm = ParquetBlockModel.from_dataframe(df[["depth"]], tmp_path / "upsample_float32.parquet")
+    pbm.geometry.world_id_encoding = None
+
+    upsampled = pbm.upsample((0.5, 0.5, 0.5), {"depth": "linear"})
+    out = upsampled.read(columns=["depth"], index="ijk", dense=True)
+    assert out["depth"].dtype == np.float32
+
+
+@pytest.mark.integration
+def test_downsample_blockmodel_preserves_float32_attribute_dtype(tmp_path):
+    df = create_demo_blockmodel(shape=(4, 4, 4), index_type="world_centroids")
+    df["depth"] = df["depth"].astype(np.float32)
+    pbm = ParquetBlockModel.from_dataframe(df[["depth"]], tmp_path / "downsample_float32.parquet")
+    pbm.geometry.world_id_encoding = None
+
+    downsampled = pbm.downsample((2.0, 2.0, 2.0), {"depth": {"method": "mean"}})
+    out = downsampled.read(columns=["depth"], index="ijk", dense=True)
+    assert out["depth"].dtype == np.float32
+
 

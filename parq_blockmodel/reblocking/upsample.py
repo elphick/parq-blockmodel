@@ -1,7 +1,6 @@
 
 import numpy as np
-import pandas as pd
-from scipy.interpolate import RegularGridInterpolator, interpn
+from scipy.interpolate import RegularGridInterpolator
 
 from parq_blockmodel.reblocking.conversion import to_numeric
 
@@ -56,7 +55,7 @@ def upsample_attributes(attributes, fx, fy, fz, interpolation_config):
         points = np.stack([g.ravel() for g in grid], axis=-1)
 
         # Use conversion utilities
-        arr_numeric, restore_fn = to_numeric(arr)
+        arr_numeric, restore_fn = to_numeric(arr, operation="upsampling", attribute=attr)
         interpolator = RegularGridInterpolator((x, y, z), arr_numeric, method=method if arr_numeric.dtype.kind == 'f' else 'nearest', bounds_error=False, fill_value=np.nan)
         upsampled_numeric = interpolator(points).reshape(new_nx, new_ny, new_nz)
         result[attr] = restore_fn(upsampled_numeric)
