@@ -32,7 +32,7 @@ attributes = {
     'rock_type': rock_types
 }
 
-interpolation_config = {
+upsample_config = {
     'grade': 'linear',
     'density': 'linear',
     'dry_mass': 'linear',
@@ -44,7 +44,7 @@ interpolation_config = {
 fx, fy, fz = 2, 2, 2
 
 # Run upsampling
-upsampled = upsample_attributes(attributes, fx, fy, fz, interpolation_config)
+upsampled = upsample_attributes(attributes, fx, fy, fz, upsample_config)
 
 # Restore rock_type codes to categories for display
 upsampled['rock_type'] = pd.Categorical.from_codes(

@@ -33,8 +33,8 @@ attributes = {
 }
 
 aggregation_config = {
-    'grade': {'method': 'weighted_mean', 'weight': 'dry_mass'},
-    'density': {'method': 'weighted_mean', 'weight': 'volume'},
+    'grade': {'method': 'weighted_mean', 'basis': 'dry_mass'},
+    'density': {'method': 'weighted_mean', 'basis': 'volume'},
     'dry_mass': {'method': 'sum'},
     'volume': {'method': 'sum'},
     'rock_type': {'method': 'mode'}

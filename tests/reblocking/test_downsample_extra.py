@@ -33,7 +33,7 @@ def test_downsample_weighted_mean_with_fill_ratio():
 
     attrs = {"grade": grade, "mass": mass, "fill": fill}
     config = {
-        "grade": {"method": "weighted_mean", "weight": "mass", "fill_ratio": "fill"},
+        "grade": {"method": "weighted_mean", "basis": "mass", "fill_ratio": "fill"},
         "mass": {"method": "sum"},
         "fill": {"method": "mean"},
     }
@@ -105,7 +105,7 @@ def test_downsample_weighted_mean_without_fill_ratio():
 
     attrs = {"grade": grade, "mass": mass}
     config = {
-        "grade": {"method": "weighted_mean", "weight": "mass"},
+        "grade": {"method": "weighted_mean", "basis": "mass"},
         "mass": {"method": "sum"},
     }
     result = downsample_attributes(attrs, 2, 2, 2, config)

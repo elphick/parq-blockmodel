@@ -13,7 +13,7 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
     Parameters:
     - attributes: dict of 3D numpy arrays, e.g., {'grade': ..., 'density': ..., 'rock_type': ...}
     - fx, fy, fz: downsampling factors along x, y, z axes
-    - aggregation_config: dict specifying aggregation method and optional weight for each attribute
+    - aggregation_config: dict specifying aggregation method and optional basis for each attribute
 
     The `fill_ratio` key in aggregation_config indicates that the aggregation should be normalized
     by the fill ratio attribute specified.  This is useful when some blocks may be partially filled after reblocking.
@@ -32,8 +32,8 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
         }
 
         aggregation_config = {
-            'grade': {'method': 'weighted_mean', 'weight': 'dry_mass'},
-            'density': {'method': 'weighted_mean', 'weight': 'volume', fill_ratio: fill_ratio},
+            'grade': {'method': 'weighted_mean', 'basis': 'dry_mass'},
+            'density': {'method': 'weighted_mean', 'basis': 'volume', fill_ratio: fill_ratio},
             'dry_mass': {'method': 'sum', fill_ratio: fill_ratio},
             'volume': {'method': 'sum'},
             'rock_type': {'method': 'mode'}
@@ -43,7 +43,7 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
         downsampled = downsample_attributes(attributes, fx=2, fy=2, fz=2, aggregation_config=aggregation_config)
 
     NOTE: for regular models only the averaging f density can be simplified:
-    From: 'density': {'method': 'weighted_mean', 'weight': 'volume', fill_ratio: fill_ratio},
+    From: 'density': {'method': 'weighted_mean', 'basis': 'volume', fill_ratio: fill_ratio},
     To: 'density': {'method': 'mean'},
 
 
@@ -84,12 +84,14 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
         reshaped_fill_ratio = attributes[fill_ratio_var].reshape(new_shape).transpose(transpose_axes)
         fill_ratio = np.nanmean(reshaped_fill_ratio, axis=(3, 4, 5))
 
-    # Precompute weights if needed
-    weight_arrays = {}
+    # Precompute basis arrays if needed
+    basis_arrays = {}
     for attr, config in aggregation_config.items():
-        if config.get('method') == 'weighted_mean' and 'weight' in config:
-            weight_name = config['weight']
-            weight_arrays[attr] = attributes[weight_name]
+        if config.get('method') != 'weighted_mean':
+            continue
+        basis_name = config.get('basis', config.get('weight'))
+        if basis_name is not None:
+            basis_arrays[attr] = attributes[basis_name]
 
     for attr, data in attributes.items():
         config = aggregation_config.get(attr, {'method': 'mean'})
@@ -119,23 +121,24 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
         elif method == 'weighted_mean':
             data_numeric, restore_fn = to_numeric(data, operation="downsampling", attribute=attr)
             reshaped = data_numeric.reshape(new_shape).transpose(transpose_axes)
-            weight = weight_arrays.get(attr)
-            if weight is None:
-                raise ValueError(f"Missing weight array for attribute '{attr}'")
-            weight_numeric, _ = to_numeric(weight, operation="downsampling", attribute=config.get('weight'))
-            weight_reshaped = weight_numeric.reshape(new_shape).transpose(transpose_axes)
+            basis = basis_arrays.get(attr)
+            if basis is None:
+                raise ValueError(f"Missing basis array for attribute '{attr}'")
+            basis_name = config.get('basis', config.get('weight'))
+            basis_numeric, _ = to_numeric(basis, operation="downsampling", attribute=basis_name)
+            basis_reshaped = basis_numeric.reshape(new_shape).transpose(transpose_axes)
             if fill:
                 if fill_ratio is None:
                     raise ValueError(f"fill_ratio '{fill}' was requested but is not configured")
-                weighted_sum = np.nansum(reshaped * weight_reshaped, axis=(3, 4, 5), dtype=np.float64) / fill_ratio
+                weighted_sum = np.nansum(reshaped * basis_reshaped, axis=(3, 4, 5), dtype=np.float64) / fill_ratio
             else:
-                weighted_sum = np.nansum(reshaped * weight_reshaped, axis=(3, 4, 5), dtype=np.float64)
-            total_weight = np.nansum(weight_reshaped, axis=(3, 4, 5), dtype=np.float64)
+                weighted_sum = np.nansum(reshaped * basis_reshaped, axis=(3, 4, 5), dtype=np.float64)
+            total_basis = np.nansum(basis_reshaped, axis=(3, 4, 5), dtype=np.float64)
             aggregated = np.divide(
                 weighted_sum,
-                total_weight,
+                total_basis,
                 out=np.full_like(weighted_sum, np.nan, dtype=np.float64),
-                where=total_weight != 0,
+                where=total_basis != 0,
             )
             result[attr] = restore_fn(aggregated)
 

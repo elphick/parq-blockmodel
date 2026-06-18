@@ -38,6 +38,61 @@ def test_upsample_attributes_preserves_float32_dtype():
     assert result['value'].dtype == np.float32
 
 
+def test_upsample_attributes_requires_config_for_all_attributes():
+    attrs = {
+        "a": np.ones((2, 2, 2), dtype=float),
+        "b": np.ones((2, 2, 2), dtype=float),
+    }
+    with pytest.raises(ValueError, match="must specify a method for every attribute"):
+        upsample_attributes(attrs, 2, 2, 2, {"a": "linear"})
+
+
+def test_upsample_attributes_nearest_keeps_class_codes_without_intermediate_values():
+    class_codes = np.array([0, 2], dtype=np.int32).reshape(2, 1, 1)
+    out = upsample_attributes({"class_code": class_codes}, 2, 1, 1, {"class_code": "nearest"})
+    flattened = out["class_code"].ravel(order="C")
+    assert set(flattened.tolist()) <= {0, 2}
+    np.testing.assert_array_equal(flattened, np.array([0, 0, 2, 2], dtype=np.int32))
+
+
+def test_upsample_attributes_mode_uses_lowest_code_on_tie():
+    class_codes = np.array([0, 2], dtype=np.int32).reshape(2, 1, 1)
+    out = upsample_attributes({"class_code": class_codes}, 2, 1, 1, {"class_code": "mode"})
+    flattened = out["class_code"].ravel(order="C")
+    assert flattened[1] == 0
+
+
+def test_upsample_attributes_linear_remains_available_for_integer_numeric_values():
+    values = np.array([0, 2], dtype=np.int32).reshape(2, 1, 1)
+    out = upsample_attributes({"value": values}, 2, 1, 1, {"value": "linear"})
+    flattened = out["value"].ravel(order="C")
+    assert set(flattened.tolist()) == {0, 1, 2}
+
+
+def test_upsample_attributes_parent_inherits_exact_parent_values():
+    values = np.arange(8, dtype=np.int32).reshape(2, 2, 2)
+    out = upsample_attributes({"value": values}, 2, 2, 2, {"value": "parent"})
+    expected = np.repeat(np.repeat(np.repeat(values, 2, axis=0), 2, axis=1), 2, axis=2)
+    np.testing.assert_array_equal(out["value"], expected)
+
+
+def test_upsample_attributes_rejects_unsupported_method():
+    arr = np.ones((2, 2, 2), dtype=float)
+    with pytest.raises(ValueError, match="Unsupported upsampling method"):
+        upsample_attributes({"value": arr}, 2, 2, 2, {"value": "idw"})
+
+
+def test_upsample_blockmodel_rejects_unsupported_method(tmp_path):
+    from parq_blockmodel import ParquetBlockModel
+
+    pbm = ParquetBlockModel.create_demo_block_model(
+        tmp_path / "upsample_unsupported_method.parquet", shape=(2, 2, 2)
+    )
+
+    with pytest.raises(ValueError, match="Unsupported upsampling method"):
+        pbm.upsample((0.5, 0.5, 0.5), upsample_config={"depth": "idw", "depth_category": "mode"})
+
+
 def test_downsample_attributes_preserves_float32_dtype():
     arr = np.arange(64, dtype=np.float32).reshape(4, 4, 4)
     result = downsample_attributes({'value': arr}, 2, 2, 2, {'value': {'method': 'mean'}})
@@ -172,12 +227,12 @@ def test_downsample_attributes_replace_requires_mapping():
         downsample_attributes(attrs, 2, 2, 2, config)
 
 
-def test_downsample_attributes_weighted_mean_requires_weight_array():
+def test_downsample_attributes_weighted_mean_requires_basis_array():
     arr = np.arange(8, dtype=float).reshape(2, 2, 2)
     attrs = {"grade": arr}
     config = {"grade": {"method": "weighted_mean"}}
 
-    with pytest.raises(ValueError, match="Missing weight array"):
+    with pytest.raises(ValueError, match="Missing basis array"):
         downsample_attributes(attrs, 2, 2, 2, config)
 
 

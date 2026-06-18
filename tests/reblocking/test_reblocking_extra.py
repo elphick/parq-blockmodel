@@ -50,7 +50,7 @@ def test_upsample_blockmodel_config_not_str_values(tmp_path):
     # block_size (1,1,1) → new (0.5,0.5,0.5) → factor 0.5 → upsampling branch
     # dict values instead of strings → should raise "interpolation methods"
     with pytest.raises(ValueError, match="interpolation methods"):
-        upsample_blockmodel(pbm, (0.5, 0.5, 0.5), {"au": {"method": "linear"}})
+        upsample_blockmodel(pbm, (0.5, 0.5, 0.5), upsample_config={"au": {"method": "linear"}})
 
 
 def test_downsample_blockmodel_implies_upsample_raises(tmp_path):
@@ -75,6 +75,6 @@ def test_upsample_blockmodel_implies_downsample_raises(tmp_path):
     )
     # larger block size → downsampling via upsample_blockmodel should raise
     with pytest.raises(ValueError, match="downsampling"):
-        upsample_blockmodel(pbm, (20.0, 20.0, 20.0), {})
+        upsample_blockmodel(pbm, (20.0, 20.0, 20.0), upsample_config={})
 
 

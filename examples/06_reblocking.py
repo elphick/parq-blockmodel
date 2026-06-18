@@ -41,7 +41,7 @@ pbm.plot(scalar='depth_category', threshold=False, enable_picking=True).show()
 # -------
 # Create a new grid with smaller blocks, and visualise.
 upsampled_pbm: ParquetBlockModel = pbm.upsample(new_block_size=(0.5, 0.5, 0.5),
-                                                interpolation_config={
+                                                upsample_config={
                                                     'depth': 'linear',
                                                     'depth_category': 'nearest'
                                                 })
