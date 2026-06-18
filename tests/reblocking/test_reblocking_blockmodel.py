@@ -24,7 +24,18 @@ def test_upsample_blockmodel_rejects_non_string_methods(tmp_path):
     )
 
     with pytest.raises(ValueError, match="dict of interpolation methods"):
-        pbm.upsample((0.5, 0.5, 0.5), {"depth": {"method": "linear"}})
+        pbm.upsample((0.5, 0.5, 0.5), upsample_config={"depth": {"method": "linear"}})
+
+
+@pytest.mark.integration
+def test_upsample_blockmodel_requires_config_for_every_attribute(tmp_path):
+    pbm = ParquetBlockModel.create_demo_block_model(
+        tmp_path / "upsample_missing_attr_config.parquet",
+        shape=(2, 2, 2),
+    )
+
+    with pytest.raises(ValueError, match="must specify a method for every attribute"):
+        pbm.upsample((0.5, 0.5, 0.5), upsample_config={"depth": "linear"})
 
 
 @pytest.mark.integration
@@ -59,7 +70,7 @@ def test_upsample_blockmodel_builds_expected_geometry_and_block_ids(tmp_path):
 
     upsampled = pbm.upsample(
         (0.5, 0.5, 0.5),
-        {
+        upsample_config={
             "depth": "linear",
             "depth_category": "nearest",
         },
@@ -75,15 +86,56 @@ def test_upsample_blockmodel_builds_expected_geometry_and_block_ids(tmp_path):
 
 
 @pytest.mark.integration
+def test_upsample_blockmodel_allows_mode_for_class_attributes(tmp_path):
+    pbm = ParquetBlockModel.create_demo_block_model(
+        tmp_path / "upsample_mode_for_class.parquet",
+        shape=(2, 2, 2),
+    )
+
+    upsampled = pbm.upsample(
+        (0.5, 0.5, 0.5),
+        upsample_config={
+            "depth": "linear",
+            "depth_category": "mode",
+        },
+    )
+
+    out = upsampled.read(columns=["depth_category"], index="ijk", dense=True)
+    assert out["depth_category"].notna().all()
+    assert set(out["depth_category"].astype(str).unique()) <= {"shallow", "deep"}
+
+
+@pytest.mark.integration
 def test_upsample_blockmodel_preserves_float32_attribute_dtype(tmp_path):
     df = create_demo_blockmodel(shape=(2, 2, 2), index_type="world_centroids")
     df["depth"] = df["depth"].astype(np.float32)
     pbm = ParquetBlockModel.from_dataframe(df[["depth"]], tmp_path / "upsample_float32.parquet")
     pbm.geometry.world_id_encoding = None
 
-    upsampled = pbm.upsample((0.5, 0.5, 0.5), {"depth": "linear"})
+    upsampled = pbm.upsample((0.5, 0.5, 0.5), upsample_config={"depth": "linear"})
     out = upsampled.read(columns=["depth"], index="ijk", dense=True)
     assert out["depth"].dtype == np.float32
+
+
+@pytest.mark.integration
+def test_upsample_blockmodel_parent_inherits_parent_blocks(tmp_path):
+    pbm = ParquetBlockModel.create_demo_block_model(
+        tmp_path / "upsample_parent_method.parquet",
+        shape=(2, 2, 2),
+    )
+
+    upsampled = pbm.upsample(
+        (0.5, 0.5, 0.5),
+        upsample_config={
+            "depth": "parent",
+            "depth_category": "parent",
+        },
+    )
+
+    coarse = pbm.read(columns=["depth"], index="ijk", dense=True)["depth"].to_numpy().reshape(2, 2, 2, order="C")
+    fine = upsampled.read(columns=["depth"], index="ijk", dense=True)["depth"].to_numpy().reshape(4, 4, 4, order="C")
+    expected = np.repeat(np.repeat(np.repeat(coarse, 2, axis=0), 2, axis=1), 2, axis=2)
+    np.testing.assert_array_equal(fine, expected)
 
 
 @pytest.mark.integration

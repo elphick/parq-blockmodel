@@ -103,11 +103,12 @@ def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "Pa
         blockmodel: ParquetBlockModel instance.
         new_block_size: tuple of floats (dx, dy, dz) for the new block size.
         aggregation_config: dict mapping attribute names to aggregation methods.
+            Use ``basis`` for ``weighted_mean`` configurations.
 
     Example:
         aggregation_config = {
-            'grade': {'method': 'weighted_mean', 'weight': 'dry_mass'},
-            'density': {'method': 'weighted_mean', 'weight': 'volume'},
+            'grade': {'method': 'weighted_mean', 'basis': 'dry_mass'},
+            'density': {'method': 'weighted_mean', 'basis': 'volume'},
             'dry_mass': {'method': 'sum'},
             'volume': {'method': 'sum'},
             'rock_type': {'method': 'mode'}
@@ -188,23 +189,26 @@ def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "Pa
 
 
 
-def upsample_blockmodel(blockmodel, new_block_size, interpolation_config) -> "ParquetBlockModel":
+def upsample_blockmodel(blockmodel, new_block_size, upsample_config=None, interpolation_config=None) -> "ParquetBlockModel":
     """
-    Upsample a block model to a finer grid with specified interpolation methods for each attribute.
-    This function supports upsampling of both categorical and numeric attributes.
+    Upsample a block model to a finer grid with explicit per-attribute methods.
+    This function supports both continuous interpolation and class-preserving
+    assignment methods.
 
     Args:
         blockmodel: ParquetBlockModel instance.
         new_block_size: tuple of floats (dx, dy, dz) for the new block size.
-        interpolation_config: dict mapping attribute names to interpolation methods.
+        upsample_config: dict mapping each attribute name to one method
+            ("linear", "nearest", "mode", or "parent").
+        interpolation_config: deprecated alias of ``upsample_config``.
 
     Example:
-        interpolation_config = {
+        upsample_config = {
             'grade': 'linear',
             'density': 'linear',
             'dry_mass': 'linear',
             'volume': 'linear',
-            'rock_type': 'nearest'
+            'rock_type': 'mode'
         }
 
     Returns:
@@ -213,7 +217,11 @@ def upsample_blockmodel(blockmodel, new_block_size, interpolation_config) -> "Pa
 
     from parq_blockmodel import ParquetBlockModel
 
-    _validate_params(interpolation_config, new_block_size)
+    if upsample_config is not None and interpolation_config is not None:
+        raise ValueError("Provide only one of 'upsample_config' or deprecated 'interpolation_config'.")
+    effective_config = upsample_config if upsample_config is not None else interpolation_config
+
+    _validate_params(effective_config, new_block_size)
 
     arrays, categories = _prepare_arrays_and_index(blockmodel)
 
@@ -223,9 +231,15 @@ def upsample_blockmodel(blockmodel, new_block_size, interpolation_config) -> "Pa
         raise ValueError("reblocking factors imply downsampling, not upsampling.")
     elif fx < 1 or fy < 1 or fz < 1:
         # Upsampling: expect dict of strings
-        if not all(isinstance(v, str) for v in (interpolation_config or {}).values()):
+        if not all(isinstance(v, str) for v in (effective_config or {}).values()):
             raise ValueError("Upsampling config must be a dict of interpolation methods per attribute.")
-        arrays = upsample_attributes(arrays, int(1 // fx), int(1 // fy), int(1 // fz), interpolation_config or {})
+        missing = sorted(set(arrays) - set((effective_config or {})))
+        if missing:
+            raise ValueError(
+                "Upsampling config must specify a method for every attribute. "
+                f"Missing: {missing}"
+            )
+        arrays = upsample_attributes(arrays, int(1 // fx), int(1 // fy), int(1 // fz), effective_config or {})
     elif any(dim < 1 for dim in (fx, fy, fz)) and any(dim > 1 for dim in (fx, fy, fz)):
         raise ValueError("Reblocking factors cannot specify upsample and downsample at the same time.")
 

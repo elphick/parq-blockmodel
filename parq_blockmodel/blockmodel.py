@@ -1159,11 +1159,12 @@ class ParquetBlockModel:
         Args:
             new_block_size: tuple of floats (dx, dy, dz) for the new block size.
             aggregation_config: dict mapping attribute names to aggregation methods.
+                Use ``basis`` for ``weighted_mean`` configurations.
 
         Example:
             aggregation_config = {
-                'grade': {'method': 'weighted_mean', 'weight': 'dry_mass'},
-                'density': {'method': 'weighted_mean', 'weight': 'volume'},
+                'grade': {'method': 'weighted_mean', 'basis': 'dry_mass'},
+                'density': {'method': 'weighted_mean', 'basis': 'volume'},
                 'dry_mass': {'method': 'sum'},
                 'volume': {'method': 'sum'},
                 'rock_type': {'method': 'mode'}
@@ -1173,26 +1174,33 @@ class ParquetBlockModel:
         """
         return downsample_blockmodel(self, new_block_size, aggregation_config)
 
-    def upsample(self, new_block_size, interpolation_config) -> "ParquetBlockModel":
+    def upsample(self, new_block_size, upsample_config=None, interpolation_config=None) -> "ParquetBlockModel":
         """
-        Upsample the block model to a finer grid with specified interpolation methods for each attribute.
+        Upsample the block model to a finer grid with specified methods for each attribute.
         This function supports upsampling of both categorical and numeric attributes.
         Args:
             new_block_size: tuple of floats (dx, dy, dz) for the new block size.
-            interpolation_config: dict mapping attribute names to interpolation methods.
+            upsample_config: dict mapping attribute names to upsampling methods
+                (``linear``, ``nearest``, ``mode``, ``parent``).
+            interpolation_config: deprecated alias of ``upsample_config``.
 
         Example:
-            interpolation_config = {
-                'grade': {'method': 'linear'},
-                'density': {'method': 'nearest'},
-                'dry_mass': {'method': 'linear'},
-                'volume': {'method': 'linear'},
-                'rock_type': {'method': 'nearest'}
+            upsample_config = {
+                'grade': 'linear',
+                'density': 'linear',
+                'dry_mass': 'linear',
+                'volume': 'linear',
+                'rock_type': 'mode'
             }
         Returns:
             ParquetBlockModel: A new ParquetBlockModel instance with the upsampled grid.
         """
-        return upsample_blockmodel(self, new_block_size, interpolation_config)
+        return upsample_blockmodel(
+            self,
+            new_block_size,
+            upsample_config=upsample_config,
+            interpolation_config=interpolation_config,
+        )
 
     def create_heatmap_from_threshold(self, attribute: str, threshold: float, axis: str = "z",
                                       return_array: bool = False) -> Union['pv.ImageData', np.ndarray]:
