@@ -97,6 +97,13 @@ YAML schema loading uses ``df_eval.utils.pandera_io_compat`` so the
 ``schema`` extra is the recommended installation path for both Pandera and the
 YAML loader.
 
+``ParquetBlockModel.data`` stays a raw parquet view. Use
+``ParquetBlockModel.read(include_calculated=True)`` when you want a materialized
+DataFrame with schema-derived columns.
+
+For a worked example of schema-backed calculated attributes, see
+:doc:`07_calculated_attributes`.
+
 Reblocking configuration guide
 -----------------------------
 
@@ -104,4 +111,3 @@ For explicit upsampling/downsampling configuration patterns, including
 ``upsample_config`` methods (``linear``, ``nearest``, ``mode``, ``parent``)
 and downsampling ``weighted_mean`` with ``basis``, see
 :doc:`06_reblocking`.
-
