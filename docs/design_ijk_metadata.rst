@@ -59,7 +59,7 @@ Design Steps
 
 
 2. Internal architecture: LocalGeometry and WorldFrame
------------------------------------------------------
+------------------------------------------------------
 
 The **public** :class:`~parq_blockmodel.geometry.RegularGeometry` is composed of two
 internal components that separate concerns:
@@ -176,7 +176,7 @@ unpacking the appropriate sub-dict before delegating to
 
 
 5. New constructors on ``RegularGeometry``
------------------------------------------
+------------------------------------------
 
 Two new class methods are introduced to reconstruct a
 :class:`~parq_blockmodel.geometry.RegularGeometry` instance from
@@ -341,7 +341,7 @@ Examples:
 
 
 6. Backward compatibility
---------------------------
+-------------------------
 
 - Existing pbm files and raw Parquet files that:
 
@@ -388,7 +388,7 @@ cells) in a controlled way.
 
 
 8. Terminology: block_id, world_id, and ijk
---------------------------------------------
+-------------------------------------------
 
 To avoid confusion, terminology is used precisely:
 
@@ -415,6 +415,7 @@ The distinction is important:
 - Use **ijk** for logical block queries and geometric operations
 - Use **world_id** for stable cross-model references and external joins
 - Use row index (flat, C-order) for internal DataFrame/Parquet operations
+
 Summary
 =======
 

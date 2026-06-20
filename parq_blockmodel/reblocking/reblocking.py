@@ -29,7 +29,29 @@ def _validate_params(config, new_block_size):
     if not isinstance(config, dict):
         raise ValueError("config must be a dictionary.")
 
-def _prepare_arrays_and_index(blockmodel) -> tuple[dict[str, np.ndarray], dict[str, pd.Index]]:
+def _persisted_attribute_columns(blockmodel) -> list[str]:
+    geometry_cols = {"block_id", "world_id", "x", "y", "z", "i", "j", "k"}
+    return [c for c in blockmodel.columns if c not in geometry_cols]
+
+
+def _required_downsample_inputs(aggregation_config: dict[str, dict]) -> set[str]:
+    required: set[str] = set(aggregation_config)
+    for config in aggregation_config.values():
+        if not isinstance(config, dict):
+            continue
+        basis_name = config.get("basis", config.get("weight"))
+        if isinstance(basis_name, str) and basis_name:
+            required.add(basis_name)
+        fill_ratio_name = config.get("fill_ratio")
+        if isinstance(fill_ratio_name, str) and fill_ratio_name:
+            required.add(fill_ratio_name)
+    return required
+
+
+def _prepare_arrays_and_index(
+    blockmodel,
+    additional_columns: set[str] | None = None,
+) -> tuple[dict[str, np.ndarray], dict[str, pd.Index]]:
     """Prepare dense attribute arrays and category indices for reblocking.
 
     This helper reads the blockmodel on a dense ijk grid and converts it
@@ -44,8 +66,9 @@ def _prepare_arrays_and_index(blockmodel) -> tuple[dict[str, np.ndarray], dict[s
     #
     # Only load true attributes; drop geometry/identity columns which
     # will be regenerated for the reblocked grid.
-    geometry_cols = {"block_id", "world_id", "x", "y", "z", "i", "j", "k"}
-    cols = [c for c in blockmodel.columns if c not in geometry_cols]
+    cols = _persisted_attribute_columns(blockmodel)
+    extras = sorted(c for c in (additional_columns or set()) if c not in cols)
+    cols.extend(extras)
     df: pd.DataFrame = blockmodel.read(columns=cols, index="ijk", dense=True)
     arrays, categories = tabular_to_3d_dict(df)
     return arrays, categories
@@ -121,15 +144,19 @@ def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "Pa
 
     _validate_params(aggregation_config, new_block_size)
 
-    arrays, categories = _prepare_arrays_and_index(blockmodel)
-
     fx, fy, fz, new_shape = _calculate_factors(blockmodel, new_block_size)
 
     if fx > 1 or fy > 1 or fz > 1:
         # Downsampling: expect dict of dicts
         if not all(isinstance(v, dict) for v in (aggregation_config or {}).values()):
             raise ValueError("Downsampling config must be a dict of dicts per attribute.")
+        persisted_attributes = set(_persisted_attribute_columns(blockmodel))
+        required_inputs = _required_downsample_inputs(aggregation_config or {})
+        arrays, categories = _prepare_arrays_and_index(blockmodel, additional_columns=required_inputs)
         arrays = downsample_attributes(arrays, fx, fy, fz, aggregation_config or {})
+        transient_inputs = required_inputs - persisted_attributes - set(aggregation_config or {})
+        for column in transient_inputs:
+            arrays.pop(column, None)
     elif fx < 1 or fy < 1 or fz < 1:
         raise ValueError("reblocking factors imply upsampling, not downsampling.")
     elif any(dim < 1 for dim in (fx, fy, fz)) and any(dim > 1 for dim in (fx, fy, fz)):

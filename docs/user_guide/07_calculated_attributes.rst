@@ -66,3 +66,7 @@ The example below derives ``tonnes`` from ``density * volume`` and then derives
 ``ParquetBlockModel.read()`` stays raw by default. Pass
 ``include_calculated=True`` when you want the schema-derived columns included in
 the returned DataFrame.
+
+Schema-calculated columns can also be consumed by reblocking. See
+:doc:`06_reblocking` for weighted downsampling examples where ``basis`` and/or
+aggregated targets are materialized from schema metadata before aggregation.

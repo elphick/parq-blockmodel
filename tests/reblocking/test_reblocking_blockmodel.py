@@ -150,3 +150,99 @@ def test_downsample_blockmodel_preserves_float32_attribute_dtype(tmp_path):
     assert out["depth"].dtype == np.float32
 
 
+@pytest.mark.integration
+def test_downsample_blockmodel_accepts_calculated_basis_and_target(tmp_path):
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    pandera = pytest.importorskip("pandera", reason="pandera not installed")
+    DataFrameSchema = pandera.DataFrameSchema
+    Column = pandera.Column
+
+    df = create_demo_blockmodel(shape=(4, 4, 4), index_type="world_centroids")
+    count = len(df)
+    df["grade"] = np.linspace(0.2, 1.2, count)
+    df["density"] = np.linspace(2.0, 3.0, count)
+    df["volume"] = np.linspace(1.0, 1.6, count)
+
+    schema = DataFrameSchema(
+        columns={
+            "grade": Column(float, coerce=True, nullable=True),
+            "density": Column(float, coerce=True, nullable=True),
+            "volume": Column(float, coerce=True, nullable=True),
+            "tonnes": Column(
+                float,
+                coerce=True,
+                nullable=True,
+                required=False,
+                metadata={"df-eval": {"expr": "density * volume"}},
+            ),
+            "metal": Column(
+                float,
+                coerce=True,
+                nullable=True,
+                required=False,
+                metadata={"df-eval": {"expr": "tonnes * grade"}},
+            ),
+        },
+        strict=False,
+    )
+
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["grade", "density", "volume"]],
+        filename=tmp_path / "downsample_calculated_inputs.parquet",
+        schema=schema,
+    )
+
+    downsampled = pbm.downsample(
+        (2.0, 2.0, 2.0),
+        {
+            "grade": {"method": "mean"},
+            "metal": {"method": "weighted_mean", "basis": "tonnes"},
+        },
+    )
+    out = downsampled.read(columns=["grade", "metal"], index="ijk", dense=True)
+    assert "tonnes" not in out.columns
+
+    source = pbm.read(columns=["grade", "tonnes", "metal"], index="ijk", dense=True)
+    shape = (4, 4, 4)
+    coarse_shape = (2, 2, 2)
+    reshape_shape = (coarse_shape[0], 2, coarse_shape[1], 2, coarse_shape[2], 2)
+    transpose_axes = (0, 2, 4, 1, 3, 5)
+
+    grade = source["grade"].to_numpy().reshape(shape, order="C").reshape(reshape_shape).transpose(transpose_axes)
+    tonnes = source["tonnes"].to_numpy().reshape(shape, order="C").reshape(reshape_shape).transpose(transpose_axes)
+    metal = source["metal"].to_numpy().reshape(shape, order="C").reshape(reshape_shape).transpose(transpose_axes)
+
+    expected_grade = np.nanmean(grade, axis=(3, 4, 5))
+    weighted_sum = np.nansum(metal * tonnes, axis=(3, 4, 5))
+    total_tonnes = np.nansum(tonnes, axis=(3, 4, 5))
+    expected_metal = np.divide(
+        weighted_sum,
+        total_tonnes,
+        out=np.full_like(weighted_sum, np.nan, dtype=np.float64),
+        where=total_tonnes != 0,
+    )
+
+    np.testing.assert_allclose(out["grade"].to_numpy().reshape(coarse_shape, order="C"), expected_grade)
+    np.testing.assert_allclose(out["metal"].to_numpy().reshape(coarse_shape, order="C"), expected_metal)
+
+
+@pytest.mark.integration
+def test_downsample_blockmodel_calculated_basis_requires_schema(tmp_path):
+    df = create_demo_blockmodel(shape=(4, 4, 4), index_type="world_centroids")
+    df["grade"] = np.linspace(0.2, 1.2, len(df))
+    df["density"] = np.linspace(2.0, 3.0, len(df))
+    df["volume"] = np.linspace(1.0, 1.6, len(df))
+
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["grade", "density", "volume"]],
+        filename=tmp_path / "downsample_missing_schema_inputs.parquet",
+    )
+
+    with pytest.raises(ValueError, match="no schema|schema is available|calculated"):
+        pbm.downsample(
+            (2.0, 2.0, 2.0),
+            {
+                "grade": {"method": "weighted_mean", "basis": "tonnes"},
+                "density": {"method": "weighted_mean", "basis": "volume"},
+            },
+        )
