@@ -414,3 +414,35 @@ def test_read_undefined_requested_column_raises(tmp_path):
     )
     with pytest.raises(ValueError, match="neither on-disk nor defined"):
         pbm.read(columns=["undefined_output"], index="ijk", dense=True)
+
+
+def test_column_properties_distinguish_persisted_and_calculated(tmp_path):
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = 2.5
+    df["volume"] = 1.2
+    df["grade"] = 0.5
+    schema = _calculated_schema()
+
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["density", "volume", "grade"]],
+        filename=tmp_path / "column_properties.parquet",
+        schema=schema,
+    )
+
+    assert pbm.persisted_columns == pbm.columns
+    assert set(pbm.position_columns) == {"block_id", "world_id", "x", "y", "z", "i", "j", "k"}
+    assert set(pbm.persisted_attributes) == {"density", "volume", "grade"}
+    assert set(pbm.calculated_columns) == {"tonnes", "contained_metal"}
+    assert set(pbm.calculated_attributes) == {"tonnes", "contained_metal"}
+
+
+def test_column_properties_calculated_columns_empty_without_schema(tmp_path):
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = 2.5
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["density"]],
+        filename=tmp_path / "column_properties_no_schema.parquet",
+    )
+    assert pbm.calculated_columns == []
+    assert pbm.calculated_attributes == []

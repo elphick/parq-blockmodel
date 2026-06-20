@@ -73,6 +73,32 @@ Typical mixed configuration:
         },
     )
 
+Using schema-calculated aggregation inputs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Aggregation inputs can come from schema ``df-eval`` metadata, not only persisted
+parquet columns. This is useful when a weighted basis (or an aggregated target)
+is derived from other attributes.
+
+Example: ``tonnes`` and ``contained_metal`` are calculated in the schema, then
+used in downsampling:
+
+.. code-block:: python
+
+    downsampled = pbm.downsample(
+        new_block_size=(2.0, 2.0, 2.0),
+        aggregation_config={
+            "grade": {"method": "mean"},
+            "contained_metal": {"method": "weighted_mean", "basis": "tonnes"},
+        },
+    )
+
+In this call:
+
+- ``tonnes`` is used as the weighted basis even if it is not stored on disk.
+- ``contained_metal`` can be aggregated even if it is only schema-defined.
+- Aggregation math stays unchanged; only input materialization differs.
+
 Handling partially-filled blocks with fill_ratio
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -134,6 +160,5 @@ would need:
 
 Given that, IDW is best treated as a separate scoped feature after the
 class-safe upsampling behavior is finalized.
-
 
 

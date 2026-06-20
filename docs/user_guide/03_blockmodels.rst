@@ -104,8 +104,21 @@ DataFrame with schema-derived columns.
 For a worked example of schema-backed calculated attributes, see
 :doc:`07_calculated_attributes`.
 
+Column/property convenience views
+---------------------------------
+
+To quickly distinguish storage-facing columns from block properties:
+
+* ``pbm.persisted_columns``: columns stored in parquet
+* ``pbm.position_columns``: positional/identity columns present on disk
+* ``pbm.persisted_attributes``: persisted non-positional block properties
+* ``pbm.calculated_columns`` / ``pbm.calculated_attributes``: schema-defined
+  ``df-eval`` outputs available for materialization
+
+Existing ``pbm.columns`` and ``pbm.attributes`` remain supported.
+
 Reblocking configuration guide
------------------------------
+------------------------------
 
 For explicit upsampling/downsampling configuration patterns, including
 ``upsample_config`` methods (``linear``, ``nearest``, ``mode``, ``parent``)

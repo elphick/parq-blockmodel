@@ -206,6 +206,34 @@ class ParquetBlockModel:
     def world_id_column(self) -> str:
         return "world_id"
 
+    @property
+    def position_columns(self) -> list[str]:
+        """Persisted positional/identity columns present on disk."""
+        return [c for c in self.SPECIAL_COLUMN_ORDER if c in self.columns]
+
+    @property
+    def persisted_columns(self) -> list[str]:
+        """Column names physically persisted in the backing parquet."""
+        return list(self.columns)
+
+    @property
+    def persisted_attributes(self) -> list[str]:
+        """Persisted block-property columns (non-positional)."""
+        return [c for c in self.columns if c not in self.POSITION_COLUMNS]
+
+    @property
+    def calculated_columns(self) -> list[str]:
+        """Schema-defined df-eval columns available for materialization."""
+        if self.schema is None:
+            return []
+        operations = self._df_eval_operations_from_schema(self.schema)
+        return list(operations)
+
+    @property
+    def calculated_attributes(self) -> list[str]:
+        """Calculated block-property columns (non-positional)."""
+        return [c for c in self.calculated_columns if c not in self.POSITION_COLUMNS]
+
     @classmethod
     def _ordered_columns(cls, columns: list[str]) -> list[str]:
         ordered = [c for c in cls.SPECIAL_COLUMN_ORDER if c in columns]

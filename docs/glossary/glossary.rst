@@ -16,12 +16,17 @@ Glossary
 
     Attributes
         Or variables, properties.  A specific characteristic or quality of a cell in a blockmodel, such as grade, density, or porosity.
+        In ``parq-blockmodel``, this usually refers to non-positional block properties (not ``i/j/k`` or ``x/y/z``).
 
     Variables
         See :term:`Attributes`.
 
     Properties
         See :term:`Attributes`.
+
+    Columns
+        Table fields in the parquet representation. Columns include both positional/identity columns
+        (for example ``block_id``, ``world_id``, ``i/j/k``, ``x/y/z``) and attribute/property columns.
 
     Regular Blockmodel
         A blockmodel where each cell is of uniform size and shape, typically a cube or rectangular prism.
