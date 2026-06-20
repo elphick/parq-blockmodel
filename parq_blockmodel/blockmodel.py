@@ -107,6 +107,8 @@ class ParquetBlockModel:
     # ``self.attributes``.
     POSITION_COLUMNS = {"block_id", "world_id", "i", "j", "k", "x", "y", "z"}
     SPECIAL_COLUMN_ORDER = ["block_id", "world_id", "i", "j", "k", "x", "y", "z"]
+    GEOMETRY_METADATA_KEY = b"parq-blockmodel"
+    SCHEMA_METADATA_KEY = b"parq-blockmodel-schema-yaml"
     SPECIAL_COLUMN_DTYPES = {
         "block_id": np.int32,
         "world_id": np.int64,
@@ -125,7 +127,10 @@ class ParquetBlockModel:
         self.blockmodel_path = blockmodel_path
         self.name = name or blockmodel_path.stem
         self.geometry = geometry or RegularGeometry.from_parquet(self.blockmodel_path)
-        self.schema: Optional["DataFrameSchema"] = self._load_schema(schema) if schema is not None else None
+        if schema is not None:
+            self.schema = self._load_schema(schema)
+        else:
+            self.schema = self._load_embedded_schema(self.blockmodel_path)
         self.pf: ParquetFile = ParquetFile(blockmodel_path)
         # Lazy view over the backing Parquet file for large models.
         self.data: LazyParquetDF = LazyParquetDF(self.blockmodel_path)
@@ -253,17 +258,140 @@ class ParquetBlockModel:
 
         if isinstance(schema, (str, Path)):
             try:
-                from df_eval.utils.pandera_io_compat import from_yaml
+                from df_eval.pandera import load_pandera_schema_yaml
             except ImportError as exc:  # pragma: no cover
                 raise ImportError(
                     "Loading a schema from a YAML file requires 'df-eval'. Install it with: "
                     "pip install 'parq-blockmodel[schema]'"
                 ) from exc
-            return from_yaml(str(schema))
+            return load_pandera_schema_yaml(schema)
 
         raise TypeError(
             f"schema must be a pandera DataFrameSchema or a path to a YAML file, got {type(schema)!r}"
         )
+
+    @classmethod
+    def _dump_schema_yaml(cls, schema: "DataFrameSchema") -> str:
+        try:
+            from df_eval.pandera import dump_pandera_schema_yaml
+        except ImportError as exc:  # pragma: no cover
+            raise ImportError(
+                "Schema serialization requires 'df-eval'. Install it with: "
+                "pip install 'parq-blockmodel[schema]'"
+            ) from exc
+        yaml_text = dump_pandera_schema_yaml(schema)
+        if not isinstance(yaml_text, str):
+            raise ValueError("Expected df-eval to return schema YAML text.")
+        return yaml_text
+
+    @classmethod
+    def _load_embedded_schema(cls, parquet_path: Path) -> Optional["DataFrameSchema"]:
+        metadata = pq.read_metadata(parquet_path).metadata or {}
+        payload = metadata.get(cls.SCHEMA_METADATA_KEY)
+        if payload is None:
+            return None
+        yaml_text = payload.decode("utf-8") if isinstance(payload, (bytes, bytearray)) else str(payload)
+        return cls._load_schema(yaml_text)
+
+    @classmethod
+    def _build_schema_metadata(
+        cls,
+        *,
+        geometry: RegularGeometry,
+        schema: Optional["DataFrameSchema"],
+        base_metadata: Optional[dict[bytes, bytes]] = None,
+    ) -> dict[bytes, bytes]:
+        metadata = dict(base_metadata or {})
+        metadata[cls.GEOMETRY_METADATA_KEY] = json.dumps(geometry.to_metadata_dict()).encode("utf-8")
+        if schema is None:
+            metadata.pop(cls.SCHEMA_METADATA_KEY, None)
+        else:
+            metadata[cls.SCHEMA_METADATA_KEY] = cls._dump_schema_yaml(schema).encode("utf-8")
+        return metadata
+
+    @classmethod
+    def _df_eval_operations_from_schema(cls, schema: "DataFrameSchema") -> dict[str, dict[str, typing.Any]]:
+        try:
+            from df_eval.pandera import df_eval_operations_from_pandera
+        except ImportError as exc:  # pragma: no cover
+            raise ImportError(
+                "Calculated column support requires 'df-eval'. Install it with: "
+                "pip install 'parq-blockmodel[schema]'"
+            ) from exc
+        return df_eval_operations_from_pandera(schema)
+
+    @classmethod
+    def _select_df_eval_operations(
+        cls,
+        operations: dict[str, dict[str, typing.Any]],
+        targets: typing.Iterable[str],
+    ) -> dict[str, dict[str, typing.Any]]:
+        try:
+            from df_eval.expr import Expression
+        except ImportError as exc:  # pragma: no cover
+            raise ImportError(
+                "Calculated column support requires 'df-eval'. Install it with: "
+                "pip install 'parq-blockmodel[schema]'"
+            ) from exc
+
+        selected: dict[str, dict[str, typing.Any]] = {}
+        in_progress: set[str] = set()
+
+        def include_operation(column: str) -> None:
+            if column in selected or column in in_progress:
+                return
+            operation = operations.get(column)
+            if operation is None:
+                return
+
+            in_progress.add(column)
+            kind = operation.get("kind")
+
+            if kind == "expr":
+                expr_text = operation.get("expr")
+                if isinstance(expr_text, str):
+                    for dependency in Expression(expr_text).dependencies:
+                        include_operation(dependency)
+            elif kind == "lookup":
+                lookup_spec = operation.get("lookup") or {}
+                key_column = lookup_spec.get("key")
+                if isinstance(key_column, str):
+                    include_operation(key_column)
+            elif kind == "function":
+                function_spec = operation.get("function") or {}
+                inputs = function_spec.get("inputs")
+                if isinstance(inputs, list):
+                    for dependency in inputs:
+                        if isinstance(dependency, str):
+                            include_operation(dependency)
+
+            in_progress.remove(column)
+            selected[column] = operation
+
+        for target in targets:
+            include_operation(target)
+
+        return {name: operations[name] for name in operations if name in selected}
+
+    @classmethod
+    def _apply_df_eval_operations(
+        cls,
+        dataframe: pd.DataFrame,
+        schema: "DataFrameSchema",
+        operations: Optional[dict[str, dict[str, typing.Any]]] = None,
+    ) -> pd.DataFrame:
+        operations = operations or cls._df_eval_operations_from_schema(schema)
+        if not operations:
+            return dataframe
+        try:
+            from df_eval import Engine
+        except ImportError as exc:  # pragma: no cover
+            raise ImportError(
+                "Calculated column support requires 'df-eval'. Install it with: "
+                "pip install 'parq-blockmodel[schema]'"
+            ) from exc
+        engine = Engine()
+        return engine.apply_operations(dataframe, operations)
 
     @classmethod
     def _validate_chunk(cls, dataframe: pd.DataFrame, schema: "DataFrameSchema") -> pd.DataFrame:
@@ -335,8 +463,11 @@ class ParquetBlockModel:
         dataframe = dataframe[self._ordered_columns(list(dataframe.columns))]
         dataframe = self._coerce_special_column_dtypes(dataframe)
         table = pa.Table.from_pandas(dataframe, preserve_index=False)
-        meta = dict(table.schema.metadata or {})
-        meta[b"parq-blockmodel"] = json.dumps(self.geometry.to_metadata_dict()).encode("utf-8")
+        meta = self._build_schema_metadata(
+            geometry=self.geometry,
+            schema=self.schema,
+            base_metadata=dict(table.schema.metadata or {}),
+        )
         table = table.replace_schema_metadata(meta)
         pq.write_table(table, self.blockmodel_path)
 
@@ -802,9 +933,11 @@ class ParquetBlockModel:
 
         # Save DataFrame to Parquet and embed geometry metadata
         table = pa.Table.from_pandas(dataframe, preserve_index=False)
-        meta = table.schema.metadata or {}
-        meta = dict(meta)
-        meta[b"parq-blockmodel"] = json.dumps(geometry.to_metadata_dict()).encode("utf-8")
+        meta = cls._build_schema_metadata(
+            geometry=geometry,
+            schema=loaded_schema,
+            base_metadata=dict(table.schema.metadata or {}),
+        )
         table = table.replace_schema_metadata(meta)
         pq.write_table(table, pbm_path)
 
@@ -1015,14 +1148,17 @@ class ParquetBlockModel:
         centroids_df = centroids_df[cls._ordered_columns(list(centroids_df.columns))]
         centroids_df.attrs["parq-blockmodel"] = geometry.to_metadata_dict()
 
+        loaded_schema = cls._load_schema(schema) if schema is not None else None
+
         table = pa.Table.from_pandas(centroids_df, preserve_index=False)
-        meta = table.schema.metadata or {}
-        meta = dict(meta)
-        meta[b"parq-blockmodel"] = json.dumps(geometry.to_metadata_dict()).encode("utf-8")
+        meta = cls._build_schema_metadata(
+            geometry=geometry,
+            schema=loaded_schema,
+            base_metadata=dict(table.schema.metadata or {}),
+        )
         table = table.replace_schema_metadata(meta)
         pq.write_table(table, path)
 
-        loaded_schema = cls._load_schema(schema) if schema is not None else None
         return cls(blockmodel_path=path, name=name, geometry=geometry, schema=loaded_schema)
 
     def rename(self, new_pbm_filepath: Path, rename_to_new_pbm_stem: bool = True) -> "ParquetBlockModel":
@@ -1396,9 +1532,13 @@ class ParquetBlockModel:
 
         return plotter
 
-    def read(self, columns: Optional[list[str]] = None,
-             index: typing.Literal["xyz", "ijk", None] = "xyz",
-             dense: bool = False) -> pd.DataFrame:
+    def read(
+        self,
+        columns: Optional[list[str]] = None,
+        index: typing.Literal["xyz", "ijk", None] = "xyz",
+        dense: bool = False,
+        include_calculated: bool = False,
+    ) -> pd.DataFrame:
         """Read the Parquet file and return a DataFrame.
 
         Notes
@@ -1437,6 +1577,10 @@ class ParquetBlockModel:
         dense:
             If True, reads/reindexes to the full dense grid. If False,
             returns the sparse layout in the underlying file.
+        include_calculated:
+            If True and a schema is available, include schema-defined
+            calculated columns in the default no-argument read. Explicit
+            column requests still behave as before.
 
         Returns
         -------
@@ -1451,9 +1595,44 @@ class ParquetBlockModel:
         encouraged to pass ``index="ijk"`` explicitly and work in terms
         of logical grid indices plus geometry.
         """
-        if columns is None:
-            columns = self.columns
-        df = pq.read_table(self.blockmodel_path, columns=columns).to_pandas()
+        requested_columns = list(columns) if columns is not None else list(self.columns)
+        if columns is None and include_calculated and self.schema is not None:
+            operations = self._df_eval_operations_from_schema(self.schema)
+            requested_columns = list(self.columns)
+            requested_columns.extend(
+                [col for col in operations if col not in self.columns]
+            )
+        missing_requested = [col for col in requested_columns if col not in self.columns]
+        read_columns = requested_columns
+        required_operations: Optional[dict[str, dict[str, typing.Any]]] = None
+        if missing_requested:
+            if self.schema is None:
+                raise ValueError(
+                    "Requested columns are not present in parquet and no schema is available for "
+                    f"calculated columns: {missing_requested}"
+                )
+            operations = self._df_eval_operations_from_schema(self.schema)
+            undefined = [col for col in missing_requested if col not in operations]
+            if undefined:
+                raise ValueError(
+                    "Requested columns are neither on-disk nor defined in schema df-eval metadata: "
+                    f"{undefined}"
+                )
+            required_operations = self._select_df_eval_operations(operations, missing_requested)
+            read_columns = list(self.columns)
+
+        df = pq.read_table(self.blockmodel_path, columns=read_columns).to_pandas()
+        if missing_requested:
+            if self.schema is None:  # defensive, already checked above
+                raise ValueError("No schema available for calculated columns.")
+            df = self._apply_df_eval_operations(df, self.schema, operations=required_operations)
+            missing_after_eval = [col for col in requested_columns if col not in df.columns]
+            if missing_after_eval:
+                raise ValueError(
+                    "Calculated column evaluation did not produce requested columns: "
+                    f"{missing_after_eval}"
+                )
+            df = df[requested_columns]
 
         block_ids: Optional[np.ndarray] = None
         if index in {"ijk", "xyz"}:
@@ -1607,11 +1786,19 @@ class ParquetBlockModel:
 
         schema = pq.read_schema(self.blockmodel_path)
         current_meta = dict(schema.metadata or {})
-        geom_payload = json.dumps(self.geometry.to_metadata_dict()).encode("utf-8")
-        if current_meta.get(b"parq-blockmodel") != geom_payload:
+        desired_meta = self._build_schema_metadata(
+            geometry=self.geometry,
+            schema=self.schema,
+            base_metadata=current_meta,
+        )
+        if current_meta != desired_meta:
             table = pq.read_table(self.blockmodel_path)
             meta = dict(table.schema.metadata or {})
-            meta[b"parq-blockmodel"] = geom_payload
+            meta = self._build_schema_metadata(
+                geometry=self.geometry,
+                schema=self.schema,
+                base_metadata=meta,
+            )
             table = table.replace_schema_metadata(meta)
             pq.write_table(table, self.blockmodel_path)
 
@@ -2227,9 +2414,11 @@ class ParquetBlockModel:
                     write_df = df_batch[cls._ordered_columns(output_cols)]
 
                     table = pa.Table.from_pandas(write_df, preserve_index=False)
-                    meta = table.schema.metadata or {}
-                    meta = dict(meta)
-                    meta[b"parq-blockmodel"] = json.dumps(geometry.to_metadata_dict()).encode("utf-8")
+                    meta = cls._build_schema_metadata(
+                        geometry=geometry,
+                        schema=schema,
+                        base_metadata=dict(table.schema.metadata or {}),
+                    )
                     table = table.replace_schema_metadata(meta)
 
                     if writer is None:

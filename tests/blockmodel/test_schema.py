@@ -2,6 +2,7 @@
 from pathlib import Path
 
 import pandas as pd
+import numpy as np
 import pytest
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -50,11 +51,11 @@ def test_load_schema_from_dataframeschema_object():
 
 def test_load_schema_from_yaml_file(tmp_path):
     pytest.importorskip("df_eval", reason="df-eval not installed")
-    from df_eval.utils.pandera_io_compat import to_yaml
+    from df_eval.pandera import dump_pandera_schema_yaml
 
     schema = _simple_schema()
     yaml_path = tmp_path / "schema.yaml"
-    to_yaml(schema, str(yaml_path))
+    yaml_path.write_text(dump_pandera_schema_yaml(schema), encoding="utf-8")
 
     loaded = ParquetBlockModel._load_schema(yaml_path)
     assert isinstance(loaded, DataFrameSchema)
@@ -216,12 +217,12 @@ def test_validate_returns_true_with_valid_schema(tmp_path):
 
 def test_validate_accepts_yaml_schema_path(tmp_path):
     pytest.importorskip("df_eval", reason="df-eval not installed")
-    from df_eval.utils.pandera_io_compat import to_yaml
+    from df_eval.pandera import dump_pandera_schema_yaml
 
     parquet_path = _make_demo_parquet(tmp_path)
     schema = _simple_schema()
     yaml_path = tmp_path / "schema.yaml"
-    to_yaml(schema, str(yaml_path))
+    yaml_path.write_text(dump_pandera_schema_yaml(schema), encoding="utf-8")
 
     pbm = ParquetBlockModel.from_parquet(parquet_path)
     assert pbm.validate(schema=yaml_path) is True
@@ -288,3 +289,128 @@ def test_cross_chunk_type_mismatch_resolved_without_schema(tmp_path):
     pbm = ParquetBlockModel.from_parquet(parquet_path)
     assert pbm is not None
     assert pbm.data.shape[0] == len(df)
+
+
+def test_schema_roundtrip_is_recovered_from_pbm_metadata(tmp_path):
+    parquet_path = _make_demo_parquet(tmp_path)
+    schema = _simple_schema()
+    pbm = ParquetBlockModel.from_parquet(parquet_path, schema=schema)
+
+    metadata = pq.read_metadata(pbm.blockmodel_path).metadata or {}
+    assert b"parq-blockmodel-schema-yaml" in metadata
+
+    reloaded = ParquetBlockModel(blockmodel_path=pbm.blockmodel_path, geometry=pbm.geometry)
+    assert reloaded.schema is not None
+    assert set(reloaded.schema.columns) == set(schema.columns)
+
+
+def _calculated_schema() -> DataFrameSchema:
+    return DataFrameSchema(
+        columns={
+            "density": Column(float, coerce=True, nullable=True),
+            "volume": Column(float, coerce=True, nullable=True),
+            "grade": Column(float, coerce=True, nullable=True, required=False),
+            "tonnes": Column(
+                float,
+                coerce=True,
+                nullable=True,
+                required=False,
+                metadata={"df-eval": {"expr": "density * volume"}},
+            ),
+            "contained_metal": Column(
+                float,
+                coerce=True,
+                nullable=True,
+                required=False,
+                metadata={"df-eval": {"expr": "tonnes * grade"}},
+            ),
+        },
+        strict=False,
+    )
+
+
+def test_read_computes_simple_calculated_column(tmp_path):
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = 2.5
+    df["volume"] = 1.2
+    schema = _calculated_schema()
+
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["density", "volume"]],
+        filename=tmp_path / "simple_calc.parquet",
+        schema=schema,
+    )
+    result = pbm.read(columns=["tonnes"], index="ijk", dense=True)
+    assert list(result.columns) == ["tonnes"]
+    np.testing.assert_allclose(result["tonnes"].to_numpy(), np.full(len(result), 3.0))
+
+
+def test_read_computes_chained_calculated_columns(tmp_path):
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = np.linspace(2.0, 3.4, len(df))
+    df["volume"] = 1.5
+    df["grade"] = np.linspace(0.1, 0.8, len(df))
+    schema = _calculated_schema()
+
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["density", "volume", "grade"]],
+        filename=tmp_path / "chained_calc.parquet",
+        schema=schema,
+    )
+    result = pbm.read(columns=["contained_metal"], index="ijk", dense=True)
+    expected = df["density"].to_numpy() * df["volume"].to_numpy() * df["grade"].to_numpy()
+    np.testing.assert_allclose(result["contained_metal"].to_numpy(), expected)
+
+
+def test_read_include_calculated_materializes_schema_columns(tmp_path):
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = 2.5
+    df["volume"] = 1.2
+    df["grade"] = 0.5
+    schema = _calculated_schema()
+
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["density", "volume", "grade"]],
+        filename=tmp_path / "materialized_calc.parquet",
+        schema=schema,
+    )
+    raw = pbm.read(index="ijk", dense=True)
+    assert "tonnes" not in raw.columns
+    assert "contained_metal" not in raw.columns
+
+    result = pbm.read(index="ijk", dense=True, include_calculated=True)
+    assert "tonnes" in result.columns
+    assert "contained_metal" in result.columns
+    np.testing.assert_allclose(result["tonnes"].to_numpy(), np.full(len(result), 3.0))
+    np.testing.assert_allclose(result["contained_metal"].to_numpy(), np.full(len(result), 1.5))
+
+
+def test_read_calculated_column_raises_without_schema(tmp_path):
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = 2.5
+    df["volume"] = 1.2
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["density", "volume"]],
+        filename=tmp_path / "no_schema.parquet",
+    )
+    with pytest.raises(ValueError, match="no schema|schema is available|calculated"):
+        pbm.read(columns=["tonnes"], index="ijk", dense=True)
+
+
+def test_read_undefined_requested_column_raises(tmp_path):
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = 2.5
+    df["volume"] = 1.2
+    schema = _calculated_schema()
+
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["density", "volume"]],
+        filename=tmp_path / "undefined_calc.parquet",
+        schema=schema,
+    )
+    with pytest.raises(ValueError, match="neither on-disk nor defined"):
+        pbm.read(columns=["undefined_output"], index="ijk", dense=True)
