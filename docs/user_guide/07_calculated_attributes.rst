@@ -6,6 +6,10 @@ attributes. In ``parq-blockmodel`` they are expressed as calculated columns in
 Pandera metadata and evaluated with ``df-eval`` when you ask for a materialized
 read.
 
+For regular models, ``volume`` is also available as a built-in calculated column
+derived from geometry (``pbm.geometry.block_volume``), even when it is not
+persisted in parquet.
+
 Install the optional schema dependencies first:
 
 .. code-block:: bash
@@ -29,13 +33,11 @@ The example below derives ``tonnes`` from ``density * volume`` and then derives
        index_type="world_centroids",
    )
    df["density"] = 2.4 + 0.05 * df["depth"]
-   df["volume"] = 1.5
    df["grade"] = 0.1 + 0.01 * df["depth"]
 
    schema = DataFrameSchema(
        columns={
            "density": Column(float, coerce=True, nullable=True),
-           "volume": Column(float, coerce=True, nullable=True),
            "grade": Column(float, coerce=True, nullable=True),
            "tonnes": Column(
                float,
@@ -56,7 +58,7 @@ The example below derives ``tonnes`` from ``density * volume`` and then derives
    )
 
    pbm = ParquetBlockModel.from_dataframe(
-       df[["density", "volume", "grade"]],
+       df[["density", "grade"]],
        filename=Path("orebody.parquet"),
        schema=schema,
    )
