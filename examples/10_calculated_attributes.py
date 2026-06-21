@@ -6,6 +6,7 @@ Schema-backed calculated attributes keep derived values close to the block
 model schema. This example derives ``tonnes`` from ``density * volume`` and
 then derives ``contained_metal`` from ``tonnes * grade``.
 
+The ``volume`` is available as a column from the block model geometry.
 """
 
 import tempfile
@@ -29,10 +30,9 @@ df = create_demo_blockmodel(
     index_type="world_centroids",
 )
 df["density"] = 2.4 + 0.05 * df["depth"]
-df["volume"] = 1.5
 df["grade"] = 0.1 + 0.01 * df["depth"]
 
-df[["density", "volume", "grade"]].head()
+df[["density", "grade"]].head()
 
 # %%
 try:
@@ -51,7 +51,6 @@ except ImportError:
 schema = DataFrameSchema(
     columns={
         "density": Column(float, coerce=True, nullable=True),
-        "volume": Column(float, coerce=True, nullable=True),
         "grade": Column(float, coerce=True, nullable=True),
         "tonnes": Column(
             float,
@@ -72,7 +71,7 @@ schema = DataFrameSchema(
 )
 
 pbm = ParquetBlockModel.from_dataframe(
-    df[["density", "volume", "grade"]],
+    df[["density", "grade"]],
     filename=temp_dir / "calculated_attributes.parquet",
     schema=schema,
     overwrite=True,
@@ -89,4 +88,3 @@ calculated.head()
 
 calculated: pd.DataFrame = pbm.read(index="ijk", dense=True, include_calculated=True)
 calculated.head()
-

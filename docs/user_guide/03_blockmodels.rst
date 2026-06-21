@@ -99,7 +99,7 @@ YAML loader.
 
 ``ParquetBlockModel.data`` stays a raw parquet view. Use
 ``ParquetBlockModel.read(include_calculated=True)`` when you want a materialized
-DataFrame with schema-derived columns.
+DataFrame with schema-defined and built-in calculated columns.
 
 For a worked example of schema-backed calculated attributes, see
 :doc:`07_calculated_attributes`.
@@ -112,8 +112,11 @@ To quickly distinguish storage-facing columns from block properties:
 * ``pbm.persisted_columns``: columns stored in parquet
 * ``pbm.position_columns``: positional/identity columns present on disk
 * ``pbm.persisted_attributes``: persisted non-positional block properties
-* ``pbm.calculated_columns`` / ``pbm.calculated_attributes``: schema-defined
-  ``df-eval`` outputs available for materialization
+* ``pbm.calculated_columns`` / ``pbm.calculated_attributes``: calculated outputs
+  available for materialization (schema ``df-eval`` + built-in geometry-derived
+  columns)
+* ``pbm.geometry.block_volume``: constant block volume from geometry (``dx * dy * dz``)
+  used by the built-in calculated ``volume`` column when ``volume`` is not persisted
 
 Existing ``pbm.columns`` and ``pbm.attributes`` remain supported.
 

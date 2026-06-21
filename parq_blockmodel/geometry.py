@@ -725,6 +725,12 @@ class RegularGeometry:
         return self.local.block_size
 
     @property
+    def block_volume(self) -> float:
+        """Return the constant block volume for this regular geometry."""
+        dx, dy, dz = self.local.block_size
+        return float(dx * dy * dz)
+
+    @property
     def shape(self) -> Shape3D:
         """Backward-compatible access to grid shape."""
         return self.local.shape

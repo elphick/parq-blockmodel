@@ -106,6 +106,7 @@ class ParquetBlockModel:
     # Positional columns describe geometry/placement and are excluded from
     # ``self.attributes``.
     POSITION_COLUMNS = {"block_id", "world_id", "i", "j", "k", "x", "y", "z"}
+    INTRINSIC_VOLUME_COLUMN = "volume"
     SPECIAL_COLUMN_ORDER = ["block_id", "world_id", "i", "j", "k", "x", "y", "z"]
     GEOMETRY_METADATA_KEY = b"parq-blockmodel"
     SCHEMA_METADATA_KEY = b"parq-blockmodel-schema-yaml"
@@ -223,16 +224,32 @@ class ParquetBlockModel:
 
     @property
     def calculated_columns(self) -> list[str]:
-        """Schema-defined df-eval columns available for materialization."""
-        if self.schema is None:
-            return []
-        operations = self._df_eval_operations_from_schema(self.schema)
+        """df-eval columns available for materialization (schema + intrinsic)."""
+        operations = self._available_df_eval_operations()
         return list(operations)
 
     @property
     def calculated_attributes(self) -> list[str]:
-        """Calculated block-property columns (non-positional)."""
-        return [c for c in self.calculated_columns if c not in self.POSITION_COLUMNS]
+        """Calculated block-property columns classified as attributes."""
+        flags = self._calculated_attribute_flags()
+        return [
+            c for c in self.calculated_columns
+            if c not in self.POSITION_COLUMNS and flags.get(c, True)
+        ]
+
+    @property
+    def available_columns(self) -> list[str]:
+        """Persisted + calculated columns that can be read from this model."""
+        columns = list(self.columns)
+        columns.extend([c for c in self.calculated_columns if c not in columns])
+        return self._ordered_columns(columns)
+
+    @property
+    def available_attributes(self) -> list[str]:
+        """Persisted + calculated attribute columns."""
+        attrs = list(self.attributes)
+        attrs.extend([c for c in self.calculated_attributes if c not in attrs])
+        return attrs
 
     @classmethod
     def _ordered_columns(cls, columns: list[str]) -> list[str]:
@@ -348,20 +365,75 @@ class ParquetBlockModel:
             ) from exc
         return df_eval_operations_from_pandera(schema)
 
+    def _intrinsic_df_eval_operations(self) -> dict[str, dict[str, typing.Any]]:
+        if self.INTRINSIC_VOLUME_COLUMN in self.columns:
+            return {}
+        intrinsic_volume = self.geometry.block_volume
+        return {
+            self.INTRINSIC_VOLUME_COLUMN: {
+                "kind": "expr",
+                "expr": repr(intrinsic_volume),
+            }
+        }
+
+    def _available_df_eval_operations(self) -> dict[str, dict[str, typing.Any]]:
+        schema_operations: dict[str, dict[str, typing.Any]] = {}
+        if self.schema is not None:
+            schema_operations = self._df_eval_operations_from_schema(self.schema)
+        operations = dict(schema_operations)
+        for name, operation in self._intrinsic_df_eval_operations().items():
+            operations.setdefault(name, operation)
+        return operations
+
+    def _schema_column_attribute_flags(self) -> dict[str, bool]:
+        if self.schema is None:
+            return {}
+        flags: dict[str, bool] = {}
+        schema_columns = getattr(self.schema, "columns", {})
+        if not isinstance(schema_columns, dict):
+            return flags
+        for name, column in schema_columns.items():
+            metadata = getattr(column, "metadata", None) or {}
+            if not isinstance(metadata, dict):
+                continue
+            pbm_metadata = metadata.get("parq-blockmodel")
+            if not isinstance(pbm_metadata, dict):
+                continue
+            is_attribute = pbm_metadata.get("is_attribute")
+            if isinstance(is_attribute, bool):
+                flags[name] = is_attribute
+        return flags
+
+    def _calculated_attribute_flags(self) -> dict[str, bool]:
+        flags = {name: True for name in self.calculated_columns}
+        for name, is_attribute in self._schema_column_attribute_flags().items():
+            if name in flags:
+                flags[name] = is_attribute
+        intrinsic = self._intrinsic_df_eval_operations()
+        for name in intrinsic:
+            flags[name] = False
+        return flags
+
+    def _apply_intrinsic_operations(
+        self,
+        dataframe: pd.DataFrame,
+        operations: dict[str, dict[str, typing.Any]],
+    ) -> pd.DataFrame:
+        for column_name in operations:
+            if column_name == self.INTRINSIC_VOLUME_COLUMN:
+                dataframe[column_name] = np.float64(self.geometry.block_volume)
+            else:
+                raise ValueError(
+                    f"Column '{column_name}' requires schema-backed calculated expressions."
+                )
+        return dataframe
+
     @classmethod
     def _select_df_eval_operations(
         cls,
         operations: dict[str, dict[str, typing.Any]],
         targets: typing.Iterable[str],
     ) -> dict[str, dict[str, typing.Any]]:
-        try:
-            from df_eval.expr import Expression
-        except ImportError as exc:  # pragma: no cover
-            raise ImportError(
-                "Calculated column support requires 'df-eval'. Install it with: "
-                "pip install 'parq-blockmodel[schema]'"
-            ) from exc
-
         selected: dict[str, dict[str, typing.Any]] = {}
         in_progress: set[str] = set()
 
@@ -378,8 +450,18 @@ class ParquetBlockModel:
             if kind == "expr":
                 expr_text = operation.get("expr")
                 if isinstance(expr_text, str):
-                    for dependency in Expression(expr_text).dependencies:
-                        include_operation(dependency)
+                    try:
+                        float(expr_text)
+                    except ValueError:
+                        try:
+                            from df_eval.expr import Expression
+                        except ImportError as exc:  # pragma: no cover
+                            raise ImportError(
+                                "Calculated column support requires 'df-eval'. Install it with: "
+                                "pip install 'parq-blockmodel[schema]'"
+                            ) from exc
+                        for dependency in Expression(expr_text).dependencies:
+                            include_operation(dependency)
             elif kind == "lookup":
                 lookup_spec = operation.get("lookup") or {}
                 key_column = lookup_spec.get("key")
@@ -1383,7 +1465,7 @@ class ParquetBlockModel:
         import pyvista as pv
         import numpy as np
 
-        if attribute not in self.attributes:
+        if attribute not in self.available_columns:
             raise ValueError(f"Attribute '{attribute}' not found in the block model.")
         if axis not in {"x", "y", "z"}:
             raise ValueError("Invalid axis. Choose from 'x', 'y', or 'z'.")
@@ -1505,9 +1587,9 @@ class ParquetBlockModel:
         """
 
         import pyvista as pv
-        if scalar not in self.attributes:
+        if scalar not in self.available_columns:
             raise ValueError(f"Column '{scalar}' not found in the ParquetBlockModel."
-                             f"Available columns are: {self.attributes}")
+                             f"Available columns are: {self.available_columns}")
 
         # Create a PyVista plotter
         plotter = pv.Plotter()
@@ -1515,7 +1597,7 @@ class ParquetBlockModel:
         attributes = [scalar]
         if enable_picking:
             if picked_attributes is None:
-                attributes = self.attributes
+                attributes = self.available_attributes
             else:
                 attributes = picked_attributes
             if scalar not in attributes:
@@ -1606,9 +1688,9 @@ class ParquetBlockModel:
             If True, reads/reindexes to the full dense grid. If False,
             returns the sparse layout in the underlying file.
         include_calculated:
-            If True and a schema is available, include schema-defined
-            calculated columns in the default no-argument read. Explicit
-            column requests still behave as before.
+            If True, include available calculated columns (schema-defined
+            and intrinsic) in the default no-argument read. Explicit column
+            requests still behave as before.
 
         Returns
         -------
@@ -1624,8 +1706,8 @@ class ParquetBlockModel:
         of logical grid indices plus geometry.
         """
         requested_columns = list(columns) if columns is not None else list(self.columns)
-        if columns is None and include_calculated and self.schema is not None:
-            operations = self._df_eval_operations_from_schema(self.schema)
+        operations = self._available_df_eval_operations()
+        if columns is None and include_calculated:
             requested_columns = list(self.columns)
             requested_columns.extend(
                 [col for col in operations if col not in self.columns]
@@ -1634,16 +1716,10 @@ class ParquetBlockModel:
         read_columns = requested_columns
         required_operations: Optional[dict[str, dict[str, typing.Any]]] = None
         if missing_requested:
-            if self.schema is None:
-                raise ValueError(
-                    "Requested columns are not present in parquet and no schema is available for "
-                    f"calculated columns: {missing_requested}"
-                )
-            operations = self._df_eval_operations_from_schema(self.schema)
             undefined = [col for col in missing_requested if col not in operations]
             if undefined:
                 raise ValueError(
-                    "Requested columns are neither on-disk nor defined in schema df-eval metadata: "
+                    "Requested columns are neither on-disk nor defined by available df-eval operations: "
                     f"{undefined}"
                 )
             required_operations = self._select_df_eval_operations(operations, missing_requested)
@@ -1651,9 +1727,12 @@ class ParquetBlockModel:
 
         df = pq.read_table(self.blockmodel_path, columns=read_columns).to_pandas()
         if missing_requested:
-            if self.schema is None:  # defensive, already checked above
-                raise ValueError("No schema available for calculated columns.")
-            df = self._apply_df_eval_operations(df, self.schema, operations=required_operations)
+            if required_operations is None:  # defensive
+                raise ValueError("No df-eval operations selected for requested calculated columns.")
+            if self.schema is not None:
+                df = self._apply_df_eval_operations(df, self.schema, operations=required_operations)
+            else:
+                df = self._apply_intrinsic_operations(df, required_operations)
             missing_after_eval = [col for col in requested_columns if col not in df.columns]
             if missing_after_eval:
                 raise ValueError(
@@ -1888,10 +1967,10 @@ class ParquetBlockModel:
 
         # Read block data if attributes are requested
         if attributes:
-            invalid_attrs = [a for a in attributes if a not in self.attributes]
+            invalid_attrs = [a for a in attributes if a not in self.available_columns]
             if invalid_attrs:
                 raise ValueError(
-                    f"Attributes not found: {invalid_attrs}. Available: {self.attributes}"
+                    f"Attributes not found: {invalid_attrs}. Available: {self.available_columns}"
                 )
             # Read only the requested attributes; read() with index="ijk"
             # derives the (i, j, k) MultiIndex separately, so we must NOT
@@ -2055,7 +2134,7 @@ class ParquetBlockModel:
                    ) -> Union['pv.ImageData', 'pv.StructuredGrid', 'pv.UnstructuredGrid']:
 
         if attributes is None:
-            attributes = self.attributes
+            attributes = self.available_attributes
 
         if grid_type == "image":
             from parq_blockmodel.utils.pyvista.pyvista_utils import df_to_pv_image_data

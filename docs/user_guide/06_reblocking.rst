@@ -99,6 +99,10 @@ In this call:
 - ``contained_metal`` can be aggregated even if it is only schema-defined.
 - Aggregation math stays unchanged; only input materialization differs.
 
+For regular models, ``basis: "volume"`` can also be used without persisting a
+``volume`` column. ``volume`` is available as a built-in calculated column from
+geometry (``pbm.geometry.block_volume``).
+
 Handling partially-filled blocks with fill_ratio
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -160,5 +164,4 @@ would need:
 
 Given that, IDW is best treated as a separate scoped feature after the
 class-safe upsampling behavior is finalized.
-
 

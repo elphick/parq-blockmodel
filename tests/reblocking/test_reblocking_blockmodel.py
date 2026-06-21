@@ -161,13 +161,11 @@ def test_downsample_blockmodel_accepts_calculated_basis_and_target(tmp_path):
     count = len(df)
     df["grade"] = np.linspace(0.2, 1.2, count)
     df["density"] = np.linspace(2.0, 3.0, count)
-    df["volume"] = np.linspace(1.0, 1.6, count)
 
     schema = DataFrameSchema(
         columns={
             "grade": Column(float, coerce=True, nullable=True),
             "density": Column(float, coerce=True, nullable=True),
-            "volume": Column(float, coerce=True, nullable=True),
             "tonnes": Column(
                 float,
                 coerce=True,
@@ -187,7 +185,7 @@ def test_downsample_blockmodel_accepts_calculated_basis_and_target(tmp_path):
     )
 
     pbm = ParquetBlockModel.from_dataframe(
-        df[["grade", "density", "volume"]],
+        df[["grade", "density"]],
         filename=tmp_path / "downsample_calculated_inputs.parquet",
         schema=schema,
     )
@@ -231,14 +229,13 @@ def test_downsample_blockmodel_calculated_basis_requires_schema(tmp_path):
     df = create_demo_blockmodel(shape=(4, 4, 4), index_type="world_centroids")
     df["grade"] = np.linspace(0.2, 1.2, len(df))
     df["density"] = np.linspace(2.0, 3.0, len(df))
-    df["volume"] = np.linspace(1.0, 1.6, len(df))
 
     pbm = ParquetBlockModel.from_dataframe(
-        df[["grade", "density", "volume"]],
+        df[["grade", "density"]],
         filename=tmp_path / "downsample_missing_schema_inputs.parquet",
     )
 
-    with pytest.raises(ValueError, match="no schema|schema is available|calculated"):
+    with pytest.raises(ValueError, match="defined by available df-eval operations|calculated"):
         pbm.downsample(
             (2.0, 2.0, 2.0),
             {
@@ -246,3 +243,26 @@ def test_downsample_blockmodel_calculated_basis_requires_schema(tmp_path):
                 "density": {"method": "weighted_mean", "basis": "volume"},
             },
         )
+
+
+@pytest.mark.integration
+def test_downsample_blockmodel_intrinsic_volume_basis_without_schema(tmp_path):
+    df = create_demo_blockmodel(shape=(4, 4, 4), index_type="world_centroids")
+    df["density"] = np.linspace(2.0, 3.0, len(df))
+
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["density"]],
+        filename=tmp_path / "downsample_intrinsic_volume_basis.parquet",
+    )
+
+    downsampled = pbm.downsample(
+        (2.0, 2.0, 2.0),
+        {
+            "density": {"method": "weighted_mean", "basis": "volume"},
+        },
+    )
+    out = downsampled.read(columns=["density"], index="ijk", dense=True)
+
+    source = pbm.read(columns=["density"], index="ijk", dense=True)["density"].to_numpy().reshape(4, 4, 4, order="C")
+    expected = source.reshape(2, 2, 2, 2, 2, 2).transpose(0, 2, 4, 1, 3, 5).mean(axis=(3, 4, 5))
+    np.testing.assert_allclose(out["density"].to_numpy().reshape(2, 2, 2, order="C"), expected)
