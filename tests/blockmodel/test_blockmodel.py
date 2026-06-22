@@ -136,7 +136,7 @@ def test_create_report_enriches_schema_metadata(tmp_path, monkeypatch):
 
     assert FakeParquetProfileReport.last_init is not None
     assert FakeParquetProfileReport.last_init["column_descriptions"] == {
-        "depth": "Depth Vertical distance from reference."
+        "depth": "Depth - Vertical distance from reference."
     }
     assert FakeParquetProfileReport.last_init["dataset_metadata"] == {
         "description": "{'name': 'demo_pbm', 'title': 'Demo Block Model', 'description': 'Synthetic demo dataset.'}"
