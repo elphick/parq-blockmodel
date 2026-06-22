@@ -6,6 +6,9 @@ from typing import Optional, Union
 from parq_tools import ParquetProfileReport
 
 
+LOGO_PATH = Path(__file__).resolve().parents[1] / "assets" / "branding" / "parq-blockmodel.svg"
+
+
 class BlockModelReport:
     """Thin wrapper around :class:`parq_tools.ParquetProfileReport`.
 
@@ -28,6 +31,8 @@ class BlockModelReport:
         self.columns = list(columns)
         self.columns_per_batch = columns_per_batch
         self.memory_budget_bytes = memory_budget_bytes
+
+        self._report.report.config.html.style.logo = LOGO_PATH.as_uri()
 
     def save(self, output_path: Optional[Union[str, Path]] = None) -> Path:
         """Save the rendered report HTML and return the resolved path."""
@@ -59,5 +64,3 @@ class BlockModelReport:
 
     def __getattr__(self, item):
         return getattr(self._report, item)
-
-

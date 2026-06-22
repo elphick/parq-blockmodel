@@ -2,6 +2,7 @@ import os
 import json
 from pathlib import Path
 import re
+from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
@@ -39,6 +40,13 @@ class FakeParquetProfileReport:
         self.title = title
         self.dataset_metadata = dataset_metadata
         self.column_descriptions = column_descriptions
+        self.report = SimpleNamespace(
+            config=SimpleNamespace(
+                html=SimpleNamespace(
+                    style=SimpleNamespace(logo=False),
+                )
+            )
+        )
 
     def profile(self):
         return self
