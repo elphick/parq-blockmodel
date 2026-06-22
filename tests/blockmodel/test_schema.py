@@ -462,3 +462,161 @@ def test_column_properties_calculated_columns_empty_without_schema(tmp_path):
     )
     assert pbm.calculated_columns == ["volume"]
     assert pbm.calculated_attributes == []
+
+
+# ---------------------------------------------------------------------------
+# Engine Registration (Options 1 & 2)
+# ---------------------------------------------------------------------------
+
+def test_engine_initializer_at_construction(tmp_path):
+    """engine_initializer provided at construction time works."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    from df_eval import DictResolver
+    
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = 2.5
+    
+    # Create a DictResolver for density classification
+    density_class_resolver = DictResolver({
+        2.0: "Low",
+        2.5: "Medium",
+        3.0: "High",
+    }, default="Unknown")
+    
+    def setup_engine(engine):
+        engine.register_resolver("density_class", density_class_resolver)
+        return engine
+    
+    # Create schema with lookup operation that uses resolver
+    schema = DataFrameSchema(
+        columns={
+            "density": Column(float, coerce=True, nullable=True),
+            "density_name": Column(
+                str,
+                coerce=True,
+                nullable=True,
+                required=False,
+                metadata={"df-eval": {
+                    "lookup": {
+                        "resolver": "density_class",
+                        "key": "density",
+                        "on_missing": "default"
+                    }
+                }},
+            ),
+        },
+        strict=False,
+    )
+    
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["density"]],
+        filename=tmp_path / "with_initializer.parquet",
+        schema=schema,
+        engine_initializer=setup_engine,
+    )
+    
+    # Verify schema was stored
+    assert pbm.schema is not None
+    assert pbm._engine_initializer is setup_engine
+
+
+def test_configure_engine_post_load(tmp_path):
+    """configure_engine() method stores initializer for post-load configuration."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    from df_eval import DictResolver
+    
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = 2.5
+    
+    rock_type_resolver = DictResolver({
+        1: "Granite",
+        2: "Diorite",
+        3: "Gabbro",
+    })
+    
+    def setup_engine(engine):
+        engine.register_resolver("rock_type", rock_type_resolver)
+        return engine
+    
+    schema = DataFrameSchema(
+        columns={
+            "density": Column(float, coerce=True, nullable=True),
+        },
+        strict=False,
+    )
+    
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["density"]],
+        filename=tmp_path / "post_config.parquet",
+        schema=schema,
+    )
+    
+    assert pbm._engine_initializer is None
+    
+    pbm.configure_engine(setup_engine)
+    assert pbm._engine_initializer is setup_engine
+
+
+def test_engine_initializer_none_by_default(tmp_path):
+    """engine_initializer defaults to None for backward compatibility."""
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = 2.5
+    
+    pbm = ParquetBlockModel.from_dataframe(
+       df[["density"]],
+       filename=tmp_path / "no_initializer.parquet",
+    )
+    
+    assert pbm._engine_initializer is None
+
+
+def test_configure_engine_can_be_called_multiple_times(tmp_path):
+    """configure_engine() can be called multiple times."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = 2.5
+    
+    def setup1(engine):
+       return engine
+    
+    def setup2(engine):
+       return engine
+    
+    schema = DataFrameSchema(
+       columns={"density": Column(float, nullable=True)},
+       strict=False,
+    )
+    
+    pbm = ParquetBlockModel.from_dataframe(
+       df[["density"]],
+       filename=tmp_path / "reconfig.parquet",
+       schema=schema,
+    )
+    
+    pbm.configure_engine(setup1)
+    assert pbm._engine_initializer is setup1
+    
+    pbm.configure_engine(setup2)
+    assert pbm._engine_initializer is setup2
+
+
+def test_read_without_engine_initializer_works(tmp_path):
+    """Reading without engine_initializer still works (backward compat)."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = 2.5
+    
+    schema = _calculated_schema()
+    
+    pbm = ParquetBlockModel.from_dataframe(
+       df[["density"]],
+       filename=tmp_path / "simple_read.parquet",
+       schema=schema,
+    )
+    
+    # Should work without engine_initializer
+    result = pbm.read(columns=["tonnes"], index="ijk", dense=True)
+    assert "tonnes" in result.columns
+    np.testing.assert_allclose(result["tonnes"].to_numpy(), np.full(len(result), 2.5))

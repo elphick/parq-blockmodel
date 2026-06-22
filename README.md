@@ -52,4 +52,5 @@ pbm.validate()
 pbm.validate(sample_chunks=1)  # quick spot-check for large models
 ```
 
-See the installation guide and user guide for more detail.
+See the [User Guide](https://parq-blockmodel.readthedocs.io/en/stable/user_guide/07_calculated_attributes.html)
+for detailed documentation on calculated attributes, including custom lookups and functions.
