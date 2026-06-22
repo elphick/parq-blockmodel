@@ -32,6 +32,8 @@ class FakeParquetProfileReport:
             "batch_size": batch_size,
             "show_progress": show_progress,
             "title": title,
+            "dataset_metadata": dataset_metadata,
+            "column_descriptions": column_descriptions,
         }
         self.parquet_path = Path(parquet_path)
         self.columns = list(columns) if columns is not None else None
@@ -102,6 +104,122 @@ def test_create_report_returns_wrapper_and_saves_html(tmp_path, monkeypatch):
     assert report.columns_per_batch == 10
     assert FakeParquetProfileReport.last_init is not None
     assert FakeParquetProfileReport.last_init["columns"] == pbm.columns
+    assert FakeParquetProfileReport.last_init["dataset_metadata"] is None
+    assert FakeParquetProfileReport.last_init["column_descriptions"] is None
+
+
+def test_create_report_enriches_schema_metadata(tmp_path, monkeypatch):
+    pandera = pytest.importorskip("pandera", reason="pandera not installed")
+    DataFrameSchema = pandera.DataFrameSchema
+    Column = pandera.Column
+
+    parquet_path = tmp_path / "report_schema_metadata.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+    pbm.schema = DataFrameSchema(
+        columns={
+            "depth": Column(
+                float,
+                nullable=True,
+            )
+        },
+        strict=False,
+    )
+    pbm.schema.name = "demo_pbm"
+    pbm.schema.title = "Demo Block Model"
+    pbm.schema.description = "Synthetic demo dataset."
+    pbm.schema.columns["depth"].title = "Depth"
+    pbm.schema.columns["depth"].description = "Vertical distance from reference."
+
+    monkeypatch.setattr(blockmodel_module, "ParquetProfileReport", FakeParquetProfileReport)
+
+    pbm.create_report(columns=["depth"], write_html=False, show_progress=False)
+
+    assert FakeParquetProfileReport.last_init is not None
+    assert FakeParquetProfileReport.last_init["column_descriptions"] == {
+        "depth": "Depth Vertical distance from reference."
+    }
+    assert FakeParquetProfileReport.last_init["dataset_metadata"] == {
+        "description": "{'name': 'demo_pbm', 'title': 'Demo Block Model', 'description': 'Synthetic demo dataset.'}"
+    }
+
+
+def test_create_report_enriches_schema_metadata_omits_null_dataset_keys(tmp_path, monkeypatch):
+    pandera = pytest.importorskip("pandera", reason="pandera not installed")
+    DataFrameSchema = pandera.DataFrameSchema
+    Column = pandera.Column
+
+    parquet_path = tmp_path / "report_schema_metadata_nulls.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+    pbm.schema = DataFrameSchema(
+        columns={"depth": Column(float, nullable=True)},
+        strict=False,
+    )
+    pbm.schema.name = "demo_pbm"
+    pbm.schema.title = None
+    pbm.schema.description = "Synthetic demo dataset."
+
+    monkeypatch.setattr(blockmodel_module, "ParquetProfileReport", FakeParquetProfileReport)
+
+    pbm.create_report(columns=["depth"], write_html=False, show_progress=False)
+
+    assert FakeParquetProfileReport.last_init is not None
+    assert FakeParquetProfileReport.last_init["dataset_metadata"] == {
+        "description": "{'name': 'demo_pbm', 'description': 'Synthetic demo dataset.'}"
+    }
+
+
+def test_create_report_dataset_metadata_does_not_use_schema_metadata_fallback(tmp_path, monkeypatch):
+    pandera = pytest.importorskip("pandera", reason="pandera not installed")
+    DataFrameSchema = pandera.DataFrameSchema
+    Column = pandera.Column
+
+    parquet_path = tmp_path / "report_schema_dataset_no_fallback.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+    pbm.schema = DataFrameSchema(
+        columns={"depth": Column(float, nullable=True)},
+        strict=False,
+        metadata={
+            "name": "metadata_name",
+            "title": "metadata_title",
+            "description": "metadata_description",
+        },
+    )
+
+    monkeypatch.setattr(blockmodel_module, "ParquetProfileReport", FakeParquetProfileReport)
+
+    pbm.create_report(columns=["depth"], write_html=False, show_progress=False)
+
+    assert FakeParquetProfileReport.last_init is not None
+    assert FakeParquetProfileReport.last_init["dataset_metadata"] is None
+
+
+def test_create_report_column_descriptions_do_not_use_metadata_fallback(tmp_path, monkeypatch):
+    pandera = pytest.importorskip("pandera", reason="pandera not installed")
+    DataFrameSchema = pandera.DataFrameSchema
+    Column = pandera.Column
+
+    parquet_path = tmp_path / "report_schema_column_no_fallback.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+    pbm.schema = DataFrameSchema(
+        columns={
+            "depth": Column(
+                float,
+                nullable=True,
+                metadata={
+                    "title": "metadata_title",
+                    "description": "metadata_description",
+                },
+            )
+        },
+        strict=False,
+    )
+
+    monkeypatch.setattr(blockmodel_module, "ParquetProfileReport", FakeParquetProfileReport)
+
+    pbm.create_report(columns=["depth"], write_html=False, show_progress=False)
+
+    assert FakeParquetProfileReport.last_init is not None
+    assert FakeParquetProfileReport.last_init["column_descriptions"] is None
 
 
 def test_create_report_can_save_later_and_disable_chunking(tmp_path, monkeypatch):

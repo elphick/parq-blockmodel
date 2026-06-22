@@ -404,6 +404,60 @@ class ParquetBlockModel:
                 flags[name] = is_attribute
         return flags
 
+    @staticmethod
+    def _extract_non_empty_schema_field(
+        target: typing.Any,
+        field: str,
+        *,
+        include_metadata: bool = True,
+    ) -> Optional[str]:
+        value = getattr(target, field, None)
+        if value is None and include_metadata:
+            metadata = getattr(target, "metadata", None)
+            if isinstance(metadata, dict):
+                value = metadata.get(field)
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+    def _report_schema_metadata(
+        self,
+        selected_columns: list[str],
+    ) -> tuple[Optional[dict[str, str]], Optional[dict[str, str]]]:
+        if self.schema is None:
+            return None, None
+
+        schema_columns = getattr(self.schema, "columns", {})
+        column_descriptions: dict[str, str] = {}
+        if isinstance(schema_columns, dict):
+            for column_name in selected_columns:
+                schema_column = schema_columns.get(column_name)
+                if schema_column is None:
+                    continue
+                title = self._extract_non_empty_schema_field(
+                    schema_column,
+                    "title",
+                    include_metadata=False,
+                )
+                description = self._extract_non_empty_schema_field(
+                    schema_column,
+                    "description",
+                    include_metadata=False,
+                )
+                pieces = [piece for piece in (title, description) if piece]
+                if pieces:
+                    column_descriptions[column_name] = " - ".join(pieces)
+
+        dataset_payload: dict[str, str] = {}
+        for key in ("name", "title", "description"):
+            value = self._extract_non_empty_schema_field(self.schema, key, include_metadata=False)
+            if value is not None:
+                dataset_payload[key] = value
+        dataset_metadata = {"description": str(dataset_payload)} if dataset_payload else None
+
+        return (column_descriptions or None), dataset_metadata
+
     def _calculated_attribute_flags(self) -> dict[str, bool]:
         flags = {name: True for name in self.calculated_columns}
         for name, is_attribute in self._schema_column_attribute_flags().items():
@@ -1363,6 +1417,7 @@ class ParquetBlockModel:
 
         """
         selected_columns = list(columns) if columns is not None else list(self.columns)
+        column_descriptions, dataset_metadata = self._report_schema_metadata(selected_columns)
         
         logging.basicConfig(level=logging.DEBUG)
         
@@ -1382,6 +1437,8 @@ class ParquetBlockModel:
             batch_size=effective_columns_per_batch,
             show_progress=show_progress,
             title=f"{self.name} Profile Report",
+            dataset_metadata=dataset_metadata,
+            column_descriptions=column_descriptions,
         ).profile()
         report = BlockModelReport(
             report=raw_report,

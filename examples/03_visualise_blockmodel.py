@@ -10,18 +10,34 @@ import tempfile
 
 from pathlib import Path
 
+from pandera import Column, DataFrameSchema
+
 from parq_blockmodel import ParquetBlockModel
 
 # %%
 # Create a Parquet Block Model
 # ----------------------------
-# We leverage the create_demo_block_model class method to create a Parquet Block Model.
+# We create demo data then load it with a schema so profile report metadata is enriched.
 
 temp_dir = Path(tempfile.gettempdir()) / "block_model_example"
 temp_dir.mkdir(parents=True, exist_ok=True)
 
-pbm: ParquetBlockModel = ParquetBlockModel.create_demo_block_model(
-    filename=temp_dir / "demo_block_model.parquet")
+source_path = temp_dir / "demo_block_model.parquet"
+ParquetBlockModel.create_demo_block_model(filename=source_path)
+
+schema = DataFrameSchema(
+    columns={
+        "depth": Column(float, nullable=True)
+    },
+    strict=False,
+)
+schema.columns["depth"].title = "Depth"
+schema.columns["depth"].description = "Vertical distance from model top."
+schema.name = "demo_block_model"
+schema.title = "Demo Block Model"
+schema.description = "Synthetic block model used to demonstrate reporting metadata."
+
+pbm: ParquetBlockModel = ParquetBlockModel.from_parquet(source_path, schema=schema)
 pbm
 
 # %%
@@ -33,6 +49,7 @@ pbm
 
 report = pbm.create_report(columns_per_batch=None, show_progress=True)
 print(f"Report saved to: {report.output_path}")
+# report.show()
 
 # %%
 # Visualise the Model
