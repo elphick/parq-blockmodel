@@ -121,8 +121,26 @@ class ParquetBlockModel:
         "z": np.float32,
     }
 
-    def __init__(self, blockmodel_path: Path, name: Optional[str] = None, geometry: Optional[RegularGeometry] = None,
-                 schema: Optional[Union[Path, "DataFrameSchema"]] = None):
+    def __init__(
+        self,
+        blockmodel_path: Path,
+        name: Optional[str] = None,
+        geometry: Optional[RegularGeometry] = None,
+        schema: Optional[Union[Path, "DataFrameSchema"]] = None,
+        engine_initializer: Optional[typing.Callable] = None,
+    ):
+        """
+        Initialize a ParquetBlockModel.
+
+        Args:
+            blockmodel_path: Path to the .pbm file.
+            name: Optional name; defaults to file stem.
+            geometry: Optional RegularGeometry; loaded from metadata if not provided.
+            schema: Optional pandera DataFrameSchema or path to YAML schema.
+            engine_initializer: Optional callable that configures the df-eval Engine
+                for custom lookups/functions. Signature: Callable[[Engine], Engine].
+                Called before applying calculated column operations.
+        """
         if blockmodel_path.suffix != ".pbm":
             raise ValueError("The provided file must have a '.pbm' extension.")
         self.blockmodel_path = blockmodel_path
@@ -132,6 +150,7 @@ class ParquetBlockModel:
             self.schema = self._load_schema(schema)
         else:
             self.schema = self._load_embedded_schema(self.blockmodel_path)
+        self._engine_initializer = engine_initializer
         self.pf: ParquetFile = ParquetFile(blockmodel_path)
         # Lazy view over the backing Parquet file for large models.
         self.data: LazyParquetDF = LazyParquetDF(self.blockmodel_path)
@@ -146,6 +165,27 @@ class ParquetBlockModel:
             if not self.validate_sparse():
                 raise ValueError("The sparse ParquetBlockModel is invalid. "
                                  "Sparse centroids must be a subset of the dense grid.")
+
+    def configure_engine(self, initializer: typing.Callable) -> None:
+        """Register custom lookups and functions with the df-eval Engine.
+
+        This method allows post-construction configuration of the df-eval Engine
+        for custom lookups and functions used in calculated columns. Can be called
+        before reading calculated columns.
+
+        Args:
+            initializer: Callable that accepts an Engine, registers lookups/functions,
+                and returns the configured Engine. Signature: Callable[[Engine], Engine].
+
+        Examples:
+            >>> def setup_engine(engine):
+            ...     engine.register_lookup("rock_codes", lookup_df)
+            ...     engine.register_function("convert_units", converter_fn)
+            ...     return engine
+            >>> pbm.configure_engine(setup_engine)
+            >>> result = pbm.read(columns=["rock_name", "converted_value"])
+        """
+        self._engine_initializer = initializer
 
     def _assert_canonical_block_id_invariant(self) -> None:
         """Enforce mandatory canonical identity invariant for `.pbm` files."""
@@ -559,6 +599,7 @@ class ParquetBlockModel:
         dataframe: pd.DataFrame,
         schema: "DataFrameSchema",
         operations: Optional[dict[str, dict[str, typing.Any]]] = None,
+        engine_initializer: Optional[typing.Callable] = None,
     ) -> pd.DataFrame:
         operations = operations or cls._df_eval_operations_from_schema(schema)
         if not operations:
@@ -571,6 +612,8 @@ class ParquetBlockModel:
                 "pip install 'parq-blockmodel[schema]'"
             ) from exc
         engine = Engine()
+        if engine_initializer is not None:
+            engine = engine_initializer(engine)
         return engine.apply_operations(dataframe, operations)
 
     @classmethod
@@ -891,15 +934,18 @@ class ParquetBlockModel:
             yield ids
 
     @classmethod
-    def from_parquet(cls, parquet_path: Path,
-                     columns: Optional[list[str]] = None,
-                     overwrite: bool = False,
-                     axis_azimuth: float = 0.0,
-                     axis_dip: float = 0.0,
-                     axis_plunge: float = 0.0,
-                     chunk_size: int = 1_000_000,
-                     schema: Optional[Union[Path, "DataFrameSchema"]] = None,
-                     ) -> "ParquetBlockModel":
+    def from_parquet(
+        cls,
+        parquet_path: Path,
+        columns: Optional[list[str]] = None,
+        overwrite: bool = False,
+        axis_azimuth: float = 0.0,
+        axis_dip: float = 0.0,
+        axis_plunge: float = 0.0,
+        chunk_size: int = 1_000_000,
+        schema: Optional[Union[Path, "DataFrameSchema"]] = None,
+        engine_initializer: Optional[typing.Callable] = None,
+    ) -> "ParquetBlockModel":
         """Create a :class:`ParquetBlockModel` from a source Parquet file.
 
         This helper promotes a *source* ``.parquet`` file (typically
@@ -967,20 +1013,23 @@ class ParquetBlockModel:
                                  columns=columns,
                                  chunk_size=chunk_size,
                                  schema=loaded_schema)
-        return cls(blockmodel_path=new_filepath, geometry=geometry, schema=loaded_schema)
+        return cls(blockmodel_path=new_filepath, geometry=geometry, schema=loaded_schema, engine_initializer=engine_initializer)
 
     @classmethod
-    def from_dataframe(cls, dataframe: pd.DataFrame,
-                       filename: Path,
-                       geometry: Optional[RegularGeometry] = None,
-                       name: Optional[str] = None,
-                       overwrite: bool = False,
-                       axis_azimuth: float = 0.0,
-                       axis_dip: float = 0.0,
-                       axis_plunge: float = 0.0,
-                       chunk_size: int = 1_000_000,
-                       schema: Optional[Union[Path, "DataFrameSchema"]] = None,
-                       ) -> "ParquetBlockModel":
+    def from_dataframe(
+        cls,
+        dataframe: pd.DataFrame,
+        filename: Path,
+        geometry: Optional[RegularGeometry] = None,
+        name: Optional[str] = None,
+        overwrite: bool = False,
+        axis_azimuth: float = 0.0,
+        axis_dip: float = 0.0,
+        axis_plunge: float = 0.0,
+        chunk_size: int = 1_000_000,
+        schema: Optional[Union[Path, "DataFrameSchema"]] = None,
+        engine_initializer: Optional[typing.Callable] = None,
+    ) -> "ParquetBlockModel":
         """Create a :class:`ParquetBlockModel` from a pandas DataFrame.
 
         This constructor is oriented towards xyz-indexed
@@ -1124,7 +1173,7 @@ class ParquetBlockModel:
         # Validate geometry
         cls._validate_geometry(pbm_path, geometry, chunk_size=chunk_size)
 
-        return cls(blockmodel_path=pbm_path, name=name, geometry=geometry, schema=loaded_schema)
+        return cls(blockmodel_path=pbm_path, name=name, geometry=geometry, schema=loaded_schema, engine_initializer=engine_initializer)
 
     @classmethod
     def create_demo_block_model(cls, filename: Path, **demo_kwargs) -> "ParquetBlockModel":
@@ -1269,11 +1318,14 @@ class ParquetBlockModel:
         return cls(blockmodel_path=new_filepath, geometry=geometry)
 
     @classmethod
-    def from_geometry(cls, geometry: RegularGeometry,
-                      path: Path,
-                      name: Optional[str] = None,
-                      schema: Optional[Union[Path, "DataFrameSchema"]] = None,
-                      ) -> "ParquetBlockModel":
+    def from_geometry(
+        cls,
+        geometry: RegularGeometry,
+        path: Path,
+        name: Optional[str] = None,
+        schema: Optional[Union[Path, "DataFrameSchema"]] = None,
+        engine_initializer: Optional[typing.Callable] = None,
+    ) -> "ParquetBlockModel":
         """Create a :class:`ParquetBlockModel` from a geometry only.
 
         This constructor materialises a **dense** ijk grid defined by a
@@ -1339,7 +1391,7 @@ class ParquetBlockModel:
         table = table.replace_schema_metadata(meta)
         pq.write_table(table, path)
 
-        return cls(blockmodel_path=path, name=name, geometry=geometry, schema=loaded_schema)
+        return cls(blockmodel_path=path, name=name, geometry=geometry, schema=loaded_schema, engine_initializer=engine_initializer)
 
     def rename(self, new_pbm_filepath: Path, rename_to_new_pbm_stem: bool = True) -> "ParquetBlockModel":
         """Rename the underlying .pbm file and refresh path-bound caches.
@@ -1811,7 +1863,12 @@ class ParquetBlockModel:
             if required_operations is None:  # defensive
                 raise ValueError("No df-eval operations selected for requested calculated columns.")
             if self.schema is not None:
-                df = self._apply_df_eval_operations(df, self.schema, operations=required_operations)
+                df = self._apply_df_eval_operations(
+                    df,
+                    self.schema,
+                    operations=required_operations,
+                    engine_initializer=self._engine_initializer,
+                )
             else:
                 df = self._apply_intrinsic_operations(df, required_operations)
             missing_after_eval = [col for col in requested_columns if col not in df.columns]
