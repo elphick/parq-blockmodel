@@ -404,6 +404,22 @@ class ParquetBlockModel:
                 flags[name] = is_attribute
         return flags
 
+    def _get_schema_column_names(self) -> list[str]:
+       """Extract column names from schema in their definition order.
+
+       Returns
+       -------
+       list[str]
+           Column names defined in the schema in the order they appear,
+           or an empty list if no schema is available.
+       """
+       if self.schema is None:
+           return []
+       schema_columns = getattr(self.schema, "columns", {})
+       if not isinstance(schema_columns, dict):
+           return []
+       return list(schema_columns.keys())
+
     @staticmethod
     def _extract_non_empty_schema_field(
         target: typing.Any,
@@ -1769,6 +1785,14 @@ class ParquetBlockModel:
             requested_columns.extend(
                 [col for col in operations if col not in self.columns]
             )
+
+        # align column order with the schema
+        if columns is None and self.schema is not None:
+            schema_column_names = self._get_schema_column_names()
+            schema_cols_in_data = [col for col in schema_column_names if col in requested_columns]
+            extra_cols = [col for col in requested_columns if col not in schema_column_names]
+            requested_columns = schema_cols_in_data + extra_cols
+
         missing_requested = [col for col in requested_columns if col not in self.columns]
         read_columns = requested_columns
         required_operations: Optional[dict[str, dict[str, typing.Any]]] = None
