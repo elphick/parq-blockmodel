@@ -112,6 +112,43 @@ To open the generated report immediately after profiling:
 
     report = pbm.create_report(open_in_browser=True)
 
+Schema metadata in profile reports
+----------------------------------
+
+When a :class:`parq_blockmodel.blockmodel.ParquetBlockModel` has an attached
+Pandera schema, ``create_report()`` uses schema metadata to enrich report
+metadata:
+
+* Per selected column, report variable descriptions are built by concatenating
+  schema column ``title`` and ``description`` values (when present).
+* At dataset level, report metadata includes ``dataset["description"]`` as a
+  dict-like string containing ``DataFrameSchema`` object properties
+  ``name``, ``title``, and ``description``, with null or missing values
+  removed.
+
+Column descriptions use ``Column`` object properties (``title`` and
+``description``), not ``Column.metadata`` keys.
+
+.. code-block:: python
+
+    from pandera import Column, DataFrameSchema
+    from parq_blockmodel import ParquetBlockModel
+
+    schema = DataFrameSchema(
+        columns={
+            "depth": Column(float)
+        },
+        strict=False,
+    )
+    schema.columns["depth"].title = "Depth"
+    schema.columns["depth"].description = "Vertical distance"
+    schema.name = "example_model"
+    schema.title = "Example Block Model"
+    schema.description = "Demonstration dataset"
+
+    pbm = ParquetBlockModel.from_parquet("example.parquet", schema=schema)
+    report = pbm.create_report()
+
 Summary of the reporting API
 ----------------------------
 
@@ -125,5 +162,3 @@ Summary of the reporting API
 * ``open_in_browser``: display the report after generation.
 
 See also: :doc:`03_blockmodels` and the :doc:`/auto_examples/index` gallery.
-
-
