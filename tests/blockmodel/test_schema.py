@@ -620,3 +620,254 @@ def test_read_without_engine_initializer_works(tmp_path):
     result = pbm.read(columns=["tonnes"], index="ijk", dense=True)
     assert "tonnes" in result.columns
     np.testing.assert_allclose(result["tonnes"].to_numpy(), np.full(len(result), 2.5))
+
+
+# ---------------------------------------------------------------------------
+# Phase 1 & 2: Extract Required Columns & Persist Calculated Columns
+# ---------------------------------------------------------------------------
+
+def test_extract_required_columns_from_schema_includes_required_true():
+    """_extract_required_columns_from_schema should include columns with required=True."""
+    schema = DataFrameSchema(
+       columns={
+           "persisted_col": Column(float, required=True),
+           "calc_col": Column(float, required=False),
+       },
+       strict=False,
+    )
+    required = ParquetBlockModel._extract_required_columns_from_schema(schema)
+    assert "persisted_col" in required
+    assert "calc_col" not in required
+
+
+def test_extract_required_columns_defaults_to_required_true():
+    """_extract_required_columns_from_schema should default to required=True if not specified."""
+    schema = DataFrameSchema(
+       columns={
+           "default_col": Column(float),  # No required= specified, defaults to True
+           "explicit_false": Column(float, required=False),
+       },
+       strict=False,
+    )
+    required = ParquetBlockModel._extract_required_columns_from_schema(schema)
+    assert "default_col" in required
+    assert "explicit_false" not in required
+
+
+def test_extract_required_columns_empty_schema():
+    """_extract_required_columns_from_schema should return empty set for None schema."""
+    required = ParquetBlockModel._extract_required_columns_from_schema(None)
+    assert required == set()
+
+
+def test_from_dataframe_excludes_non_required_columns_from_persisted(tmp_path):
+    """Columns with required=False should NOT be persisted to disk by from_dataframe."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = 2.5
+    df["grade"] = 0.5
+    
+    schema = DataFrameSchema(
+       columns={
+           "density": Column(float, required=True),
+           "grade": Column(float, required=True),
+           "tonnes": Column(
+               float,
+               required=False,
+               metadata={"df-eval": {"expr": "density * volume"}}
+           ),
+       },
+       strict=False,
+    )
+    
+    pbm = ParquetBlockModel.from_dataframe(
+       df[["density", "grade"]],
+       filename=tmp_path / "exclude_non_required.parquet",
+       schema=schema,
+    )
+    
+    # tonnes should NOT be in persisted columns
+    assert "tonnes" not in pbm.persisted_columns
+    assert "tonnes" in pbm.calculated_columns
+    
+    # Reading raw data should NOT include tonnes
+    raw = pbm.read(index="ijk", dense=True)
+    assert "tonnes" not in raw.columns
+
+
+def test_from_parquet_excludes_non_required_columns_from_persisted(tmp_path):
+    """Columns with required=False should NOT be persisted by from_parquet."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    
+    df = create_demo_blockmodel(shape=(2, 2, 2))
+    df["density"] = 2.5
+    source_parquet = tmp_path / "source.parquet"
+    df.to_parquet(source_parquet)
+    
+    schema = DataFrameSchema(
+       columns={
+           "density": Column(float, required=True),
+           "tonnes": Column(
+               float,
+               required=False,
+               metadata={"df-eval": {"expr": "density * volume"}}
+           ),
+       },
+       strict=False,
+    )
+    
+    pbm = ParquetBlockModel.from_parquet(source_parquet, schema=schema)
+    
+    # tonnes should NOT be in persisted columns
+    assert "tonnes" not in pbm.persisted_columns
+    assert "tonnes" in pbm.calculated_columns
+    
+    # Reading raw data should NOT include tonnes
+    raw = pbm.read(index="ijk", dense=True)
+    assert "tonnes" not in raw.columns
+
+
+def test_from_dataframe_persists_calculated_columns_with_required_true(tmp_path):
+    """Calculated columns with required=True should be persisted to disk."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = 2.5
+    
+    schema = DataFrameSchema(
+       columns={
+           "density": Column(float, required=True),
+           "tonnes": Column(
+               float,
+               required=True,  # This should be persisted
+               metadata={"df-eval": {"expr": "density * volume"}}
+           ),
+       },
+       strict=False,
+    )
+    
+    pbm = ParquetBlockModel.from_dataframe(
+       df[["density"]],
+       filename=tmp_path / "persist_required.parquet",
+       schema=schema,
+    )
+    
+    # tonnes should be in persisted columns
+    assert "tonnes" in pbm.persisted_columns
+    
+    # Reading raw data should include tonnes
+    raw = pbm.read(index="ijk", dense=True)
+    assert "tonnes" in raw.columns
+    np.testing.assert_allclose(raw["tonnes"].to_numpy(), np.full(len(raw), 2.5))
+
+
+def test_from_parquet_persists_calculated_columns_with_required_true(tmp_path):
+    """Calculated columns with required=True should be persisted by from_parquet."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    
+    df = create_demo_blockmodel(shape=(2, 2, 2))
+    df["density"] = 2.5
+    source_parquet = tmp_path / "source.parquet"
+    df.to_parquet(source_parquet)
+    
+    schema = DataFrameSchema(
+       columns={
+           "density": Column(float, required=True),
+           "tonnes": Column(
+               float,
+               required=True,  # This should be persisted
+               metadata={"df-eval": {"expr": "density * volume"}}
+           ),
+       },
+       strict=False,
+    )
+    
+    pbm = ParquetBlockModel.from_parquet(source_parquet, schema=schema)
+    
+    # tonnes should be in persisted columns
+    assert "tonnes" in pbm.persisted_columns
+    
+    # Reading raw data should include tonnes
+    raw = pbm.read(index="ijk", dense=True)
+    assert "tonnes" in raw.columns
+    np.testing.assert_allclose(raw["tonnes"].to_numpy(), np.full(len(raw), 2.5))
+
+
+def test_from_dataframe_persists_chained_calculated_columns(tmp_path):
+    """Chained calculated columns should be persisted correctly."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = np.linspace(2.0, 3.0, len(df))
+    df["grade"] = np.linspace(0.1, 0.5, len(df))
+    
+    schema = DataFrameSchema(
+       columns={
+           "density": Column(float, required=True),
+           "grade": Column(float, required=True),
+           "tonnes": Column(
+               float,
+               required=True,
+               metadata={"df-eval": {"expr": "density * volume"}}
+           ),
+           "contained_metal": Column(
+               float,
+               required=True,
+               metadata={"df-eval": {"expr": "tonnes * grade"}}
+           ),
+       },
+       strict=False,
+    )
+    
+    pbm = ParquetBlockModel.from_dataframe(
+       df[["density", "grade"]],
+       filename=tmp_path / "chained_calc_persist.parquet",
+       schema=schema,
+    )
+    
+    # Both calculated columns should be persisted
+    assert "tonnes" in pbm.persisted_columns
+    assert "contained_metal" in pbm.persisted_columns
+    
+    # Reading raw data should include both
+    raw = pbm.read(index="ijk", dense=True)
+    assert "tonnes" in raw.columns
+    assert "contained_metal" in raw.columns
+    
+    # Verify calculations are correct
+    expected_tonnes = df["density"].to_numpy() * 1.0  # volume = 1.0
+    expected_metal = expected_tonnes * df["grade"].to_numpy()
+    np.testing.assert_allclose(raw["tonnes"].to_numpy(), expected_tonnes, rtol=1e-5)
+    np.testing.assert_allclose(raw["contained_metal"].to_numpy(), expected_metal, rtol=1e-5)
+
+
+def test_validation_remains_read_only_after_from_parquet(tmp_path):
+    """Validation with external schema should not modify .pbm file."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    
+    df = create_demo_blockmodel(shape=(2, 2, 2))
+    df["density"] = 2.5
+    source_parquet = tmp_path / "source.parquet"
+    df.to_parquet(source_parquet)
+    
+    # Create without schema
+    pbm = ParquetBlockModel.from_parquet(source_parquet)
+    pbm_size_before = pbm.blockmodel_path.stat().st_size
+    
+    # Validate with external schema (should not modify file)
+    schema = DataFrameSchema(
+       columns={"density": Column(float, coerce=True)},
+       strict=False,
+    )
+    assert pbm.validate(schema=schema) is True
+    
+    pbm_size_after = pbm.blockmodel_path.stat().st_size
+    assert pbm_size_before == pbm_size_after  # File size should not change
+    
+    # Persisted columns should not change
+    assert "density" in pbm.persisted_columns
+    
+    # Re-read and verify data unchanged
+    raw = pbm.read(index="ijk", dense=True)
+    assert "density" in raw.columns
