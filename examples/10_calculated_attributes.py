@@ -13,11 +13,14 @@ import tempfile
 from pathlib import Path
 
 import pandas as pd
+from df_eval import Engine
 
 from parq_blockmodel import ParquetBlockModel
 from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel
 
 # %%
+# Instantiate
+# -----------
 # Create a small block model with base attributes.
 
 temp_dir = Path(tempfile.gettempdir()) / "calculated_attributes_example"
@@ -44,6 +47,8 @@ except ImportError:
     )
 
 # %%
+# Evaluation
+# ----------
 # Build the schema-backed model when the optional schema dependencies are
 # installed. The schema stores the calculated-column expressions in Pandera
 # metadata under ``df-eval``.
@@ -88,3 +93,49 @@ calculated.head()
 
 calculated: pd.DataFrame = pbm.read(index="ijk", dense=True, include_calculated=True)
 calculated.head()
+
+# %%
+# Registered Functions
+# --------------------
+# While expressions can be defined in the schema directly, applying custom functions requires
+# that they be registered with the engine. The function registration must be provided when
+# creating the PBM via the ``engine_initializer`` parameter.
+
+def calculate_metal_pct(data: pd.DataFrame) -> pd.Series:
+    """Calculate metal percentage from contained_metal and tonnes."""
+    return data["contained_metal"] / data["tonnes"] * 100
+
+def setup_engine(engine):
+    """Register custom pipeline functions with the engine."""
+    engine.register_pipeline_function("metal_pct", calculate_metal_pct)
+    return engine
+
+# Add the calculated column that uses the registered function to the existing schema
+schema.columns["metal_pct"] = Column(
+    float,
+    coerce=True,
+    nullable=True,
+    required=False,
+    metadata={"df-eval": {"function":
+                              {"name": "metal_pct",
+                               "inputs": ["contained_metal", "tonnes"],
+                               "outputs": ["metal_pct"],
+                               "params": {}}}},
+)
+
+# Create PBM with engine_initializer to register the function at creation time
+pbm_with_fn = ParquetBlockModel.from_dataframe(
+    df[["density", "grade"]],
+    filename=temp_dir / "calculated_attributes_with_fn.parquet",
+    schema=schema,
+    engine_initializer=setup_engine,  # Register the function here
+    overwrite=True,
+)
+
+# Now we can read the calculated column that depends on the registered function
+calculated_via_fn: pd.DataFrame = pbm_with_fn.read(
+    columns=["tonnes", "contained_metal", "metal_pct"],
+    index="ijk",
+    dense=True,
+)
+calculated_via_fn.head()
