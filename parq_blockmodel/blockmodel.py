@@ -617,6 +617,32 @@ class ParquetBlockModel:
         return engine.apply_operations(dataframe, operations)
 
     @classmethod
+    def _extract_required_columns_from_schema(cls, schema: "DataFrameSchema") -> set[str]:
+        """Extract the set of column names that are required (should be persisted).
+
+        Columns with ``required=False`` are non-persisted calculated columns and
+        should be excluded from the output during `_write_canonical_pbm()`.
+
+        Args:
+            schema: A pandera ``DataFrameSchema``.
+
+        Returns:
+            set[str]: Column names with ``required=True``, or all schema columns if
+                ``required`` is not explicitly set (defaults to True).
+        """
+        if schema is None:
+            return set()
+        schema_columns = getattr(schema, "columns", {})
+        if not isinstance(schema_columns, dict):
+            return set()
+        required = set()
+        for col_name, col_spec in schema_columns.items():
+            col_required = getattr(col_spec, "required", True)
+            if col_required is not False:
+                required.add(col_name)
+        return required
+
+    @classmethod
     def _validate_chunk(cls, dataframe: pd.DataFrame, schema: "DataFrameSchema") -> pd.DataFrame:
         """Validate and coerce a single DataFrame chunk against *schema*.
 
@@ -1012,7 +1038,8 @@ class ParquetBlockModel:
                                  geometry=geometry,
                                  columns=columns,
                                  chunk_size=chunk_size,
-                                 schema=loaded_schema)
+                                 schema=loaded_schema,
+                                 engine_initializer=engine_initializer)
         return cls(blockmodel_path=new_filepath, geometry=geometry, schema=loaded_schema, engine_initializer=engine_initializer)
 
     @classmethod
@@ -1155,7 +1182,45 @@ class ParquetBlockModel:
         dataframe = dataframe[cls._ordered_columns(list(dataframe.columns))]
 
         if loaded_schema is not None:
+            required_cols = cls._extract_required_columns_from_schema(loaded_schema)
+            schema_operations = dict(cls._df_eval_operations_from_schema(loaded_schema))
+            persist_targets = [name for name in required_cols if name in schema_operations]
+
+            selected_operations: dict[str, dict[str, typing.Any]] = {}
+            if persist_targets:
+                all_operations = dict(schema_operations)
+                if cls.INTRINSIC_VOLUME_COLUMN not in dataframe.columns:
+                    all_operations.setdefault(
+                        cls.INTRINSIC_VOLUME_COLUMN,
+                        {"kind": "expr", "expr": repr(geometry.block_volume)},
+                    )
+                selected_operations = cls._select_df_eval_operations(
+                    all_operations,
+                    persist_targets,
+                )
+
+            if selected_operations:
+                dataframe = cls._apply_df_eval_operations(
+                    dataframe,
+                    loaded_schema,
+                    operations=selected_operations,
+                    engine_initializer=engine_initializer,
+                )
+
+            # Validate/coerce after required calculated columns are materialized.
             dataframe = cls._validate_chunk(dataframe, loaded_schema)
+            if required_cols:
+                # required=False is used for non-persisted calculated columns.
+                # Keep regular source columns even if schema marks them optional.
+                dataframe = dataframe[
+                    [
+                        c
+                        for c in dataframe.columns
+                        if c in cls.POSITION_COLUMNS
+                        or c in required_cols
+                        or c not in schema_operations
+                    ]
+                ]
 
         # Attach geometry metadata to attrs for completeness
         dataframe.attrs["parq-blockmodel"] = geometry.to_metadata_dict()
@@ -2532,7 +2597,8 @@ class ParquetBlockModel:
                              columns: Optional[list[str]],
                              chunk_size: int = 1_000_000,
                              tol: float = 1e-6,
-                             schema: Optional["DataFrameSchema"] = None) -> None:
+                             schema: Optional["DataFrameSchema"] = None,
+                             engine_initializer: Optional[typing.Callable] = None) -> None:
         """Stream a source parquet file into canonical PBM with block_id and metadata.
 
         When *schema* is provided it is applied to each chunk via
@@ -2540,6 +2606,21 @@ class ParquetBlockModel:
         This resolves common int→float schema conflicts that arise when
         different chunks carry the same column with different numeric
         precision.
+
+        After validation/coercion, if the schema contains df-eval operations,
+        those operations are applied to calculate columns. Non-required columns
+        (with ``required=False``) are excluded from the persisted output.
+
+        Args:
+            input_path: Path to the source Parquet file.
+            output_path: Path to the output .pbm file.
+            geometry: RegularGeometry of the block model.
+            columns: Optional subset of columns to persist. If None, all are persisted.
+            chunk_size: Batch size for reading Parquet data.
+            tol: Tolerance for xyz to ijk conversion.
+            schema: Optional pandera DataFrameSchema for validation and df-eval operations.
+            engine_initializer: Optional callable to configure the df-eval Engine.
+                Signature: Callable[[Engine], Engine].
         """
         pf = pq.ParquetFile(input_path)
         src_cols = pf.schema.names
@@ -2584,6 +2665,38 @@ class ParquetBlockModel:
         if "world_id" not in output_cols:
             output_cols = ["block_id", "world_id"] + [c for c in output_cols if c != "block_id"]
         output_cols = cls._ordered_columns(output_cols)
+
+        selected_persist_operations: dict[str, dict[str, typing.Any]] = {}
+        # Filter out non-required columns from schema (required=False means don't persist)
+        if schema is not None:
+            required_cols = cls._extract_required_columns_from_schema(schema)
+            schema_ops = dict(cls._df_eval_operations_from_schema(schema))
+            persist_targets = [name for name in required_cols if name in schema_ops]
+            if persist_targets:
+                all_operations = dict(schema_ops)
+                all_operations.setdefault(
+                    cls.INTRINSIC_VOLUME_COLUMN,
+                    {"kind": "expr", "expr": repr(geometry.block_volume)},
+                )
+                selected_persist_operations = cls._select_df_eval_operations(
+                    all_operations,
+                    persist_targets,
+                )
+
+            if required_cols:
+                # Keep all special/geometry columns and any schema columns marked as required
+                output_cols = [
+                    c
+                    for c in output_cols
+                    if c in cls.POSITION_COLUMNS or c in required_cols or c not in schema_ops
+                ]
+                # Add required schema columns that will be calculated via df-eval
+                for col_name in required_cols:
+                    if col_name not in output_cols and col_name in schema_ops:
+                        output_cols.append(col_name)
+                output_cols = cls._ordered_columns(output_cols)
+            # Preserve chunked processing while ensuring expression dependencies are available.
+            read_cols = list(dict.fromkeys(src_cols + [c for c in cls.SPECIAL_COLUMN_ORDER if c in src_cols]))
 
         with atomic_output_file(output_path) as tmp_path:
             writer = None
@@ -2654,6 +2767,14 @@ class ParquetBlockModel:
                     df_batch = cls._coerce_special_column_dtypes(df_batch)
 
                     if schema is not None:
+                        if selected_persist_operations:
+                            df_batch = cls._apply_df_eval_operations(
+                                df_batch,
+                                schema,
+                                operations=selected_persist_operations,
+                                engine_initializer=engine_initializer,
+                            )
+                        # Validate after required calculated columns are present.
                         df_batch = cls._validate_chunk(df_batch, schema)
 
                     write_df = df_batch[cls._ordered_columns(output_cols)]
