@@ -871,3 +871,35 @@ def test_validation_remains_read_only_after_from_parquet(tmp_path):
     # Re-read and verify data unchanged
     raw = pbm.read(index="ijk", dense=True)
     assert "density" in raw.columns
+
+
+def test_from_parquet_alias_is_applied_before_dependent_calculations(tmp_path):
+    """Alias + decimals metadata should run before dependent calculations."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+
+    df = create_demo_blockmodel(shape=(2, 2, 2))
+    df["deposit"] = np.linspace(0.12345, 0.82345, len(df))
+    source_parquet = tmp_path / "alias_source.parquet"
+    df.to_parquet(source_parquet)
+
+    schema = DataFrameSchema(
+        columns={
+            "deposit_code": Column(
+                float,
+                required=True,
+                metadata={"df-eval": {"alias": "deposit", "decimals": 3}},
+            ),
+            "deposit_plus_one": Column(
+                float,
+                required=True,
+                metadata={"df-eval": {"expr": "deposit_code + 1"}},
+            ),
+        },
+        strict=False,
+    )
+
+    pbm = ParquetBlockModel.from_parquet(source_parquet, schema=schema)
+    out = pbm.read(columns=["deposit_code", "deposit_plus_one"], index="ijk", dense=True)
+    expected = np.round(df["deposit"].to_numpy(), 3)
+    np.testing.assert_allclose(out["deposit_code"].to_numpy(), expected, rtol=0, atol=1e-12)
+    np.testing.assert_allclose(out["deposit_plus_one"].to_numpy(), expected + 1.0, rtol=0, atol=1e-12)

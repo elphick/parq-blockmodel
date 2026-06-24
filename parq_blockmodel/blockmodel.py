@@ -420,6 +420,18 @@ class ParquetBlockModel:
         schema_operations: dict[str, dict[str, typing.Any]] = {}
         if self.schema is not None:
             schema_operations = self._df_eval_operations_from_schema(self.schema)
+            # Also include aliased columns (columns with alias in their metadata)
+            # even though they're not actual operations
+            aliases = self._extract_column_aliases_from_schema(self.schema)
+            for target_col, source_col in aliases.items():
+                if target_col not in schema_operations:
+                    # Create a placeholder operation so read path recognizes aliased columns
+                    # The actual transformation is handled by apply_pandera_schema()
+                    schema_operations[target_col] = {
+                        "kind": "alias",
+                        "alias": source_col,
+                    }
+        
         operations = dict(schema_operations)
         for name, operation in self._intrinsic_df_eval_operations().items():
             operations.setdefault(name, operation)
@@ -601,20 +613,53 @@ class ParquetBlockModel:
         operations: Optional[dict[str, dict[str, typing.Any]]] = None,
         engine_initializer: Optional[typing.Callable] = None,
     ) -> pd.DataFrame:
-        operations = operations or cls._df_eval_operations_from_schema(schema)
-        if not operations:
-            return dataframe
+        """Apply df-eval operations including alias and decimals transforms.
+        
+        Pipeline order:
+        1. Apply alias transforms (rename columns)
+        2. Apply decimals transforms (round output)
+        3. Apply df-eval operations (expr/lookup/function)
+        
+        Args:
+            dataframe: Input DataFrame to transform
+            schema: Pandera DataFrameSchema with optional df-eval metadata
+            operations: Optional pre-extracted operations dictionary
+                (if provided and includes desired targets, will be used directly;
+                if None, extracted from schema)
+            engine_initializer: Optional callable to customize engine (if provided,
+                custom engine will be used instead of default)
+        
+        Returns:
+            Transformed DataFrame with alias, decimals, and operations applied
+        """
         try:
+            from df_eval.pandera import apply_aliases, apply_decimals, df_eval_operations_from_pandera
             from df_eval import Engine
         except ImportError as exc:  # pragma: no cover
             raise ImportError(
                 "Calculated column support requires 'df-eval'. Install it with: "
                 "pip install 'parq-blockmodel[schema]'"
             ) from exc
+        
+        # Step 1: Apply alias transforms (rename columns)
+        df = apply_aliases(dataframe, schema)
+        
+        # Step 2: Apply decimals transforms
+        df = apply_decimals(df, schema)
+        
+        # Step 3: Apply df-eval operations (expr/lookup/function)
+        # Extract operations from schema if not provided
+        ops = operations or df_eval_operations_from_pandera(schema)
+        if not ops:
+            return df
+        
+        # Create engine, potentially customized via engine_initializer
         engine = Engine()
         if engine_initializer is not None:
             engine = engine_initializer(engine)
-        return engine.apply_operations(dataframe, operations)
+        
+        # Apply operations using the engine
+        return engine.apply_operations(df, ops)
 
     @classmethod
     def _extract_required_columns_from_schema(cls, schema: "DataFrameSchema") -> set[str]:
@@ -641,6 +686,41 @@ class ParquetBlockModel:
             if col_required is not False:
                 required.add(col_name)
         return required
+    
+    @classmethod
+    def _extract_column_aliases_from_schema(cls, schema: "DataFrameSchema") -> dict[str, str]:
+        """Extract alias mappings from schema df-eval metadata.
+        
+        Returns a dict mapping target_column -> source_column for all columns
+        that have an alias specified in their df-eval metadata.
+        
+        Args:
+            schema: A pandera ``DataFrameSchema``.
+        
+        Returns:
+            dict[str, str]: Mapping of {target_column: source_column} for aliased columns.
+                Example: {"deposit_code": "deposit"} if deposit_code has alias "deposit".
+        """
+        if schema is None:
+            return {}
+        
+        schema_columns = getattr(schema, "columns", {})
+        if not isinstance(schema_columns, dict):
+            return {}
+        
+        aliases: dict[str, str] = {}
+        for col_name, col_spec in schema_columns.items():
+            metadata = getattr(col_spec, "metadata", None) or {}
+            if not isinstance(metadata, dict):
+                continue
+            df_eval_meta = metadata.get("df-eval")
+            if not isinstance(df_eval_meta, dict):
+                continue
+            alias = df_eval_meta.get("alias")
+            if isinstance(alias, str) and alias:
+                aliases[col_name] = alias
+        
+        return aliases
 
     @classmethod
     def _validate_chunk(cls, dataframe: pd.DataFrame, schema: "DataFrameSchema") -> pd.DataFrame:
@@ -2684,15 +2764,22 @@ class ParquetBlockModel:
                 )
 
             if required_cols:
+                # Get alias mappings (source -> target)
+                aliases = cls._extract_column_aliases_from_schema(schema)
+                inverse_aliases = {v: k for k, v in aliases.items()}  # target <- source
+                
                 # Keep all special/geometry columns and any schema columns marked as required
+                # But exclude source columns that are being aliased (they get renamed)
                 output_cols = [
                     c
                     for c in output_cols
-                    if c in cls.POSITION_COLUMNS or c in required_cols or c not in schema_ops
+                    if (c in cls.POSITION_COLUMNS or 
+                        c in required_cols or 
+                        (c not in schema_ops and c not in inverse_aliases))
                 ]
                 # Add required schema columns that will be calculated via df-eval
                 for col_name in required_cols:
-                    if col_name not in output_cols and col_name in schema_ops:
+                    if col_name not in output_cols and (col_name in schema_ops or col_name in aliases):
                         output_cols.append(col_name)
                 output_cols = cls._ordered_columns(output_cols)
             # Preserve chunked processing while ensuring expression dependencies are available.
