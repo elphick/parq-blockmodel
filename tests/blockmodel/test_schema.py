@@ -903,3 +903,67 @@ def test_from_parquet_alias_is_applied_before_dependent_calculations(tmp_path):
     expected = np.round(df["deposit"].to_numpy(), 3)
     np.testing.assert_allclose(out["deposit_code"].to_numpy(), expected, rtol=0, atol=1e-12)
     np.testing.assert_allclose(out["deposit_plus_one"].to_numpy(), expected + 1.0, rtol=0, atol=1e-12)
+
+
+def test_from_parquet_alias_only_is_applied_before_validation_and_persisted(tmp_path):
+    """Alias-only metadata should run before validation and persist rounded output."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+
+    df = create_demo_blockmodel(shape=(2, 2, 2))
+    df["deposit"] = np.linspace(0.12345, 0.82345, len(df))
+    source_parquet = tmp_path / "alias_only_source.parquet"
+    df.to_parquet(source_parquet)
+
+    schema = DataFrameSchema(
+        columns={
+            "deposit_code": Column(
+                float,
+                required=True,
+                metadata={"df-eval": {"alias": "deposit", "decimals": 3}},
+            ),
+        },
+        strict=False,
+    )
+
+    pbm = ParquetBlockModel.from_parquet(source_parquet, schema=schema)
+    out = pbm.read(columns=["deposit_code"], index="ijk", dense=True)
+    expected = np.round(df["deposit"].to_numpy(), 3)
+    np.testing.assert_allclose(out["deposit_code"].to_numpy(), expected, rtol=0, atol=1e-12)
+
+
+def test_from_parquet_persists_schema_columns_in_schema_order(tmp_path):
+    """Schema-defined persisted columns should follow schema definition order."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+
+    df = create_demo_blockmodel(shape=(2, 2, 2))
+    df["density"] = 2.5
+    df["grade"] = np.linspace(0.1, 0.8, len(df))
+    df["deposit"] = np.linspace(0.12345, 0.82345, len(df))
+    source_parquet = tmp_path / "schema_order_source.parquet"
+    df.to_parquet(source_parquet)
+
+    schema = DataFrameSchema(
+        columns={
+            "grade": Column(float, required=True),
+            "deposit_code": Column(
+                float,
+                required=True,
+                metadata={"df-eval": {"alias": "deposit", "decimals": 3}},
+            ),
+            "tonnes": Column(
+                float,
+                required=True,
+                metadata={"df-eval": {"expr": "density * volume"}},
+            ),
+        },
+        strict=False,
+    )
+
+    pbm = ParquetBlockModel.from_parquet(source_parquet, schema=schema)
+    persisted_columns = pq.read_table(pbm.blockmodel_path).column_names
+
+    # Check relative order of schema-defined columns.
+    grade_idx = persisted_columns.index("grade")
+    deposit_code_idx = persisted_columns.index("deposit_code")
+    tonnes_idx = persisted_columns.index("tonnes")
+    assert grade_idx < deposit_code_idx < tonnes_idx
