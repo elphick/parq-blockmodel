@@ -649,7 +649,7 @@ class ParquetBlockModel:
         
         # Step 3: Apply df-eval operations (expr/lookup/function)
         # Extract operations from schema if not provided
-        ops = operations or df_eval_operations_from_pandera(schema)
+        ops = operations if operations is not None else df_eval_operations_from_pandera(schema)
         if not ops:
             return df
         
@@ -2751,6 +2751,8 @@ class ParquetBlockModel:
         if schema is not None:
             required_cols = cls._extract_required_columns_from_schema(schema)
             schema_ops = dict(cls._df_eval_operations_from_schema(schema))
+            schema_columns = getattr(schema, "columns", {})
+            schema_column_names = list(schema_columns.keys()) if isinstance(schema_columns, dict) else []
             persist_targets = [name for name in required_cols if name in schema_ops]
             if persist_targets:
                 all_operations = dict(schema_ops)
@@ -2781,7 +2783,15 @@ class ParquetBlockModel:
                 for col_name in required_cols:
                     if col_name not in output_cols and (col_name in schema_ops or col_name in aliases):
                         output_cols.append(col_name)
-                output_cols = cls._ordered_columns(output_cols)
+                # Keep special columns first, then order schema-defined columns by schema order.
+                special_cols = [c for c in cls.SPECIAL_COLUMN_ORDER if c in output_cols]
+                schema_cols = [
+                    c for c in schema_column_names if c in output_cols and c not in cls.SPECIAL_COLUMN_ORDER
+                ]
+                remaining_cols = [
+                    c for c in output_cols if c not in special_cols and c not in schema_cols
+                ]
+                output_cols = special_cols + schema_cols + remaining_cols
             # Preserve chunked processing while ensuring expression dependencies are available.
             read_cols = list(dict.fromkeys(src_cols + [c for c in cls.SPECIAL_COLUMN_ORDER if c in src_cols]))
 
@@ -2854,13 +2864,12 @@ class ParquetBlockModel:
                     df_batch = cls._coerce_special_column_dtypes(df_batch)
 
                     if schema is not None:
-                        if selected_persist_operations:
-                            df_batch = cls._apply_df_eval_operations(
-                                df_batch,
-                                schema,
-                                operations=selected_persist_operations,
-                                engine_initializer=engine_initializer,
-                            )
+                        df_batch = cls._apply_df_eval_operations(
+                            df_batch,
+                            schema,
+                            operations=selected_persist_operations,
+                            engine_initializer=engine_initializer,
+                        )
                         # Validate after required calculated columns are present.
                         df_batch = cls._validate_chunk(df_batch, schema)
 
