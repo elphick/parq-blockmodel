@@ -10,7 +10,11 @@ API Reference
 
     blockmodel
     geometry
+
     reporting
+    schema
+    reblocking
+    mesh
     utils
 
 

@@ -61,6 +61,8 @@ from parq_tools.utils import atomic_output_file
 from parq_blockmodel.geometry import RegularGeometry, LocalGeometry, WorldFrame
 from parq_blockmodel.reporting.utils import resolve_report_columns_per_batch
 from parq_blockmodel.reblocking.reblocking import downsample_blockmodel, upsample_blockmodel
+from parq_blockmodel.schema.service import SchemaService
+from parq_blockmodel.schema import utils as schema_utils
 
 if typing.TYPE_CHECKING:
     import pyvista as pv  # type: ignore[import]
@@ -147,9 +149,9 @@ class ParquetBlockModel:
         self.name = name or blockmodel_path.stem
         self.geometry = geometry or RegularGeometry.from_parquet(self.blockmodel_path)
         if schema is not None:
-            self.schema = self._load_schema(schema)
+            self.schema = schema_utils.load_schema(schema)
         else:
-            self.schema = self._load_embedded_schema(self.blockmodel_path)
+            self.schema = schema_utils.load_embedded_schema(self.blockmodel_path)
         self._engine_initializer = engine_initializer
         self.pf: ParquetFile = ParquetFile(blockmodel_path)
         # Lazy view over the backing Parquet file for large models.
@@ -160,6 +162,7 @@ class ParquetBlockModel:
         self._extract_column_dtypes()
         self._logger = logging.getLogger(__name__)
         self._assert_canonical_block_id_invariant()
+        self._schema_service: Optional[SchemaService] = None
 
         if self.is_sparse:
             if not self.validate_sparse():
@@ -186,6 +189,24 @@ class ParquetBlockModel:
             >>> result = pbm.read(columns=["rock_name", "converted_value"])
         """
         self._engine_initializer = initializer
+        self._schema_service = None  # Invalidate cached service
+
+    @property
+    def schema_service(self) -> SchemaService:
+        """Lazy-initialized schema service (recreated if schema or engine changes).
+        
+        Returns
+        -------
+        SchemaService
+            Stateful schema service bound to current geometry and schema.
+        """
+        if self._schema_service is None:
+            self._schema_service = SchemaService(
+                geometry=self.geometry,
+                schema=self.schema,
+                engine_initializer=self._engine_initializer,
+            )
+        return self._schema_service
 
     def _assert_canonical_block_id_invariant(self) -> None:
         """Enforce mandatory canonical identity invariant for `.pbm` files."""
@@ -313,70 +334,27 @@ class ParquetBlockModel:
 
     @classmethod
     def _load_schema(cls, schema: Union[Path, "DataFrameSchema"]) -> "DataFrameSchema":
-        """Load and return a pandera :class:`DataFrameSchema`.
-
-        Accepts either a ready-made :class:`~pandera.DataFrameSchema` object or a
-        :class:`~pathlib.Path` pointing to a YAML schema file (loaded via
-        ``df_eval.utils.pandera_io_compat.from_yaml`` to preserve custom metadata).
-
-        Args:
-            schema: A pandera ``DataFrameSchema`` instance, or a :class:`Path` to a
-                YAML schema file.
-
-        Returns:
-            DataFrameSchema: The loaded schema.
-
-        Raises:
-            ImportError: If ``pandera`` or ``df-eval`` is not installed.
-            TypeError: If ``schema`` is not a recognised type.
+        """Load and return a pandera DataFrameSchema.
+        
+        Delegates to schema_utils.load_schema for backwards compatibility.
         """
-        try:
-            from pandera import DataFrameSchema as _DataFrameSchema
-        except ImportError as exc:  # pragma: no cover
-            raise ImportError(
-                "Schema support requires 'pandera'. Install it with: "
-                "pip install 'parq-blockmodel[schema]'"
-            ) from exc
-
-        if isinstance(schema, _DataFrameSchema):
-            return schema
-
-        if isinstance(schema, (str, Path)):
-            try:
-                from df_eval.pandera import load_pandera_schema_yaml
-            except ImportError as exc:  # pragma: no cover
-                raise ImportError(
-                    "Loading a schema from a YAML file requires 'df-eval'. Install it with: "
-                    "pip install 'parq-blockmodel[schema]'"
-                ) from exc
-            return load_pandera_schema_yaml(schema)
-
-        raise TypeError(
-            f"schema must be a pandera DataFrameSchema or a path to a YAML file, got {type(schema)!r}"
-        )
+        return schema_utils.load_schema(schema)
 
     @classmethod
     def _dump_schema_yaml(cls, schema: "DataFrameSchema") -> str:
-        try:
-            from df_eval.pandera import dump_pandera_schema_yaml
-        except ImportError as exc:  # pragma: no cover
-            raise ImportError(
-                "Schema serialization requires 'df-eval'. Install it with: "
-                "pip install 'parq-blockmodel[schema]'"
-            ) from exc
-        yaml_text = dump_pandera_schema_yaml(schema)
-        if not isinstance(yaml_text, str):
-            raise ValueError("Expected df-eval to return schema YAML text.")
-        return yaml_text
+        """Dump schema to YAML text.
+        
+        Delegates to schema_utils.dump_schema_yaml for backwards compatibility.
+        """
+        return schema_utils.dump_schema_yaml(schema)
 
     @classmethod
     def _load_embedded_schema(cls, parquet_path: Path) -> Optional["DataFrameSchema"]:
-        metadata = pq.read_metadata(parquet_path).metadata or {}
-        payload = metadata.get(cls.SCHEMA_METADATA_KEY)
-        if payload is None:
-            return None
-        yaml_text = payload.decode("utf-8") if isinstance(payload, (bytes, bytearray)) else str(payload)
-        return cls._load_schema(yaml_text)
+        """Load embedded schema from Parquet metadata.
+        
+        Delegates to schema_utils.load_embedded_schema for backwards compatibility.
+        """
+        return schema_utils.load_embedded_schema(parquet_path)
 
     @classmethod
     def _build_schema_metadata(
@@ -386,224 +364,88 @@ class ParquetBlockModel:
         schema: Optional["DataFrameSchema"],
         base_metadata: Optional[dict[bytes, bytes]] = None,
     ) -> dict[bytes, bytes]:
-        metadata = dict(base_metadata or {})
-        metadata[cls.GEOMETRY_METADATA_KEY] = json.dumps(geometry.to_metadata_dict()).encode("utf-8")
-        if schema is None:
-            metadata.pop(cls.SCHEMA_METADATA_KEY, None)
-        else:
-            metadata[cls.SCHEMA_METADATA_KEY] = cls._dump_schema_yaml(schema).encode("utf-8")
-        return metadata
+        """Build schema metadata dict.
+        
+        Delegates to schema_utils.build_schema_metadata for backwards compatibility.
+        """
+        return schema_utils.build_schema_metadata(geometry, schema, base_metadata)
 
     @classmethod
     def _df_eval_operations_from_schema(cls, schema: "DataFrameSchema") -> dict[str, dict[str, typing.Any]]:
-        try:
-            from df_eval.pandera import df_eval_operations_from_pandera
-        except ImportError as exc:  # pragma: no cover
-            raise ImportError(
-                "Calculated column support requires 'df-eval'. Install it with: "
-                "pip install 'parq-blockmodel[schema]'"
-            ) from exc
-        return df_eval_operations_from_pandera(schema)
+        """Extract df-eval operations from schema.
+        
+        Delegates to schema_utils for backwards compatibility.
+        """
+        return schema_utils.df_eval_operations_from_schema(schema)
 
     def _intrinsic_df_eval_operations(self) -> dict[str, dict[str, typing.Any]]:
-        if self.INTRINSIC_VOLUME_COLUMN in self.columns:
-            return {}
-        intrinsic_volume = self.geometry.block_volume
-        return {
-            self.INTRINSIC_VOLUME_COLUMN: {
-                "kind": "expr",
-                "expr": repr(intrinsic_volume),
-            }
-        }
+        """Get intrinsic df-eval operations.
+        
+        Delegates to schema_service.
+        """
+        return self.schema_service.intrinsic_df_eval_operations()
 
     def _available_df_eval_operations(self) -> dict[str, dict[str, typing.Any]]:
-        schema_operations: dict[str, dict[str, typing.Any]] = {}
-        if self.schema is not None:
-            schema_operations = self._df_eval_operations_from_schema(self.schema)
-            # Also include aliased columns (columns with alias in their metadata)
-            # even though they're not actual operations
-            aliases = self._extract_column_aliases_from_schema(self.schema)
-            for target_col, source_col in aliases.items():
-                if target_col not in schema_operations:
-                    # Create a placeholder operation so read path recognizes aliased columns
-                    # The actual transformation is handled by apply_pandera_schema()
-                    schema_operations[target_col] = {
-                        "kind": "alias",
-                        "alias": source_col,
-                    }
+        """Get all available df-eval operations (schema + intrinsic).
         
-        operations = dict(schema_operations)
-        for name, operation in self._intrinsic_df_eval_operations().items():
-            operations.setdefault(name, operation)
-        return operations
+        Delegates to schema_service.
+        """
+        return self.schema_service.available_df_eval_operations()
 
     def _schema_column_attribute_flags(self) -> dict[str, bool]:
-        if self.schema is None:
-            return {}
-        flags: dict[str, bool] = {}
-        schema_columns = getattr(self.schema, "columns", {})
-        if not isinstance(schema_columns, dict):
-            return flags
-        for name, column in schema_columns.items():
-            metadata = getattr(column, "metadata", None) or {}
-            if not isinstance(metadata, dict):
-                continue
-            pbm_metadata = metadata.get("parq-blockmodel")
-            if not isinstance(pbm_metadata, dict):
-                continue
-            is_attribute = pbm_metadata.get("is_attribute")
-            if isinstance(is_attribute, bool):
-                flags[name] = is_attribute
-        return flags
+       """Get attribute classification flags from schema.
+        
+       Delegates to schema_service.
+       """
+       return self.schema_service.schema_column_attribute_flags()
 
     def _get_schema_column_names(self) -> list[str]:
-       """Extract column names from schema in their definition order.
-
-       Returns
-       -------
-       list[str]
-           Column names defined in the schema in the order they appear,
-           or an empty list if no schema is available.
+       """Extract schema column names in definition order.
+        
+       Delegates to schema_service.
        """
-       if self.schema is None:
-           return []
-       schema_columns = getattr(self.schema, "columns", {})
-       if not isinstance(schema_columns, dict):
-           return []
-       return list(schema_columns.keys())
+       return self.schema_service.get_schema_column_names()
 
     @staticmethod
     def _extract_non_empty_schema_field(
-        target: typing.Any,
-        field: str,
-        *,
-        include_metadata: bool = True,
+       target: typing.Any,
+       field: str,
+       *,
+       include_metadata: bool = True,
     ) -> Optional[str]:
-        value = getattr(target, field, None)
-        if value is None and include_metadata:
-            metadata = getattr(target, "metadata", None)
-            if isinstance(metadata, dict):
-                value = metadata.get(field)
-        if value is None:
-            return None
-        text = str(value).strip()
-        return text or None
+       """Extract a non-empty field from a schema object.
+        
+       Delegates to schema_service helper.
+       """
+       return SchemaService._extract_non_empty_schema_field(target, field, include_metadata=include_metadata)
 
     def _report_schema_metadata(
-        self,
-        selected_columns: list[str],
+       self,
+       selected_columns: list[str],
     ) -> tuple[Optional[dict[str, str]], Optional[dict[str, str]]]:
-        if self.schema is None:
-            return None, None
-
-        schema_columns = getattr(self.schema, "columns", {})
-        column_descriptions: dict[str, str] = {}
-        if isinstance(schema_columns, dict):
-            for column_name in selected_columns:
-                schema_column = schema_columns.get(column_name)
-                if schema_column is None:
-                    continue
-                title = self._extract_non_empty_schema_field(
-                    schema_column,
-                    "title",
-                    include_metadata=False,
-                )
-                description = self._extract_non_empty_schema_field(
-                    schema_column,
-                    "description",
-                    include_metadata=False,
-                )
-                pieces = [piece for piece in (title, description) if piece]
-                if pieces:
-                    column_descriptions[column_name] = " - ".join(pieces)
-
-        dataset_payload: dict[str, str] = {}
-        for key in ("name", "title", "description"):
-            value = self._extract_non_empty_schema_field(self.schema, key, include_metadata=False)
-            if value is not None:
-                dataset_payload[key] = value
-        dataset_metadata = {"description": str(dataset_payload)} if dataset_payload else None
-
-        return (column_descriptions or None), dataset_metadata
+       """Extract metadata descriptions for reporting.
+        
+       Delegates to schema_service.
+       """
+       return self.schema_service.report_schema_metadata(selected_columns)
 
     def _calculated_attribute_flags(self) -> dict[str, bool]:
-        flags = {name: True for name in self.calculated_columns}
-        for name, is_attribute in self._schema_column_attribute_flags().items():
-            if name in flags:
-                flags[name] = is_attribute
-        intrinsic = self._intrinsic_df_eval_operations()
-        for name in intrinsic:
-            flags[name] = False
-        return flags
+       """Classify calculated columns as attributes or positional.
+        
+       Delegates to schema_service.
+       """
+       return self.schema_service.calculated_attribute_flags(self.calculated_columns)
 
     def _apply_intrinsic_operations(
         self,
         dataframe: pd.DataFrame,
         operations: dict[str, dict[str, typing.Any]],
     ) -> pd.DataFrame:
-        for column_name in operations:
-            if column_name == self.INTRINSIC_VOLUME_COLUMN:
-                dataframe[column_name] = np.float64(self.geometry.block_volume)
-            else:
-                raise ValueError(
-                    f"Column '{column_name}' requires schema-backed calculated expressions."
-                )
-        return dataframe
-
-    @classmethod
-    def _select_df_eval_operations(
-        cls,
-        operations: dict[str, dict[str, typing.Any]],
-        targets: typing.Iterable[str],
-    ) -> dict[str, dict[str, typing.Any]]:
-        selected: dict[str, dict[str, typing.Any]] = {}
-        in_progress: set[str] = set()
-
-        def include_operation(column: str) -> None:
-            if column in selected or column in in_progress:
-                return
-            operation = operations.get(column)
-            if operation is None:
-                return
-
-            in_progress.add(column)
-            kind = operation.get("kind")
-
-            if kind == "expr":
-                expr_text = operation.get("expr")
-                if isinstance(expr_text, str):
-                    try:
-                        float(expr_text)
-                    except ValueError:
-                        try:
-                            from df_eval.expr import Expression
-                        except ImportError as exc:  # pragma: no cover
-                            raise ImportError(
-                                "Calculated column support requires 'df-eval'. Install it with: "
-                                "pip install 'parq-blockmodel[schema]'"
-                            ) from exc
-                        for dependency in Expression(expr_text).dependencies:
-                            include_operation(dependency)
-            elif kind == "lookup":
-                lookup_spec = operation.get("lookup") or {}
-                key_column = lookup_spec.get("key")
-                if isinstance(key_column, str):
-                    include_operation(key_column)
-            elif kind == "function":
-                function_spec = operation.get("function") or {}
-                inputs = function_spec.get("inputs")
-                if isinstance(inputs, list):
-                    for dependency in inputs:
-                        if isinstance(dependency, str):
-                            include_operation(dependency)
-
-            in_progress.remove(column)
-            selected[column] = operation
-
-        for target in targets:
-            include_operation(target)
-
-        return {name: operations[name] for name in operations if name in selected}
+        """Apply intrinsic operations to a DataFrame.
+        
+        Delegates to schema_service.
+        """
+        return self.schema_service.apply_intrinsic_operations(dataframe, operations)
 
     @classmethod
     def _apply_df_eval_operations(
@@ -613,24 +455,26 @@ class ParquetBlockModel:
         operations: Optional[dict[str, dict[str, typing.Any]]] = None,
         engine_initializer: Optional[typing.Callable] = None,
     ) -> pd.DataFrame:
-        """Apply df-eval operations including alias and decimals transforms.
+        """Apply df-eval operations (aliases, decimals, expressions).
         
-        Pipeline order:
-        1. Apply alias transforms (rename columns)
-        2. Apply decimals transforms (round output)
-        3. Apply df-eval operations (expr/lookup/function)
+        This is a compatibility wrapper. For internal use with geometry context,
+        use schema_service.apply_df_eval_operations() instead.
         
-        Args:
-            dataframe: Input DataFrame to transform
-            schema: Pandera DataFrameSchema with optional df-eval metadata
-            operations: Optional pre-extracted operations dictionary
-                (if provided and includes desired targets, will be used directly;
-                if None, extracted from schema)
-            engine_initializer: Optional callable to customize engine (if provided,
-                custom engine will be used instead of default)
+        Parameters
+        ----------
+        dataframe : pd.DataFrame
+            Input DataFrame to transform
+        schema : DataFrameSchema
+            Pandera schema with optional df-eval metadata
+        operations : dict, optional
+            Pre-extracted operations (if None, extracted from schema)
+        engine_initializer : Callable, optional
+            Optional engine customization function
         
-        Returns:
-            Transformed DataFrame with alias, decimals, and operations applied
+        Returns
+        -------
+        pd.DataFrame
+            Transformed DataFrame
         """
         try:
             from df_eval.pandera import apply_aliases, apply_decimals, df_eval_operations_from_pandera
@@ -640,108 +484,61 @@ class ParquetBlockModel:
                 "Calculated column support requires 'df-eval'. Install it with: "
                 "pip install 'parq-blockmodel[schema]'"
             ) from exc
-        
+
         # Step 1: Apply alias transforms (rename columns)
         df = apply_aliases(dataframe, schema)
-        
+
         # Step 2: Apply decimals transforms
         df = apply_decimals(df, schema)
-        
+
         # Step 3: Apply df-eval operations (expr/lookup/function)
-        # Extract operations from schema if not provided
         ops = operations if operations is not None else df_eval_operations_from_pandera(schema)
         if not ops:
             return df
-        
+
         # Create engine, potentially customized via engine_initializer
         engine = Engine()
         if engine_initializer is not None:
             engine = engine_initializer(engine)
-        
+
         # Apply operations using the engine
         return engine.apply_operations(df, ops)
 
     @classmethod
-    def _extract_required_columns_from_schema(cls, schema: "DataFrameSchema") -> set[str]:
-        """Extract the set of column names that are required (should be persisted).
-
-        Columns with ``required=False`` are non-persisted calculated columns and
-        should be excluded from the output during `_write_canonical_pbm()`.
-
-        Args:
-            schema: A pandera ``DataFrameSchema``.
-
-        Returns:
-            set[str]: Column names with ``required=True``, or all schema columns if
-                ``required`` is not explicitly set (defaults to True).
+    def _select_df_eval_operations(
+        cls,
+        operations: dict[str, dict[str, typing.Any]],
+        targets: typing.Iterable[str],
+    ) -> dict[str, dict[str, typing.Any]]:
+        """Recursively select df-eval operations and dependencies.
+        
+        Delegates to schema_utils for backwards compatibility.
         """
-        if schema is None:
-            return set()
-        schema_columns = getattr(schema, "columns", {})
-        if not isinstance(schema_columns, dict):
-            return set()
-        required = set()
-        for col_name, col_spec in schema_columns.items():
-            col_required = getattr(col_spec, "required", True)
-            if col_required is not False:
-                required.add(col_name)
-        return required
-    
+        return schema_utils.select_df_eval_operations(operations, targets)
+
+    @classmethod
+    def _extract_required_columns_from_schema(cls, schema: "DataFrameSchema") -> set[str]:
+        """Extract required columns from schema.
+        
+        Delegates to schema_utils for backwards compatibility.
+        """
+        return schema_utils.extract_required_columns_from_schema(schema)
+
     @classmethod
     def _extract_column_aliases_from_schema(cls, schema: "DataFrameSchema") -> dict[str, str]:
-        """Extract alias mappings from schema df-eval metadata.
+        """Extract column aliases from schema.
         
-        Returns a dict mapping target_column -> source_column for all columns
-        that have an alias specified in their df-eval metadata.
-        
-        Args:
-            schema: A pandera ``DataFrameSchema``.
-        
-        Returns:
-            dict[str, str]: Mapping of {target_column: source_column} for aliased columns.
-                Example: {"deposit_code": "deposit"} if deposit_code has alias "deposit".
+        Delegates to schema_utils for backwards compatibility.
         """
-        if schema is None:
-            return {}
-        
-        schema_columns = getattr(schema, "columns", {})
-        if not isinstance(schema_columns, dict):
-            return {}
-        
-        aliases: dict[str, str] = {}
-        for col_name, col_spec in schema_columns.items():
-            metadata = getattr(col_spec, "metadata", None) or {}
-            if not isinstance(metadata, dict):
-                continue
-            df_eval_meta = metadata.get("df-eval")
-            if not isinstance(df_eval_meta, dict):
-                continue
-            alias = df_eval_meta.get("alias")
-            if isinstance(alias, str) and alias:
-                aliases[col_name] = alias
-        
-        return aliases
+        return schema_utils.extract_column_aliases_from_schema(schema)
 
     @classmethod
     def _validate_chunk(cls, dataframe: pd.DataFrame, schema: "DataFrameSchema") -> pd.DataFrame:
-        """Validate and coerce a single DataFrame chunk against *schema*.
-
-        The schema is applied with ``lazy=True`` so all column errors are
-        collected before raising, and ``inplace=False`` so the original
-        chunk is not mutated.  Coercion (type casting) is performed when the
-        schema has ``coerce=True`` set on its columns.
-
-        Args:
-            dataframe: A pandas DataFrame chunk to validate.
-            schema: A pandera ``DataFrameSchema`` to validate against.
-
-        Returns:
-            pd.DataFrame: The validated (and possibly coerced) DataFrame.
-
-        Raises:
-            pandera.errors.SchemaErrors: If the chunk fails validation (when pandera raises in lazy mode).
+        """Validate and coerce a DataFrame chunk.
+        
+        Delegates to schema_utils for backwards compatibility.
         """
-        return schema.validate(dataframe, lazy=True)
+        return schema_utils.validate_chunk(dataframe, schema)
 
     def validate(self, schema: Optional[Union[Path, "DataFrameSchema"]] = None, sample_chunks: int = 0) -> bool:
         """Validate the block model data against a pandera schema.
