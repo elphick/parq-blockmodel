@@ -79,19 +79,12 @@ print("Rotated centroids (head):\n", pbm.geometry.to_dataframe_xyz().head())
 # -------------------------------------------------
 # For visualisation we use the rotated Z centroid as a scalar field.
 
-df = pbm.read(index="xyz", dense=True)
-df["z_centroid"] = df.index.get_level_values("z")
+df = pbm.read(index=None)  # raw read; block_id available as column for alignment
+df["z_centroid"] = df["z"]
 
-# Persist the derived scalar back to the pbm Parquet file so that
-# ParquetBlockModel.plot can see it as an attribute.
-df.to_parquet(pbm.blockmodel_path)
-
-# Refresh the ParquetBlockModel's view of available columns/attributes
-# now that we've updated the underlying file.
-import pyarrow.parquet as pq
-pbm.columns = pq.read_schema(pbm.blockmodel_path).names
-pbm.attributes = [col for col in pbm.columns if col not in ["x", "y", "z"]]
-pbm.attributes
+# Persist the derived scalar back using the proper merge write API.
+# merge=True appends the new column to existing rows, aligned on block_id.
+pbm.write(df[["block_id", "z_centroid"]], merge=True)
 
 # %%
 # Plot
