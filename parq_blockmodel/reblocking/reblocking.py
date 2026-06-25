@@ -15,6 +15,7 @@ from parq_blockmodel.reblocking.conversion import tabular_to_3d_dict, dict_3d_to
 from parq_blockmodel.reblocking.downsample import downsample_attributes
 from parq_blockmodel.reblocking.upsample import upsample_attributes
 from parq_blockmodel.utils.spatial_encoding import encode_world_coordinates, get_world_id_encoding_params
+from parq_blockmodel.io.ingest_utils import build_world_id_encoding_from_xyz
 
 if TYPE_CHECKING:
     from parq_blockmodel import ParquetBlockModel
@@ -189,7 +190,7 @@ def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "Pa
     reblocked_df["j"] = j.astype(np.int32)
     reblocked_df["k"] = k.astype(np.int32)
     if new_geometry.world_id_encoding is None:
-        new_geometry.world_id_encoding = ParquetBlockModel._build_world_id_encoding_from_xyz(
+        new_geometry.world_id_encoding = build_world_id_encoding_from_xyz(
             reblocked_df["x"].to_numpy(dtype=float),
             reblocked_df["y"].to_numpy(dtype=float),
             reblocked_df["z"].to_numpy(dtype=float),
@@ -295,7 +296,7 @@ def upsample_blockmodel(blockmodel, new_block_size, upsample_config=None, interp
     reblocked_df["j"] = j.astype(np.int32)
     reblocked_df["k"] = k.astype(np.int32)
     if new_geometry.world_id_encoding is None:
-        new_geometry.world_id_encoding = ParquetBlockModel._build_world_id_encoding_from_xyz(
+        new_geometry.world_id_encoding = build_world_id_encoding_from_xyz(
             reblocked_df["x"].to_numpy(dtype=float),
             reblocked_df["y"].to_numpy(dtype=float),
             reblocked_df["z"].to_numpy(dtype=float),

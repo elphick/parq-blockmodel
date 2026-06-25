@@ -10,7 +10,7 @@ API Reference
 
     blockmodel
     geometry
-
+    io
     reporting
     schema
     reblocking

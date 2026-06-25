@@ -63,6 +63,8 @@ from parq_blockmodel.reporting.utils import resolve_report_columns_per_batch
 from parq_blockmodel.reblocking.reblocking import downsample_blockmodel, upsample_blockmodel
 from parq_blockmodel.schema.service import SchemaService
 from parq_blockmodel.schema import utils as schema_utils
+from parq_blockmodel.io.ingest_writer import IngestWriter
+from parq_blockmodel.io import ingest_utils
 
 if typing.TYPE_CHECKING:
     import pyvista as pv  # type: ignore[import]
@@ -902,7 +904,7 @@ class ParquetBlockModel:
                                                 axis_plunge=axis_plunge,
                                                 chunk_size=chunk_size)
 
-        cls._validate_geometry(parquet_path, geometry=geometry, chunk_size=chunk_size)
+        ingest_utils.validate_geometry(parquet_path, geometry=geometry, chunk_size=chunk_size)
 
         loaded_schema = cls._load_schema(schema) if schema is not None else None
 
@@ -910,13 +912,16 @@ class ParquetBlockModel:
         # write the PBM file alongside the source Parquet file by replacing
         # only the final extension.
         new_filepath: Path = parquet_path.resolve().with_suffix(".pbm")
-        cls._write_canonical_pbm(input_path=parquet_path,
-                                 output_path=new_filepath,
-                                 geometry=geometry,
-                                 columns=columns,
-                                 chunk_size=chunk_size,
-                                 schema=loaded_schema,
-                                 engine_initializer=engine_initializer)
+        
+        writer = IngestWriter(
+            input_path=parquet_path,
+            output_path=new_filepath,
+            geometry=geometry,
+            schema=loaded_schema,
+            engine_initializer=engine_initializer,
+        )
+        writer.write(columns=columns, chunk_size=chunk_size)
+        
         return cls(blockmodel_path=new_filepath, geometry=geometry, schema=loaded_schema, engine_initializer=engine_initializer)
 
     @classmethod
@@ -1004,116 +1009,20 @@ class ParquetBlockModel:
 
         loaded_schema = cls._load_schema(schema) if schema is not None else None
 
-        dataframe = dataframe.copy()
+        # Convert MultiIndex to regular columns (preserves names)
+        dataframe_work = dataframe.reset_index()
 
-        if "block_id" not in dataframe.columns:
-            if dataframe.index.names == ["x", "y", "z"]:
-                x = dataframe.index.get_level_values("x").to_numpy()
-                y = dataframe.index.get_level_values("y").to_numpy()
-                z = dataframe.index.get_level_values("z").to_numpy()
-                dataframe["block_id"] = geometry.row_index_from_xyz(x, y, z).astype(np.uint32)
-            elif {"x", "y", "z"}.issubset(dataframe.columns):
-                dataframe["block_id"] = geometry.row_index_from_xyz(
-                    dataframe["x"].to_numpy(), dataframe["y"].to_numpy(), dataframe["z"].to_numpy()
-                ).astype(np.uint32)
-            elif {"i", "j", "k"}.issubset(dataframe.columns):
-                dataframe["block_id"] = geometry.row_index_from_ijk(
-                    dataframe["i"].to_numpy(), dataframe["j"].to_numpy(), dataframe["k"].to_numpy()
-                ).astype(np.uint32)
-            elif len(dataframe) == int(np.prod(geometry.local.shape)):
-                dataframe["block_id"] = np.arange(len(dataframe), dtype=np.uint32)
-            else:
-                raise ValueError("Unable to derive block_id: provide xyz or ijk coordinates.")
-
-        block_ids = dataframe["block_id"].to_numpy(dtype=np.uint32)
-        i_calc, j_calc, k_calc = geometry.ijk_from_row_index(block_ids)
-        x_calc, y_calc, z_calc = geometry.xyz_from_row_index(block_ids)
-        if "i" not in dataframe.columns:
-            dataframe["i"] = i_calc.astype(np.int32)
-        if "j" not in dataframe.columns:
-            dataframe["j"] = j_calc.astype(np.int32)
-        if "k" not in dataframe.columns:
-            dataframe["k"] = k_calc.astype(np.int32)
-        if "x" not in dataframe.columns:
-            dataframe["x"] = x_calc
-        if "y" not in dataframe.columns:
-            dataframe["y"] = y_calc
-        if "z" not in dataframe.columns:
-            dataframe["z"] = z_calc
-
-        dataframe = cls._coerce_special_column_dtypes(dataframe, columns=["block_id", "i", "j", "k", "x", "y", "z"])
-
-        if "world_id" not in dataframe.columns:
-            x = dataframe["x"].to_numpy(dtype=float)
-            y = dataframe["y"].to_numpy(dtype=float)
-            z = dataframe["z"].to_numpy(dtype=float)
-
-            if geometry.world_id_encoding is None:
-                geometry.world_id_encoding = cls._build_world_id_encoding_from_xyz(x, y, z)
-            offset, scale, bits_per_axis = get_world_id_encoding_params(geometry.world_id_encoding)
-            dataframe["world_id"] = encode_world_coordinates(
-                x, y, z, offset=offset, scale=scale, bits_per_axis=bits_per_axis
-            ).astype(np.int64)
-
-        dataframe = cls._coerce_special_column_dtypes(dataframe)
-        dataframe = dataframe[cls._ordered_columns(list(dataframe.columns))]
-
-        if loaded_schema is not None:
-            required_cols = cls._extract_required_columns_from_schema(loaded_schema)
-            schema_operations = dict(cls._df_eval_operations_from_schema(loaded_schema))
-            persist_targets = [name for name in required_cols if name in schema_operations]
-
-            selected_operations: dict[str, dict[str, typing.Any]] = {}
-            if persist_targets:
-                all_operations = dict(schema_operations)
-                if cls.INTRINSIC_VOLUME_COLUMN not in dataframe.columns:
-                    all_operations.setdefault(
-                        cls.INTRINSIC_VOLUME_COLUMN,
-                        {"kind": "expr", "expr": repr(geometry.block_volume)},
-                    )
-                selected_operations = cls._select_df_eval_operations(
-                    all_operations,
-                    persist_targets,
-                )
-
-            if selected_operations:
-                dataframe = cls._apply_df_eval_operations(
-                    dataframe,
-                    loaded_schema,
-                    operations=selected_operations,
-                    engine_initializer=engine_initializer,
-                )
-
-            # Validate/coerce after required calculated columns are materialized.
-            dataframe = cls._validate_chunk(dataframe, loaded_schema)
-            if required_cols:
-                # required=False is used for non-persisted calculated columns.
-                # Keep regular source columns even if schema marks them optional.
-                dataframe = dataframe[
-                    [
-                        c
-                        for c in dataframe.columns
-                        if c in cls.POSITION_COLUMNS
-                        or c in required_cols
-                        or c not in schema_operations
-                    ]
-                ]
-
-        # Attach geometry metadata to attrs for completeness
-        dataframe.attrs["parq-blockmodel"] = geometry.to_metadata_dict()
-
-        # Save DataFrame to Parquet and embed geometry metadata
-        table = pa.Table.from_pandas(dataframe, preserve_index=False)
-        meta = cls._build_schema_metadata(
+        writer = IngestWriter(
+            input_path=None,  # No input file; we're writing from DataFrame
+            output_path=pbm_path,
             geometry=geometry,
             schema=loaded_schema,
-            base_metadata=dict(table.schema.metadata or {}),
+            engine_initializer=engine_initializer,
         )
-        table = table.replace_schema_metadata(meta)
-        pq.write_table(table, pbm_path)
+        writer.write_dataframe(dataframe_work)
 
         # Validate geometry
-        cls._validate_geometry(pbm_path, geometry, chunk_size=chunk_size)
+        ingest_utils.validate_geometry(pbm_path, geometry, chunk_size=chunk_size)
 
         return cls(blockmodel_path=pbm_path, name=name, geometry=geometry, schema=loaded_schema, engine_initializer=engine_initializer)
 
@@ -1248,14 +1157,17 @@ class ParquetBlockModel:
         )
 
         if not geometry.is_rotated:
-            cls._validate_geometry(filename)
+            from parq_blockmodel.io.ingest_utils import validate_geometry
+            validate_geometry(filepath=filename, geometry=geometry)
 
         new_filepath = filename.resolve().with_suffix(".pbm")
-        cls._write_canonical_pbm(input_path=filename,
-                                 output_path=new_filepath,
-                                 geometry=geometry,
-                                 columns=None,
-                                 chunk_size=1_000_000)
+        from parq_blockmodel.io.ingest_writer import IngestWriter
+        writer = IngestWriter(
+            input_path=filename,
+            output_path=new_filepath,
+            geometry=geometry,
+        )
+        writer.write(columns=None, chunk_size=1_000_000)
 
         return cls(blockmodel_path=new_filepath, geometry=geometry)
 
@@ -1304,34 +1216,17 @@ class ParquetBlockModel:
         centroids_df["i"] = i.astype(np.int32)
         centroids_df["j"] = j.astype(np.int32)
         centroids_df["k"] = k.astype(np.int32)
-        if geometry.world_id_encoding is None:
-            geometry.world_id_encoding = cls._build_world_id_encoding_from_xyz(
-                centroids_df["x"].to_numpy(dtype=float),
-                centroids_df["y"].to_numpy(dtype=float),
-                centroids_df["z"].to_numpy(dtype=float),
-            )
-        offset, scale, bits_per_axis = get_world_id_encoding_params(geometry.world_id_encoding)
-        centroids_df["world_id"] = encode_world_coordinates(
-            centroids_df["x"].to_numpy(dtype=float),
-            centroids_df["y"].to_numpy(dtype=float),
-            centroids_df["z"].to_numpy(dtype=float),
-            offset=offset,
-            scale=scale,
-            bits_per_axis=bits_per_axis,
-        ).astype(np.int64)
-        centroids_df = centroids_df[cls._ordered_columns(list(centroids_df.columns))]
-        centroids_df.attrs["parq-blockmodel"] = geometry.to_metadata_dict()
 
         loaded_schema = cls._load_schema(schema) if schema is not None else None
 
-        table = pa.Table.from_pandas(centroids_df, preserve_index=False)
-        meta = cls._build_schema_metadata(
+        writer = IngestWriter(
+            input_path=None,  # No input file; we're writing from DataFrame
+            output_path=path,
             geometry=geometry,
-            schema=loaded_schema,
-            base_metadata=dict(table.schema.metadata or {}),
+            schema=None,  # Don't apply schema validation for geometry-only writes
+            engine_initializer=engine_initializer,
         )
-        table = table.replace_schema_metadata(meta)
-        pq.write_table(table, path)
+        writer.write_dataframe(centroids_df)
 
         return cls(blockmodel_path=path, name=name, geometry=geometry, schema=loaded_schema, engine_initializer=engine_initializer)
 
@@ -2250,140 +2145,6 @@ class ParquetBlockModel:
 
         return grid
 
-    @staticmethod
-    def _assert_block_id_xyz_consistent(
-        block_ids: np.ndarray,
-        x: np.ndarray,
-        y: np.ndarray,
-        z: np.ndarray,
-        geometry: RegularGeometry,
-        tol: float,
-        context: str,
-    ) -> None:
-        """Raise if provided block_id values do not match xyz-derived ids."""
-        expected = geometry.row_index_from_xyz(x, y, z, tol=tol).astype(np.uint32)
-        actual = np.asarray(block_ids, dtype=np.uint32)
-        mismatch = actual != expected
-        if np.any(mismatch):
-            first = int(np.flatnonzero(mismatch)[0])
-            raise ValueError(
-                "Inconsistent positional columns: provided block_id does not match "
-                f"xyz-derived block_id ({context}, first mismatch at batch offset {first}: "
-                f"provided={int(actual[first])}, expected={int(expected[first])})."
-            )
-
-    @staticmethod
-    def _validate_geometry(filepath: Path,
-                           geometry: Optional[RegularGeometry] = None,
-                           chunk_size: int = 1_000_000,
-                           tol: float = 1e-6) -> None:
-        """Validate centroid columns against a :class:`RegularGeometry`.
-
-        This helper enforces that a Parquet file used as a
-        :class:`ParquetBlockModel` has well‑formed centroid columns
-        ``x``, ``y``, ``z`` and that these centroids lie on the dense
-        grid implied by a :class:`RegularGeometry` instance.
-
-        Parameters
-        ----------
-        filepath : Path
-            Path to the Parquet file to validate (typically a ``.pbm``
-            container or its source ``.parquet`` file).
-        geometry : RegularGeometry, optional
-            Geometry of the logical ijk grid. If omitted, it is inferred
-            from ``filepath`` via :meth:`RegularGeometry.from_parquet`.
-
-        Raises
-        ------
-        ValueError
-            If any centroid column is missing or contains null values,
-            if their lengths differ, or if the resulting sparse centroids
-            are not a subset of the dense grid implied by ``geometry``.
-
-        Notes
-        -----
-        For centroid-defined layouts we require explicit centroid columns
-        ``x, y, z`` on disk. As the library moves toward an ijk‑first
-        core, geometry will increasingly be treated as the sole source
-        of truth and xyz may become purely a derived view. At that
-        point this validation may be relaxed or supplemented with
-        geometry‑only checks.
-        """
-        columns = pq.read_schema(filepath).names
-
-        has_block_id = "block_id" in columns
-        has_world_id = "world_id" in columns
-        has_ijk = all(col in columns for col in ["i", "j", "k"])
-        has_xyz = all(col in columns for col in ["x", "y", "z"])
-
-        if not any([has_block_id, has_world_id, has_ijk, has_xyz]):
-            raise ValueError("Dataset must contain at least one positional representation: block_id, world_id, ijk, or xyz.")
-
-        if geometry is None:
-            geometry = RegularGeometry.from_parquet(filepath)
-
-        dense_count = int(np.prod(geometry.local.shape))
-        seen: set[int] = set()
-
-        pf = pq.ParquetFile(filepath)
-        if has_block_id and has_xyz:
-            columns_to_read = ["block_id", "x", "y", "z"]
-        elif has_block_id:
-            columns_to_read = ["block_id"]
-        elif has_world_id:
-            columns_to_read = ["world_id"]
-        elif has_xyz:
-            columns_to_read = ["x", "y", "z"]
-        else:
-            columns_to_read = ["i", "j", "k"]
-
-        for batch in pf.iter_batches(columns=columns_to_read, batch_size=chunk_size):
-            if has_block_id and has_xyz:
-                block_ids = np.asarray(batch.column(0), dtype=np.uint32)
-                x = np.asarray(batch.column(1), dtype=float)
-                y = np.asarray(batch.column(2), dtype=float)
-                z = np.asarray(batch.column(3), dtype=float)
-                ParquetBlockModel._assert_block_id_xyz_consistent(
-                    block_ids=block_ids,
-                    x=x,
-                    y=y,
-                    z=z,
-                    geometry=geometry,
-                    tol=tol,
-                    context=f"validation for {filepath}",
-                )
-            elif has_block_id:
-                block_ids = np.asarray(batch.column(0), dtype=np.uint32)
-            elif has_world_id:
-                if not geometry.world_id_encoding:
-                    raise ValueError("world_id column present but metadata has no world_id_encoding payload.")
-                offset, scale, bits_per_axis = get_world_id_encoding_params(geometry.world_id_encoding)
-                world_ids = np.asarray(batch.column(0), dtype=np.int64)
-                x, y, z = decode_world_coordinates(
-                    world_ids, offset=offset, scale=scale, bits_per_axis=bits_per_axis
-                )
-                block_ids = geometry.row_index_from_xyz(x, y, z, tol=tol).astype(np.uint32)
-            elif has_xyz:
-                x = np.asarray(batch.column(0), dtype=float)
-                y = np.asarray(batch.column(1), dtype=float)
-                z = np.asarray(batch.column(2), dtype=float)
-                block_ids = geometry.row_index_from_xyz(x, y, z, tol=tol).astype(np.uint32)
-            else:
-                i = np.asarray(batch.column(0), dtype=np.int64)
-                j = np.asarray(batch.column(1), dtype=np.int64)
-                k = np.asarray(batch.column(2), dtype=np.int64)
-                block_ids = geometry.row_index_from_ijk(i, j, k).astype(np.uint32)
-
-            if np.any(block_ids < 0) or np.any(block_ids >= dense_count):
-                raise ValueError("Sparse positions must be a subset of the dense geometry grid.")
-
-            seen_before = len(seen)
-            seen.update(block_ids.tolist())
-            if len(seen) - seen_before != len(block_ids):
-                raise ValueError("Duplicate block positions detected in dataset.")
-
-        logging.info(f"Geometry validation completed successfully for {filepath}.")
-
     @classmethod
     def validate_xyz_parquet(cls,
                              parquet_path: Path,
@@ -2392,312 +2153,19 @@ class ParquetBlockModel:
                              axis_plunge: float = 0.0,
                              chunk_size: int = 1_000_000,
                              tol: float = 1e-6) -> RegularGeometry:
-        """Validate xyz-defined Parquet input and return inferred geometry."""
-        geometry = RegularGeometry.from_parquet(filepath=parquet_path,
-                                                axis_azimuth=axis_azimuth,
-                                                axis_dip=axis_dip,
-                                                axis_plunge=axis_plunge,
-                                                chunk_size=chunk_size)
-        cls._validate_geometry(filepath=parquet_path, geometry=geometry, chunk_size=chunk_size, tol=tol)
-        return geometry
-
-    @classmethod
-    def _build_world_id_encoding_from_xyz(
-        cls,
-        x: np.ndarray,
-        y: np.ndarray,
-        z: np.ndarray,
-        scale: float = 10.0,
-        bits_per_axis: tuple[int, int, int] = DEFAULT_AXIS_BITS,
-    ) -> dict[str, object]:
-        """Build default world_id encoding metadata from xyz ranges."""
-        x_bits, y_bits, z_bits = tuple(int(v) for v in bits_per_axis)
-        if x_bits <= 0 or y_bits <= 0 or z_bits <= 0:
-            raise ValueError("axis bit counts must be positive integers.")
-        if x_bits > ENCODED_X_BITS or y_bits > ENCODED_Y_BITS or z_bits > ENCODED_Z_BITS:
-            raise ValueError(
-                f"axis bit counts exceed supported maxima x/y/z={ENCODED_X_BITS}/{ENCODED_Y_BITS}/{ENCODED_Z_BITS}."
-            )
-        if (x_bits + y_bits + z_bits) > 64:
-            raise ValueError("axis bit counts must total <= 64 for 64-bit storage.")
-        ox = np.floor(float(np.min(x)) * scale) / scale
-        oy = np.floor(float(np.min(y)) * scale) / scale
-        oz = np.floor(float(np.min(z)) * scale) / scale
-
-        x_span = float(np.max(x) - ox)
-        y_span = float(np.max(y) - oy)
-        z_span = float(np.max(z) - oz)
-        x_axis_max = ((1 << x_bits) - 1) / scale
-        y_axis_max = ((1 << y_bits) - 1) / scale
-        z_axis_max = ((1 << z_bits) - 1) / scale
-        if x_span > x_axis_max or y_span > y_axis_max or z_span > z_axis_max:
-            raise ValueError(
-                f"Coordinates exceed world_id span limits (x/y/z bits={x_bits}/{y_bits}/{z_bits} at scale={scale}). "
-                "Provide a custom encoding strategy."
-            )
-
-        return {
-            "enabled": True,
-            "column": "world_id",
-            "frame": "world_xyz",
-            "axis_order": ["x", "y", "z"],
-            "encoding": {
-                "type": "morton_zorder",
-                "version": "1.0",
-                "bits_per_axis": x_bits,
-                "axis_bits": {"x": x_bits, "y": y_bits, "z": z_bits},
-                "signed": False,
-            },
-            "quantization": {
-                "scale": scale,
-                "rounding": "nearest",
-                "precision_decimals": 1,
-            },
-            "offset": {"x": ox, "y": oy, "z": oz, "units": "world"},
-            "range_after_offset": {
-                "x_min": 0.0,
-                "x_max": x_axis_max,
-                "y_min": 0.0,
-                "y_max": y_axis_max,
-                "z_min": 0.0,
-                "z_max": z_axis_max,
-            },
-            "overflow_policy": "error",
-            "null_policy": "no_nulls",
-        }
-
-    @classmethod
-    def _write_canonical_pbm(cls,
-                             input_path: Path,
-                             output_path: Path,
-                             geometry: RegularGeometry,
-                             columns: Optional[list[str]],
-                             chunk_size: int = 1_000_000,
-                             tol: float = 1e-6,
-                             schema: Optional["DataFrameSchema"] = None,
-                             engine_initializer: Optional[typing.Callable] = None) -> None:
-        """Stream a source parquet file into canonical PBM with block_id and metadata.
-
-        When *schema* is provided it is applied to each chunk via
-        :meth:`_validate_chunk` after spatial columns have been coerced.
-        This resolves common int→float schema conflicts that arise when
-        different chunks carry the same column with different numeric
-        precision.
-
-        After validation/coercion, if the schema contains df-eval operations,
-        those operations are applied to calculate columns. Non-required columns
-        (with ``required=False``) are excluded from the persisted output.
-
-        Args:
-            input_path: Path to the source Parquet file.
-            output_path: Path to the output .pbm file.
-            geometry: RegularGeometry of the block model.
-            columns: Optional subset of columns to persist. If None, all are persisted.
-            chunk_size: Batch size for reading Parquet data.
-            tol: Tolerance for xyz to ijk conversion.
-            schema: Optional pandera DataFrameSchema for validation and df-eval operations.
-            engine_initializer: Optional callable to configure the df-eval Engine.
-                Signature: Callable[[Engine], Engine].
+        """Validate xyz-defined Parquet input and return inferred geometry.
+        
+        This is a backwards-compatible wrapper that delegates to ingest_utils.validate_xyz_parquet().
         """
-        pf = pq.ParquetFile(input_path)
-        src_cols = pf.schema.names
-
-        if columns is None:
-            output_cols = list(src_cols)
-            for special_col in cls.SPECIAL_COLUMN_ORDER:
-                if special_col not in output_cols:
-                    output_cols.append(special_col)
-        else:
-            missing = [c for c in columns if c not in src_cols]
-            if missing:
-                raise ValueError(f"Requested columns not present in source parquet: {missing}")
-            output_cols = list(columns)
-
-        has_block_id = "block_id" in src_cols
-        has_world_id = "world_id" in src_cols
-        has_xyz = all(c in src_cols for c in ["x", "y", "z"])
-        has_ijk = all(c in src_cols for c in ["i", "j", "k"])
-
-        if not any([has_block_id, has_world_id, has_ijk, has_xyz]):
-            raise ValueError("Cannot derive block_id from source parquet: requires block_id, world_id, ijk, or xyz columns.")
-
-        if geometry.world_id_encoding is None:
-            xmin = geometry.extents.xmin
-            xmax = geometry.extents.xmax
-            ymin = geometry.extents.ymin
-            ymax = geometry.extents.ymax
-            zmin = geometry.extents.zmin
-            zmax = geometry.extents.zmax
-            geometry.world_id_encoding = cls._build_world_id_encoding_from_xyz(
-                np.array([xmin, xmax], dtype=float),
-                np.array([ymin, ymax], dtype=float),
-                np.array([zmin, zmax], dtype=float),
-            )
-        offset, scale, bits_per_axis = get_world_id_encoding_params(geometry.world_id_encoding)
-
-        output_cols = cls._ordered_columns(output_cols)
-        read_cols = list(dict.fromkeys(output_cols + [c for c in cls.SPECIAL_COLUMN_ORDER if c in src_cols]))
-        if "block_id" not in output_cols:
-            output_cols = ["block_id"] + output_cols
-        if "world_id" not in output_cols:
-            output_cols = ["block_id", "world_id"] + [c for c in output_cols if c != "block_id"]
-        output_cols = cls._ordered_columns(output_cols)
-
-        selected_persist_operations: dict[str, dict[str, typing.Any]] = {}
-        # Filter out non-required columns from schema (required=False means don't persist)
-        if schema is not None:
-            required_cols = cls._extract_required_columns_from_schema(schema)
-            schema_ops = dict(cls._df_eval_operations_from_schema(schema))
-            schema_columns = getattr(schema, "columns", {})
-            schema_column_names = list(schema_columns.keys()) if isinstance(schema_columns, dict) else []
-            persist_targets = [name for name in required_cols if name in schema_ops]
-            if persist_targets:
-                all_operations = dict(schema_ops)
-                all_operations.setdefault(
-                    cls.INTRINSIC_VOLUME_COLUMN,
-                    {"kind": "expr", "expr": repr(geometry.block_volume)},
-                )
-                selected_persist_operations = cls._select_df_eval_operations(
-                    all_operations,
-                    persist_targets,
-                )
-
-            if required_cols:
-                # Get alias mappings (source -> target)
-                aliases = cls._extract_column_aliases_from_schema(schema)
-                inverse_aliases = {v: k for k, v in aliases.items()}  # target <- source
-                
-                # Keep all special/geometry columns and any schema columns marked as required
-                # But exclude source columns that are being aliased (they get renamed)
-                output_cols = [
-                    c
-                    for c in output_cols
-                    if (c in cls.POSITION_COLUMNS or 
-                        c in required_cols or 
-                        (c not in schema_ops and c not in inverse_aliases))
-                ]
-                # Add required schema columns that will be calculated via df-eval
-                for col_name in required_cols:
-                    if col_name not in output_cols and (col_name in schema_ops or col_name in aliases):
-                        output_cols.append(col_name)
-                # Keep special columns first, then order schema-defined columns by schema order.
-                special_cols = [c for c in cls.SPECIAL_COLUMN_ORDER if c in output_cols]
-                schema_cols = [
-                    c for c in schema_column_names if c in output_cols and c not in cls.SPECIAL_COLUMN_ORDER
-                ]
-                remaining_cols = [
-                    c for c in output_cols if c not in special_cols and c not in schema_cols
-                ]
-                output_cols = special_cols + schema_cols + remaining_cols
-            # Preserve chunked processing while ensuring expression dependencies are available.
-            read_cols = list(dict.fromkeys(src_cols + [c for c in cls.SPECIAL_COLUMN_ORDER if c in src_cols]))
-
-        with atomic_output_file(output_path) as tmp_path:
-            writer = None
-            seen_block_ids: set[int] = set()
-            try:
-                for batch in pf.iter_batches(columns=read_cols, batch_size=chunk_size):
-                    df_batch = pa.Table.from_batches([batch]).to_pandas(ignore_metadata=True)
-
-                    if "block_id" in df_batch.columns and {"x", "y", "z"}.issubset(df_batch.columns):
-                        cls._assert_block_id_xyz_consistent(
-                            block_ids=df_batch["block_id"].to_numpy(dtype=np.uint32),
-                            x=df_batch["x"].to_numpy(dtype=float),
-                            y=df_batch["y"].to_numpy(dtype=float),
-                            z=df_batch["z"].to_numpy(dtype=float),
-                            geometry=geometry,
-                            tol=tol,
-                            context=f"canonical write for {input_path}",
-                        )
-
-                    if "block_id" in df_batch.columns:
-                        block_ids = df_batch["block_id"].to_numpy(dtype=np.uint32)
-                    elif "world_id" in df_batch.columns:
-                        world_ids = df_batch["world_id"].to_numpy(dtype=np.int64)
-                        xw, yw, zw = decode_world_coordinates(
-                            world_ids, offset=offset, scale=scale, bits_per_axis=bits_per_axis
-                        )
-                        block_ids = geometry.row_index_from_xyz(xw, yw, zw, tol=tol).astype(np.uint32)
-                    elif {"x", "y", "z"}.issubset(df_batch.columns):
-                        block_ids = geometry.row_index_from_xyz(
-                            df_batch["x"].to_numpy(), df_batch["y"].to_numpy(), df_batch["z"].to_numpy(), tol=tol
-                        ).astype(np.uint32)
-                    else:
-                        block_ids = geometry.row_index_from_ijk(
-                            df_batch["i"].to_numpy(), df_batch["j"].to_numpy(), df_batch["k"].to_numpy()
-                        ).astype(np.uint32)
-
-                    if np.any(block_ids < 0) or np.any(block_ids >= int(np.prod(geometry.local.shape))):
-                        raise ValueError("Source data contains positions outside geometry bounds.")
-                    if np.unique(block_ids).size != block_ids.size:
-                        raise ValueError("Canonical .pbm requires unique block_id values.")
-                    seen_before = len(seen_block_ids)
-                    seen_block_ids.update(block_ids.tolist())
-                    if len(seen_block_ids) - seen_before != block_ids.size:
-                        raise ValueError("Canonical .pbm requires unique block_id values.")
-
-                    df_batch["block_id"] = block_ids
-                    if not {"x", "y", "z"}.issubset(df_batch.columns):
-                        x, y, z = geometry.xyz_from_row_index(block_ids)
-                        df_batch["x"] = x
-                        df_batch["y"] = y
-                        df_batch["z"] = z
-                    if not {"i", "j", "k"}.issubset(df_batch.columns):
-                        i, j, k = geometry.ijk_from_row_index(block_ids)
-                        df_batch["i"] = i.astype(np.int32)
-                        df_batch["j"] = j.astype(np.int32)
-                        df_batch["k"] = k.astype(np.int32)
-                    df_batch = cls._coerce_special_column_dtypes(
-                        df_batch,
-                        columns=["block_id", "i", "j", "k", "x", "y", "z"],
-                    )
-                    if "world_id" not in df_batch.columns:
-                        x = df_batch["x"].to_numpy(dtype=float)
-                        y = df_batch["y"].to_numpy(dtype=float)
-                        z = df_batch["z"].to_numpy(dtype=float)
-                        df_batch["world_id"] = encode_world_coordinates(
-                            x, y, z, offset=offset, scale=scale, bits_per_axis=bits_per_axis
-                        ).astype(np.int64)
-                    df_batch = cls._coerce_special_column_dtypes(df_batch)
-
-                    if schema is not None:
-                        df_batch = cls._apply_df_eval_operations(
-                            df_batch,
-                            schema,
-                            operations=selected_persist_operations,
-                            engine_initializer=engine_initializer,
-                        )
-                        # Validate after required calculated columns are present.
-                        df_batch = cls._validate_chunk(df_batch, schema)
-
-                    write_df = df_batch[cls._ordered_columns(output_cols)]
-
-                    table = pa.Table.from_pandas(write_df, preserve_index=False)
-                    meta = cls._build_schema_metadata(
-                        geometry=geometry,
-                        schema=schema,
-                        base_metadata=dict(table.schema.metadata or {}),
-                    )
-                    table = table.replace_schema_metadata(meta)
-
-                    if writer is None:
-                        writer = pq.ParquetWriter(tmp_path, table.schema)
-                    else:
-                        # Cast to the writer's schema to handle cross-chunk type differences
-                        # (e.g. int vs float for the same column) when no pandera schema is provided.
-                        if table.schema != writer.schema:
-                            table = table.cast(writer.schema)
-                    writer.write_table(table)
-            finally:
-                if writer is not None:
-                    writer.close()
-                # On Windows, os.replace (used by atomic_output_file) fails if
-                # input_path == output_path and pf still holds a read handle.
-                # Explicitly close pf here, before atomic_output_file renames.
-                try:
-                    pf.close()
-                except Exception:
-                    pass
+        from parq_blockmodel.io.ingest_utils import validate_xyz_parquet
+        return validate_xyz_parquet(
+            parquet_path=parquet_path,
+            axis_azimuth=axis_azimuth,
+            axis_dip=axis_dip,
+            axis_plunge=axis_plunge,
+            chunk_size=chunk_size,
+            tol=tol
+        )
 
     @staticmethod
     def _validate_and_load_data(df, expected_num_blocks):
