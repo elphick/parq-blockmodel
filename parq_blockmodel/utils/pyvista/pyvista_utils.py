@@ -73,11 +73,14 @@ def df_to_pv_image_data(df: pd.DataFrame,
         if categorical_encode and (col.dtype == "object" or col.dtype.name == "category"):
             if categorical_mappings and attr in categorical_mappings:
                 mapping = categorical_mappings[attr]
-                codes = col.map(mapping).astype(int)
+                codes = pd.to_numeric(col.map(mapping), errors="coerce").to_numpy(dtype=float)
             else:
                 cat = pd.Categorical(col)
-                codes = cat.codes
+                codes = cat.codes.astype(float)
                 mapping = dict(enumerate(cat.categories))
+            # Keep missing categories as real NaN so plotting backends can
+            # use nan_color/nan_opacity semantics instead of synthetic codes.
+            codes[codes < 0] = np.nan
             arr = codes.reshape(shape, order='C').ravel(order='F')
             grid.cell_data[attr] = arr
             from parq_blockmodel.utils.pyvista.categorical_utils import store_mapping_dict
@@ -363,5 +366,4 @@ def _get_geometry_from_df(df):
 
 import numpy as np
 import pyvista as pv
-
 
