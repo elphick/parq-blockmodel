@@ -21,3 +21,16 @@ def test_df_to_pv_image_data_categorical_encoding():
     mapping = load_mapping_dict(grid, 'depth_category')
     assert isinstance(mapping, dict)
     assert set(mapping.values()) == {'shallow', 'deep'}
+
+
+def test_df_to_pv_image_data_categorical_encoding_preserves_missing_as_nan():
+    df = create_demo_blockmodel()
+    df = df.copy()
+    df.loc[df.index[0], "depth_category"] = pd.NA
+
+    from parq_blockmodel.utils.pandas_accessors import _geometry_from_df
+    geometry = _geometry_from_df(df)
+    grid = df_to_pv_image_data(df, geometry, categorical_encode=True)
+
+    arr = np.asarray(grid.cell_data["depth_category"], dtype=float)
+    assert np.isnan(arr).any()

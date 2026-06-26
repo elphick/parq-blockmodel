@@ -627,6 +627,171 @@ def test_plot_passes_frame_to_image_pyvista(tmp_path, monkeypatch):
     assert captured["mesh_call"] == "mesh"
 
 
+def test_plot_categorical_passes_pyvista_category_args(tmp_path, monkeypatch):
+    pv = pytest.importorskip("pyvista")
+    from parq_blockmodel.utils.pyvista.categorical_utils import store_mapping_dict
+
+    parquet_path = tmp_path / "plot_categorical_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+    scalar = "depth_category"
+
+    mesh = pv.ImageData(dimensions=(3, 3, 3))
+    mesh.cell_data[scalar] = np.array([0.0, np.nan, 0.0, np.nan, 0.0, np.nan, 0.0, np.nan], dtype=float)
+    store_mapping_dict(mesh, scalar, {0: "lease_a"})
+
+    captured: dict[str, object] = {}
+
+    def fake_to_pyvista(self, grid_type="image", attributes=None, frame="world"):
+        return mesh
+
+    class FakePlotter:
+        def __init__(self):
+            self.actors = {}
+            self.title = None
+
+        def add_mesh_threshold(self, *args, **kwargs):
+            captured["kwargs"] = kwargs
+
+        def add_mesh(self, *args, **kwargs):
+            captured["kwargs"] = kwargs
+
+        def show_axes(self):
+            pass
+
+        def add_text(self, text, position=None, font_size=None, name=None):
+            if name is not None:
+                self.actors[name] = text
+
+        def remove_actor(self, name):
+            self.actors.pop(name, None)
+
+        def enable_cell_picking(self, callback=None, show_message=False, through=False):
+            pass
+
+    monkeypatch.setattr(ParquetBlockModel, "to_pyvista", fake_to_pyvista)
+    monkeypatch.setattr(pv, "Plotter", FakePlotter)
+
+    pbm.plot(scalar=scalar, grid_type="image", threshold=False)
+
+    kwargs = captured["kwargs"]
+    assert kwargs["categories"] is True
+    assert kwargs["annotations"] == {0.0: "lease_a"}
+    assert isinstance(kwargs["cmap"], pv.LookupTable)
+    assert tuple(kwargs["cmap"].scalar_range) == (-0.5, 0.5)
+    assert kwargs["scalar_bar_args"] == {"n_labels": 0, "nan_annotation": True}
+
+
+def test_plot_categorical_without_nan_keeps_scalarbar_clean(tmp_path, monkeypatch):
+    pv = pytest.importorskip("pyvista")
+    from parq_blockmodel.utils.pyvista.categorical_utils import store_mapping_dict
+
+    parquet_path = tmp_path / "plot_categorical_no_nan_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+    scalar = "depth_category"
+
+    mesh = pv.ImageData(dimensions=(3, 3, 3))
+    mesh.cell_data[scalar] = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], dtype=float)
+    store_mapping_dict(mesh, scalar, {0: "lease_a"})
+
+    captured: dict[str, object] = {}
+
+    def fake_to_pyvista(self, grid_type="image", attributes=None, frame="world"):
+        return mesh
+
+    class FakePlotter:
+        def __init__(self):
+            self.actors = {}
+            self.title = None
+
+        def add_mesh_threshold(self, *args, **kwargs):
+            captured["kwargs"] = kwargs
+
+        def add_mesh(self, *args, **kwargs):
+            captured["kwargs"] = kwargs
+
+        def show_axes(self):
+            pass
+
+        def add_text(self, text, position=None, font_size=None, name=None):
+            if name is not None:
+                self.actors[name] = text
+
+        def remove_actor(self, name):
+            self.actors.pop(name, None)
+
+        def enable_cell_picking(self, callback=None, show_message=False, through=False):
+            pass
+
+    monkeypatch.setattr(ParquetBlockModel, "to_pyvista", fake_to_pyvista)
+    monkeypatch.setattr(pv, "Plotter", FakePlotter)
+
+    pbm.plot(scalar=scalar, grid_type="image", threshold=False)
+
+    kwargs = captured["kwargs"]
+    assert kwargs["categories"] is True
+    assert kwargs["annotations"] == {0.0: "lease_a"}
+    assert isinstance(kwargs["cmap"], pv.LookupTable)
+    assert tuple(kwargs["cmap"].scalar_range) == (-0.5, 0.5)
+    assert kwargs["scalar_bar_args"] == {"n_labels": 0}
+
+
+def test_plot_picking_shows_categorical_labels(tmp_path, monkeypatch):
+    pv = pytest.importorskip("pyvista")
+    from parq_blockmodel.utils.pyvista.categorical_utils import store_mapping_dict
+
+    parquet_path = tmp_path / "plot_picking_categorical_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+    scalar = "depth_category"
+
+    mesh = pv.ImageData(dimensions=(3, 3, 3))
+    mesh.cell_data[scalar] = np.array([0.0, np.nan, 0.0, np.nan, 0.0, np.nan, 0.0, np.nan], dtype=float)
+    store_mapping_dict(mesh, scalar, {0: "lease_a"})
+
+    captured: dict[str, object] = {}
+
+    def fake_to_pyvista(self, grid_type="image", attributes=None, frame="world"):
+        return mesh
+
+    class FakePlotter:
+        def __init__(self):
+            self.actors = {}
+            self.title = None
+
+        def add_mesh_threshold(self, *args, **kwargs):
+            pass
+
+        def add_mesh(self, *args, **kwargs):
+            pass
+
+        def show_axes(self):
+            pass
+
+        def add_text(self, text, position=None, font_size=None, name=None):
+            if name is not None:
+                self.actors[name] = text
+                captured[name] = text
+
+        def remove_actor(self, name):
+            self.actors.pop(name, None)
+
+        def enable_cell_picking(self, callback=None, show_message=False, through=False):
+            captured["callback"] = callback
+
+    class FakePickedCell:
+        n_cells = 1
+        cell_data = {"vtkOriginalCellIds": np.array([0], dtype=np.int64)}
+
+    monkeypatch.setattr(ParquetBlockModel, "to_pyvista", fake_to_pyvista)
+    monkeypatch.setattr(pv, "Plotter", FakePlotter)
+
+    pbm.plot(scalar=scalar, grid_type="image", threshold=False, enable_picking=True, picked_attributes=[scalar])
+
+    callback = captured["callback"]
+    callback(FakePickedCell())
+
+    assert "lease_a" in captured["cell_info_text"]
+    assert "depth_category: 0" not in captured["cell_info_text"]
+
 def test_from_parquet_rotated_xyz_only_derives_correct_block_ids(tmp_path):
     axis_azimuth = 35.0
     axis_dip = 12.0

@@ -54,3 +54,6 @@ pbm.validate(sample_chunks=1)  # quick spot-check for large models
 
 See the [User Guide](https://parq-blockmodel.readthedocs.io/en/stable/user_guide/07_calculated_attributes.html)
 for detailed documentation on calculated attributes, including custom lookups and functions.
+
+For polygon-based block flagging workflows (including persisted named polygons in GeoParquet),
+see the [Polygon Flagging guide](https://parq-blockmodel.readthedocs.io/en/stable/user_guide/08_polygon_flagging.html).
