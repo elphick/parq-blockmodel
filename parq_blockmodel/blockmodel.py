@@ -72,6 +72,8 @@ if typing.TYPE_CHECKING:
     import parq_blockmodel.mesh  # type: ignore[import]
     from parq_blockmodel.reporting import BlockModelReport  # type: ignore[import]
     from pandera import DataFrameSchema  # type: ignore[import]
+    from parq_blockmodel.polygon_field import PolygonField
+    from parq_blockmodel.solid import MeshSolid
 
 logger = logging.getLogger(__name__)
 
@@ -1857,6 +1859,95 @@ class ParquetBlockModel:
                 raise ValueError("dense=True requires index='xyz' or index='ijk'.")
 
         return df
+
+    @staticmethod
+    def _resolve_inside_label(
+        evaluator: typing.Any,
+        inside_value: typing.Any,
+    ) -> typing.Any:
+        if inside_value is not None:
+            return inside_value
+        name = getattr(evaluator, "name", None)
+        return name if name is not None else True
+
+    def _flag_evaluator(
+        self,
+        evaluator: typing.Any,
+        *,
+        column: str,
+        inside_value: typing.Any = None,
+        outside_value: typing.Any = pd.NA,
+        as_categorical: Optional[bool] = None,
+    ) -> np.ndarray:
+        mask = np.asarray(evaluator.evaluate(self.geometry), dtype=bool)
+        expected_len = int(np.prod(self.geometry.local.shape))
+        if mask.shape != (expected_len,):
+            raise ValueError(
+                f"Evaluator mask length mismatch: expected ({expected_len},), got {mask.shape}."
+            )
+
+        inside = self._resolve_inside_label(evaluator, inside_value)
+        if as_categorical is None:
+            as_categorical = isinstance(inside, str) or outside_value is pd.NA
+
+        rows = self.read(columns=["block_id"], index=None)
+        block_ids = rows["block_id"].to_numpy(dtype=np.int64)
+        values = np.full(len(rows), outside_value, dtype=object)
+        values[mask[block_ids]] = inside
+
+        payload = pd.DataFrame({"block_id": block_ids})
+        if as_categorical:
+            categories = [inside]
+            if outside_value is not pd.NA:
+                categories.append(outside_value)
+            payload[column] = pd.Categorical(values, categories=categories, ordered=False)
+        else:
+            payload[column] = pd.Series(values)
+
+        self.write(payload, merge=True)
+        return mask
+
+    def flag_polygon(
+        self,
+        polygon: "PolygonField",
+        *,
+        column: str,
+        inside_value: typing.Any = None,
+        outside_value: typing.Any = pd.NA,
+        as_categorical: Optional[bool] = None,
+    ) -> np.ndarray:
+        """Evaluate a PolygonField and persist a new flag/domain column.
+
+        Returns the dense boolean inside/outside mask aligned to geometry C-order.
+        """
+        return self._flag_evaluator(
+            polygon,
+            column=column,
+            inside_value=inside_value,
+            outside_value=outside_value,
+            as_categorical=as_categorical,
+        )
+
+    def flag_solid(
+        self,
+        solid: "MeshSolid",
+        *,
+        column: str,
+        inside_value: typing.Any = None,
+        outside_value: typing.Any = pd.NA,
+        as_categorical: Optional[bool] = None,
+    ) -> np.ndarray:
+        """Evaluate a MeshSolid and persist a new flag/domain column.
+
+        Returns the dense boolean inside/outside mask aligned to geometry C-order.
+        """
+        return self._flag_evaluator(
+            solid,
+            column=column,
+            inside_value=inside_value,
+            outside_value=outside_value,
+            as_categorical=as_categorical,
+        )
 
     def write(
             self,

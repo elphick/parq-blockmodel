@@ -11,10 +11,10 @@ API Reference
     blockmodel
     geometry
     polygon_field
+    solid
     io
     reporting
     schema
     reblocking
     mesh
     utils
-
