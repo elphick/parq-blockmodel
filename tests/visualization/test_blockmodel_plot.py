@@ -139,7 +139,7 @@ def test_trame_app_renders_categorical_attributes(tmp_path, monkeypatch):
 
 
 def test_trame_example_seeds_temp_demo_when_sample_missing(tmp_path, monkeypatch):
-    example_path = Path(__file__).resolve().parents[2] / "examples" / "15_trame_threshold_viewer.py"
+    example_path = Path(__file__).resolve().parents[2] / "examples" / "16_trame_threshold_viewer.py"
     spec = util.spec_from_file_location("xx_trame_threshold_viewer", example_path)
     module = util.module_from_spec(spec)
     assert spec.loader is not None
@@ -175,7 +175,7 @@ def test_trame_example_seeds_temp_demo_when_sample_missing(tmp_path, monkeypatch
 
 
 def test_trame_example_skips_launch_during_gallery_build(tmp_path, monkeypatch):
-    example_path = Path(__file__).resolve().parents[2] / "examples" / "15_trame_threshold_viewer.py"
+    example_path = Path(__file__).resolve().parents[2] / "examples" / "16_trame_threshold_viewer.py"
     spec = util.spec_from_file_location("trame_threshold_viewer", example_path)
     module = util.module_from_spec(spec)
     assert spec.loader is not None
@@ -209,7 +209,7 @@ def test_trame_example_skips_launch_during_gallery_build(tmp_path, monkeypatch):
 
 
 def test_trame_example_hive_toggle_uses_directory_source(tmp_path, monkeypatch):
-    example_path = Path(__file__).resolve().parents[2] / "examples" / "15_trame_threshold_viewer.py"
+    example_path = Path(__file__).resolve().parents[2] / "examples" / "16_trame_threshold_viewer.py"
     spec = util.spec_from_file_location("trame_threshold_viewer", example_path)
     module = util.module_from_spec(spec)
     assert spec.loader is not None
