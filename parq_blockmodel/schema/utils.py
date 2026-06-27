@@ -16,8 +16,7 @@ if typing.TYPE_CHECKING:
     from pandera import DataFrameSchema  # type: ignore[import]
 
 
-SCHEMA_METADATA_KEY = b"parq-blockmodel-schema-yaml"
-GEOMETRY_METADATA_KEY = b"parq-blockmodel"
+PBM_METADATA_KEY = b"parq-blockmodel"
 
 
 def load_schema(schema: Union[Path, "DataFrameSchema"]) -> "DataFrameSchema":
@@ -117,11 +116,168 @@ def load_embedded_schema(parquet_path: Path) -> Optional["DataFrameSchema"]:
         The embedded schema, or None if not present.
     """
     metadata = pq.read_metadata(parquet_path).metadata or {}
-    payload = metadata.get(SCHEMA_METADATA_KEY)
+    payload = metadata.get(PBM_METADATA_KEY)
     if payload is None:
         return None
-    yaml_text = payload.decode("utf-8") if isinstance(payload, (bytes, bytearray)) else str(payload)
-    return load_schema(yaml_text)
+    payload_text = payload.decode("utf-8") if isinstance(payload, (bytes, bytearray)) else str(payload)
+    payload_dict = json.loads(payload_text)
+    if not isinstance(payload_dict, dict):
+        raise ValueError("Embedded PBM metadata must decode to a dictionary.")
+    schema_yaml = payload_dict.get("schema_yaml")
+    if schema_yaml is None:
+        return None
+    return load_schema(schema_yaml)
+
+
+def load_embedded_compression(parquet_path: Path) -> Optional[dict[str, typing.Any]]:
+    """Extract compression policy metadata embedded in a Parquet file."""
+    metadata = pq.read_metadata(parquet_path).metadata or {}
+    payload = metadata.get(PBM_METADATA_KEY)
+    if payload is None:
+        return None
+    json_text = payload.decode("utf-8") if isinstance(payload, (bytes, bytearray)) else str(payload)
+    compression_payload = json.loads(json_text)
+    if not isinstance(compression_payload, dict):
+        raise ValueError("Embedded PBM metadata must decode to a dictionary.")
+    compression = compression_payload.get("compression")
+    if compression is None:
+        return None
+    if not isinstance(compression, dict):
+        raise ValueError("Embedded compression metadata must decode to a dictionary.")
+    return compression
+
+
+def _normalize_compression_spec(
+    value: typing.Any,
+    *,
+    default_codec: str,
+    default_level: Optional[int],
+) -> dict[str, typing.Any]:
+    if isinstance(value, dict):
+        codec = str(value.get("codec", default_codec)).strip().lower()
+        level = value.get("level", default_level)
+        if level is not None:
+            level = int(level)
+        return {"codec": codec, "level": level}
+
+    if value is None:
+        return {"codec": default_codec, "level": default_level}
+
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized == "fast":
+            return {"codec": "snappy", "level": None}
+        if normalized == "snappy":
+            return {"codec": "snappy", "level": None}
+        if normalized == "zstd":
+            return {"codec": "zstd", "level": default_level}
+        raise ValueError(f"Unsupported compression value: {value!r}")
+
+    if isinstance(value, int):
+        if value < 0:
+            raise ValueError("compression level must be >= 0")
+        if value == 0:
+            return {"codec": "snappy", "level": None}
+        return {"codec": "zstd", "level": int(value)}
+
+    raise TypeError(f"Unsupported compression specification type: {type(value)!r}")
+
+
+def resolve_active_compression_policy(compression: typing.Any = "fast") -> dict[str, typing.Any]:
+    """Resolve a simple user-facing compression choice for active writes."""
+    return {
+        "mode": "active",
+        "default": _normalize_compression_spec(compression, default_codec="snappy", default_level=None),
+        "columns": {},
+    }
+
+
+def extract_schema_compression_policy(schema: "DataFrameSchema") -> Optional[dict[str, typing.Any]]:
+    """Read compression policy from schema metadata if present."""
+    if schema is None:
+        return None
+    schema_metadata = getattr(schema, "metadata", None)
+    if not isinstance(schema_metadata, dict):
+        return None
+    pbm_metadata = schema_metadata.get("parq-blockmodel")
+    if not isinstance(pbm_metadata, dict):
+        return None
+    compression = pbm_metadata.get("compression")
+    if not isinstance(compression, dict):
+        return None
+    return compression
+
+
+def resolve_archive_compression_policy(
+    *,
+    schema: Optional["DataFrameSchema"] = None,
+    level: int = 7,
+    policy: Optional[dict[str, typing.Any]] = None,
+) -> dict[str, typing.Any]:
+    """Resolve archive compression using schema metadata or explicit policy."""
+    candidate = policy
+    if candidate is None:
+        candidate = extract_schema_compression_policy(schema)
+
+    if isinstance(candidate, dict) and any(key in candidate for key in ("default", "archive", "columns")):
+        default_spec = candidate.get("archive", candidate.get("default", {"codec": "zstd", "level": level}))
+        default = _normalize_compression_spec(default_spec, default_codec="zstd", default_level=level)
+        columns = candidate.get("columns") or {}
+        if not isinstance(columns, dict):
+            raise TypeError("compression columns overrides must be a dictionary")
+        normalized_columns = {
+            str(column_name): _normalize_compression_spec(spec, default_codec=default["codec"], default_level=default["level"])
+            for column_name, spec in columns.items()
+        }
+        return {"mode": "archive", "default": default, "columns": normalized_columns}
+
+    if isinstance(candidate, dict):
+        default = _normalize_compression_spec(candidate, default_codec="zstd", default_level=level)
+        return {"mode": "archive", "default": default, "columns": {}}
+
+    return {
+        "mode": "archive",
+        "default": _normalize_compression_spec(level, default_codec="zstd", default_level=level),
+        "columns": {},
+    }
+
+
+def build_parquet_compression_kwargs(
+    columns: typing.Iterable[str],
+    policy: dict[str, typing.Any],
+) -> dict[str, typing.Any]:
+    """Build Parquet writer kwargs from a resolved compression policy."""
+    ordered_columns = list(columns)
+    default_spec = policy.get("default", {"codec": "snappy", "level": None})
+    column_specs = policy.get("columns", {}) or {}
+
+    specs = [
+        column_specs.get(column_name, default_spec)
+        for column_name in ordered_columns
+    ]
+    if not specs:
+        kwargs: dict[str, typing.Any] = {"compression": default_spec["codec"]}
+        if default_spec.get("level") is not None:
+            kwargs["compression_level"] = default_spec["level"]
+        return kwargs
+
+    first_spec = specs[0]
+    if all(spec == first_spec for spec in specs):
+        kwargs: dict[str, typing.Any] = {"compression": first_spec["codec"]}
+        if first_spec.get("level") is not None:
+            kwargs["compression_level"] = first_spec["level"]
+        return kwargs
+
+    compression_map = {column_name: spec["codec"] for column_name, spec in zip(ordered_columns, specs)}
+    level_map = {
+        column_name: spec["level"]
+        for column_name, spec in zip(ordered_columns, specs)
+        if spec.get("level") is not None
+    }
+    kwargs = {"compression": compression_map}
+    if level_map:
+        kwargs["compression_level"] = level_map
+    return kwargs
 
 
 def extract_required_columns_from_schema(schema: "DataFrameSchema") -> set[str]:
@@ -225,8 +381,9 @@ def build_schema_metadata(
     geometry: "RegularGeometry",  # noqa: F821
     schema: Optional["DataFrameSchema"],
     base_metadata: Optional[dict[bytes, bytes]] = None,
+    compression: Optional[dict[str, typing.Any]] = None,
 ) -> dict[bytes, bytes]:
-    """Build combined metadata dict for Parquet schema (geometry + schema YAML).
+    """Build combined metadata dict for Parquet schema (geometry + schema YAML + compression).
 
     Parameters
     ----------
@@ -236,6 +393,8 @@ def build_schema_metadata(
         The pandera schema to embed, or None to remove embedded schema.
     base_metadata : dict[bytes, bytes], optional
         Existing metadata to preserve.
+    compression : dict[str, Any], optional
+        Compression policy metadata to persist alongside geometry and schema.
 
     Returns
     -------
@@ -243,11 +402,25 @@ def build_schema_metadata(
         Combined metadata with geometry and schema YAML keys.
     """
     metadata = dict(base_metadata or {})
-    metadata[GEOMETRY_METADATA_KEY] = json.dumps(geometry.to_metadata_dict()).encode("utf-8")
+    payload: dict[str, typing.Any] = {}
+    existing = metadata.get(PBM_METADATA_KEY)
+    if existing is not None:
+        existing_text = existing.decode("utf-8") if isinstance(existing, (bytes, bytearray)) else str(existing)
+        existing_payload = json.loads(existing_text)
+        if not isinstance(existing_payload, dict):
+            raise ValueError("Embedded PBM metadata must decode to a dictionary.")
+        payload.update(existing_payload)
+
+    payload["geometry"] = geometry.to_metadata_dict()
     if schema is None:
-        metadata.pop(SCHEMA_METADATA_KEY, None)
+        payload.pop("schema_yaml", None)
     else:
-        metadata[SCHEMA_METADATA_KEY] = dump_schema_yaml(schema).encode("utf-8")
+        payload["schema_yaml"] = dump_schema_yaml(schema)
+    if compression is None:
+        payload.pop("compression", None)
+    else:
+        payload["compression"] = compression
+    metadata[PBM_METADATA_KEY] = json.dumps(payload).encode("utf-8")
     return metadata
 
 

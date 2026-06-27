@@ -114,8 +114,7 @@ class ParquetBlockModel:
     POSITION_COLUMNS = {"block_id", "world_id", "i", "j", "k", "x", "y", "z"}
     INTRINSIC_VOLUME_COLUMN = "volume"
     SPECIAL_COLUMN_ORDER = ["block_id", "world_id", "i", "j", "k", "x", "y", "z"]
-    GEOMETRY_METADATA_KEY = b"parq-blockmodel"
-    SCHEMA_METADATA_KEY = b"parq-blockmodel-schema-yaml"
+    PBM_METADATA_KEY = b"parq-blockmodel"
     SPECIAL_COLUMN_DTYPES = {
         "block_id": np.int32,
         "world_id": np.int64,
@@ -156,6 +155,10 @@ class ParquetBlockModel:
             self.schema = schema_utils.load_schema(schema)
         else:
             self.schema = schema_utils.load_embedded_schema(self.blockmodel_path)
+        self.compression = (
+            schema_utils.load_embedded_compression(self.blockmodel_path)
+            or schema_utils.extract_schema_compression_policy(self.schema)
+        )
         self._engine_initializer = engine_initializer
         self.pf: ParquetFile = ParquetFile(blockmodel_path)
         # Lazy view over the backing Parquet file for large models.
@@ -367,12 +370,18 @@ class ParquetBlockModel:
         geometry: RegularGeometry,
         schema: Optional["DataFrameSchema"],
         base_metadata: Optional[dict[bytes, bytes]] = None,
+        compression: Optional[dict[str, typing.Any]] = None,
     ) -> dict[bytes, bytes]:
         """Build schema metadata dict.
         
         Delegates to schema_utils.build_schema_metadata for backwards compatibility.
         """
-        return schema_utils.build_schema_metadata(geometry, schema, base_metadata)
+        return schema_utils.build_schema_metadata(
+            geometry,
+            schema,
+            base_metadata,
+            compression=compression,
+        )
 
     @classmethod
     def _df_eval_operations_from_schema(cls, schema: "DataFrameSchema") -> dict[str, dict[str, typing.Any]]:
@@ -589,17 +598,28 @@ class ParquetBlockModel:
 
         return True
 
-    def _persist_dataframe(self, dataframe: pd.DataFrame) -> None:
+    def _persist_dataframe(
+        self,
+        dataframe: pd.DataFrame,
+        *,
+        compression_policy: Optional[dict[str, typing.Any]] = None,
+    ) -> None:
         dataframe = dataframe[self._ordered_columns(list(dataframe.columns))]
         dataframe = self._coerce_special_column_dtypes(dataframe)
         table = pa.Table.from_pandas(dataframe, preserve_index=False)
+        active_policy = compression_policy or schema_utils.resolve_active_compression_policy("fast")
         meta = self._build_schema_metadata(
             geometry=self.geometry,
             schema=self.schema,
             base_metadata=dict(table.schema.metadata or {}),
+            compression=active_policy,
         )
         table = table.replace_schema_metadata(meta)
-        pq.write_table(table, self.blockmodel_path)
+        pq.write_table(
+            table,
+            self.blockmodel_path,
+            **schema_utils.build_parquet_compression_kwargs(table.column_names, active_policy),
+        )
 
         self.pf = ParquetFile(self.blockmodel_path)
         self.data = LazyParquetDF(self.blockmodel_path)
@@ -607,6 +627,7 @@ class ParquetBlockModel:
         self.attributes = [col for col in self.columns if col not in self.POSITION_COLUMNS]
         self._centroid_index = None
         self._extract_column_dtypes()
+        self.compression = active_policy
 
     def recompute_spatial(self) -> None:
         """Recompute and persist canonical spatial columns (x, y, z, i, j, k)."""
@@ -636,7 +657,7 @@ class ParquetBlockModel:
         df["i"] = i.astype(np.int32)
         df["j"] = j.astype(np.int32)
         df["k"] = k.astype(np.int32)
-        self._persist_dataframe(df)
+        self._persist_dataframe(df, compression_policy=self.compression)
 
     def ensure_spatial(self) -> None:
         """Ensure canonical spatial columns exist; recompute when missing."""
@@ -660,7 +681,7 @@ class ParquetBlockModel:
         df["world_id"] = encode_world_coordinates(
             x, y, z, offset=offset, scale=scale, bits_per_axis=bits_per_axis
         ).astype(np.int64)
-        self._persist_dataframe(df)
+        self._persist_dataframe(df, compression_policy=self.compression)
 
     def ensure_world_id(self) -> None:
         """Ensure world_id exists; recompute when missing."""
@@ -852,6 +873,7 @@ class ParquetBlockModel:
         chunk_size: int = 1_000_000,
         schema: Optional[Union[Path, "DataFrameSchema"]] = None,
         engine_initializer: Optional[typing.Callable] = None,
+        compression: typing.Any = "fast",
     ) -> "ParquetBlockModel":
         """Create a :class:`ParquetBlockModel` from a source Parquet file.
 
@@ -921,10 +943,16 @@ class ParquetBlockModel:
             geometry=geometry,
             schema=loaded_schema,
             engine_initializer=engine_initializer,
+            compression=compression,
         )
         writer.write(columns=columns, chunk_size=chunk_size)
         
-        return cls(blockmodel_path=new_filepath, geometry=geometry, schema=loaded_schema, engine_initializer=engine_initializer)
+        return cls(
+            blockmodel_path=new_filepath,
+            geometry=geometry,
+            schema=loaded_schema,
+            engine_initializer=engine_initializer,
+        )
 
     @classmethod
     def from_dataframe(
@@ -940,6 +968,7 @@ class ParquetBlockModel:
         chunk_size: int = 1_000_000,
         schema: Optional[Union[Path, "DataFrameSchema"]] = None,
         engine_initializer: Optional[typing.Callable] = None,
+        compression: typing.Any = "fast",
     ) -> "ParquetBlockModel":
         """Create a :class:`ParquetBlockModel` from a pandas DataFrame.
 
@@ -1020,13 +1049,20 @@ class ParquetBlockModel:
             geometry=geometry,
             schema=loaded_schema,
             engine_initializer=engine_initializer,
+            compression=compression,
         )
         writer.write_dataframe(dataframe_work)
 
         # Validate geometry
         ingest_utils.validate_geometry(pbm_path, geometry, chunk_size=chunk_size)
 
-        return cls(blockmodel_path=pbm_path, name=name, geometry=geometry, schema=loaded_schema, engine_initializer=engine_initializer)
+        return cls(
+            blockmodel_path=pbm_path,
+            name=name,
+            geometry=geometry,
+            schema=loaded_schema,
+            engine_initializer=engine_initializer,
+        )
 
     @classmethod
     def create_demo_block_model(cls, filename: Path, **demo_kwargs) -> "ParquetBlockModel":
@@ -1181,6 +1217,7 @@ class ParquetBlockModel:
         name: Optional[str] = None,
         schema: Optional[Union[Path, "DataFrameSchema"]] = None,
         engine_initializer: Optional[typing.Callable] = None,
+        compression: typing.Any = "fast",
     ) -> "ParquetBlockModel":
         """Create a :class:`ParquetBlockModel` from a geometry only.
 
@@ -1227,10 +1264,17 @@ class ParquetBlockModel:
             geometry=geometry,
             schema=None,  # Don't apply schema validation for geometry-only writes
             engine_initializer=engine_initializer,
+            compression=compression,
         )
         writer.write_dataframe(centroids_df)
 
-        return cls(blockmodel_path=path, name=name, geometry=geometry, schema=loaded_schema, engine_initializer=engine_initializer)
+        return cls(
+            blockmodel_path=path,
+            name=name,
+            geometry=geometry,
+            schema=loaded_schema,
+            engine_initializer=engine_initializer,
+        )
 
     def rename(self, new_pbm_filepath: Path, rename_to_new_pbm_stem: bool = True) -> "ParquetBlockModel":
         """Rename the underlying .pbm file and refresh path-bound caches.
@@ -1846,6 +1890,7 @@ class ParquetBlockModel:
             batch_size: int = 1_000_000,
             allow_overwrite: bool = True,
             show_progress: bool = False,
+            compression: typing.Any = "fast",
             **pq_write_kwargs: object,
     ) -> "ParquetBlockModel":
         """Persist data to the backing ``.pbm`` file.
@@ -1867,6 +1912,9 @@ class ParquetBlockModel:
             Forwarded to merge helper.
         show_progress : bool, default False
             Forwarded to merge helper.
+        compression : str or int, default "fast"
+            Active write compression policy. "fast"/0 maps to snappy; integers
+            greater than zero map to zstd at that level.
         **pq_write_kwargs : object
             Extra args forwarded to parquet writer (merge mode).
         """
@@ -1876,6 +1924,7 @@ class ParquetBlockModel:
         # Windows cannot atomically replace files while parquet readers are alive.
         self.pf = None  # type: ignore[assignment]
         self.data = None  # type: ignore[assignment]
+        active_compression = schema_utils.resolve_active_compression_policy(compression)
 
         if merge:
             if index_columns is None:
@@ -1901,7 +1950,10 @@ class ParquetBlockModel:
                 batch_size=batch_size,
                 allow_overwrite=allow_overwrite,
                 show_progress=show_progress,
-                **pq_write_kwargs,
+                **{
+                    **schema_utils.build_parquet_compression_kwargs(dataframe.columns, active_compression),
+                    **pq_write_kwargs,
+                },
             )
         else:
             if len(dataframe) != int(ParquetFile(self.blockmodel_path).metadata.num_rows):
@@ -1915,7 +1967,7 @@ class ParquetBlockModel:
                     "DataFrame is missing required on-disk columns for strict write: "
                     f"{missing_columns}. Use merge=True to append only new columns."
                 )
-            self._persist_dataframe(dataframe)
+            self._persist_dataframe(dataframe, compression_policy=active_compression)
             return self
 
         schema = pq.read_schema(self.blockmodel_path)
@@ -1924,6 +1976,7 @@ class ParquetBlockModel:
             geometry=self.geometry,
             schema=self.schema,
             base_metadata=current_meta,
+            compression=active_compression,
         )
         if current_meta != desired_meta:
             table = pq.read_table(self.blockmodel_path)
@@ -1932,9 +1985,14 @@ class ParquetBlockModel:
                 geometry=self.geometry,
                 schema=self.schema,
                 base_metadata=meta,
+                compression=active_compression,
             )
             table = table.replace_schema_metadata(meta)
-            pq.write_table(table, self.blockmodel_path)
+            pq.write_table(
+                table,
+                self.blockmodel_path,
+                **schema_utils.build_parquet_compression_kwargs(table.column_names, active_compression),
+            )
 
         self.pf = ParquetFile(self.blockmodel_path)
         self.data = LazyParquetDF(self.blockmodel_path)
@@ -1942,7 +2000,59 @@ class ParquetBlockModel:
         self.attributes = [col for col in self.columns if col not in self.POSITION_COLUMNS]
         self._centroid_index = None
         self._extract_column_dtypes()
+        self.compression = active_compression
 
+        return self
+
+    def compress(
+        self,
+        level: int = 7,
+        policy: Optional[dict[str, typing.Any]] = None,
+    ) -> "ParquetBlockModel":
+        """Rewrite the backing file with archive compression."""
+        if level < 0:
+            raise ValueError("level must be >= 0")
+
+        archive_policy = schema_utils.resolve_archive_compression_policy(
+            schema=self.schema,
+            level=level,
+            policy=policy,
+        )
+
+        self.pf = None  # type: ignore[assignment]
+        self.data = None  # type: ignore[assignment]
+
+        with atomic_output_file(self.blockmodel_path) as tmp_path:
+            parquet_file = pq.ParquetFile(self.blockmodel_path)
+            schema = parquet_file.schema_arrow
+            metadata = schema_utils.build_schema_metadata(
+                geometry=self.geometry,
+                schema=self.schema,
+                base_metadata=dict(schema.metadata or {}),
+                compression=archive_policy,
+            )
+            writer = pq.ParquetWriter(
+                tmp_path,
+                schema.with_metadata(metadata),
+                **schema_utils.build_parquet_compression_kwargs(schema.names, archive_policy),
+            )
+            try:
+                for batch in parquet_file.iter_batches(batch_size=1_000_000):
+                    writer.write_batch(batch)
+            finally:
+                writer.close()
+                try:
+                    parquet_file.close()
+                except Exception:
+                    pass
+
+        self.pf = ParquetFile(self.blockmodel_path)
+        self.data = LazyParquetDF(self.blockmodel_path)
+        self.columns = pq.read_schema(self.blockmodel_path).names
+        self.attributes = [col for col in self.columns if col not in self.POSITION_COLUMNS]
+        self._centroid_index = None
+        self._extract_column_dtypes()
+        self.compression = archive_policy
         return self
 
     def triangulate(

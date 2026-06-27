@@ -18,6 +18,8 @@ from df_eval import Engine
 from parq_blockmodel import ParquetBlockModel
 from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel
 
+# sphinx_gallery_thumbnail_path = "../docs/_static/branding/parq-blockmodel-gallery-thumbnail.svg"
+
 # %%
 # Instantiate
 # -----------

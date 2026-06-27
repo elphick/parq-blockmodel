@@ -850,7 +850,7 @@ def test_from_parquet_rotated_xyz_only_derives_correct_block_ids(tmp_path):
 
     table = pq.read_table(source_path)
     meta = dict(table.schema.metadata or {})
-    meta[b"parq-blockmodel"] = json.dumps(geometry.to_metadata_dict()).encode("utf-8")
+    meta[b"parq-blockmodel"] = json.dumps({"geometry": geometry.to_metadata_dict()}).encode("utf-8")
     pq.write_table(table.replace_schema_metadata(meta), source_path)
 
     pbm = ParquetBlockModel.from_parquet(source_path)
@@ -920,7 +920,7 @@ def test_read_ijk_dense_preserves_attribute_mapping_when_positional_columns_not_
 
     table = pq.read_table(source_path)
     meta = dict(table.schema.metadata or {})
-    meta[b"parq-blockmodel"] = json.dumps(geometry.to_metadata_dict()).encode("utf-8")
+    meta[b"parq-blockmodel"] = json.dumps({"geometry": geometry.to_metadata_dict()}).encode("utf-8")
     pq.write_table(table.replace_schema_metadata(meta), source_path)
 
     pbm = ParquetBlockModel.from_parquet(source_path)

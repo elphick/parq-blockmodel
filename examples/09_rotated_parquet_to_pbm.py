@@ -105,7 +105,7 @@ geometry = RegularGeometry(
 
 table = pq.read_table(source_parquet)
 meta = dict(table.schema.metadata or {})
-meta[b"parq-blockmodel"] = json.dumps(geometry.to_metadata_dict()).encode("utf-8")
+meta[b"parq-blockmodel"] = json.dumps({"geometry": geometry.to_metadata_dict()}).encode("utf-8")
 table = table.replace_schema_metadata(meta)
 pq.write_table(table, source_parquet)
 
@@ -178,4 +178,3 @@ plotter.add_mesh_threshold(world_grid, scalars="fe", clim=[fe_min, fe_max], show
 # camera and leave the world viewport looking at empty space.
 plotter.show_axes()
 plotter.show()
-

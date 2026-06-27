@@ -20,6 +20,7 @@ from df_eval import DictResolver
 
 from parq_blockmodel import ParquetBlockModel, RegularGeometry, LocalGeometry, WorldFrame
 
+# sphinx_gallery_thumbnail_path = "../docs/_static/branding/parq-blockmodel-gallery-thumbnail.svg"
 # %%
 # Setup: Create sample block model geometry and data
 geometry = RegularGeometry(

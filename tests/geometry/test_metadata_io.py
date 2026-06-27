@@ -19,7 +19,7 @@ def test_roundtrip_via_attrs():
     meta = geom.to_metadata_dict()
 
     df = pd.DataFrame({"value": [1, 2, 3]})
-    df.attrs["parq-blockmodel"] = meta
+    df.attrs["parq-blockmodel"] = {"geometry": meta}
 
     geom2 = RegularGeometry.from_attrs(df.attrs)
 
@@ -39,7 +39,7 @@ def test_roundtrip_via_parquet_metadata(tmp_path):
 
     # Write a tiny Parquet file with custom key_value_metadata
     table = pa.Table.from_pydict({"value": [1, 2, 3]})
-    metadata = {"parq-blockmodel": json.dumps(meta).encode("utf-8")}
+    metadata = {"parq-blockmodel": json.dumps({"geometry": meta}).encode("utf-8")}
     table = table.replace_schema_metadata(metadata)
 
     path = tmp_path / "test_geom_meta.parquet"
@@ -71,4 +71,3 @@ def test_from_parquet_metadata_missing_key_raises(tmp_path):
         pass
     else:
         raise AssertionError("Expected KeyError when geometry metadata is missing")
-

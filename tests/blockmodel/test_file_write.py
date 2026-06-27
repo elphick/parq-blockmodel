@@ -1,7 +1,9 @@
 from pathlib import Path
+import json
 
 import pandas as pd
 import pytest
+import pyarrow.parquet as pq
 
 from parq_blockmodel.blockmodel import ParquetBlockModel
 
@@ -82,3 +84,26 @@ def test_write_merge_true_uses_block_id_default_alignment(tmp_path: Path) -> Non
     out = pbm.read(columns=["block_id", "aligned_flag"], index=None)
     assert "aligned_flag" in out.columns
     assert (out["aligned_flag"] == 7).all()
+
+
+def test_write_default_compression_is_fast(tmp_path: Path) -> None:
+    pbm = _make_demo_pbm(tmp_path)
+
+    df = pbm.read(index=None)
+    pbm.write(df, merge=False)
+
+    metadata = pq.read_metadata(pbm.blockmodel_path).metadata or {}
+    payload = json.loads(metadata[b"parq-blockmodel"].decode("utf-8"))
+    assert payload["compression"]["mode"] == "active"
+    assert payload["compression"]["default"] == {"codec": "snappy", "level": None}
+
+
+def test_write_explicit_zstd_level_is_persisted(tmp_path: Path) -> None:
+    pbm = _make_demo_pbm(tmp_path)
+
+    df = pbm.read(index=None)
+    pbm.write(df, merge=False, compression=5)
+
+    metadata = pq.read_metadata(pbm.blockmodel_path).metadata or {}
+    payload = json.loads(metadata[b"parq-blockmodel"].decode("utf-8"))
+    assert payload["compression"]["default"] == {"codec": "zstd", "level": 5}

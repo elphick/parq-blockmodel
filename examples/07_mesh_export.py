@@ -14,6 +14,8 @@ carries vertex colours derived from a scalar attribute.
 import tempfile
 from pathlib import Path
 
+import pyvista as pv
+
 from parq_blockmodel import ParquetBlockModel
 
 # %%
@@ -69,6 +71,21 @@ with open(ply_path) as fh:
             break
 
 # %%
+# Plot Exported Mesh with PyVista
+# -------------------------------
+# The exported PLY can be loaded directly in PyVista for quick inspection.
+
+ply_mesh = pv.read(ply_path)
+plotter = pv.Plotter()
+if "grade" in ply_mesh.point_data:
+    plotter.add_mesh(ply_mesh, scalars="grade", cmap="viridis", show_edges=True)
+else:
+    plotter.add_mesh(ply_mesh, color="lightgray", show_edges=True)
+plotter.add_text("Exported PLY mesh", font_size=11)
+plotter.show_axes()
+plotter.show()
+
+# %%
 # Export to GLB
 # -------------
 # GLB (glTF 2.0 binary) is a single-file exchange format suitable for web
@@ -113,4 +130,3 @@ glb_rot_path = temp_dir / "rotated.glb"
 pbm_rot.to_glb(glb_rot_path, texture_attribute="grade")
 
 print(f"Rotated GLB file size: {glb_rot_path.stat().st_size:,} bytes")
-

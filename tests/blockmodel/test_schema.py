@@ -1,5 +1,6 @@
 """Tests for pandera schema support in ParquetBlockModel."""
 from pathlib import Path
+import json
 
 import pandas as pd
 import numpy as np
@@ -297,11 +298,109 @@ def test_schema_roundtrip_is_recovered_from_pbm_metadata(tmp_path):
     pbm = ParquetBlockModel.from_parquet(parquet_path, schema=schema)
 
     metadata = pq.read_metadata(pbm.blockmodel_path).metadata or {}
-    assert b"parq-blockmodel-schema-yaml" in metadata
+    payload = json.loads(metadata[b"parq-blockmodel"].decode("utf-8"))
+    assert "schema_yaml" in payload
 
     reloaded = ParquetBlockModel(blockmodel_path=pbm.blockmodel_path, geometry=pbm.geometry)
     assert reloaded.schema is not None
     assert set(reloaded.schema.columns) == set(schema.columns)
+
+
+def test_schema_roundtrip_preserves_compression_policy_metadata(tmp_path):
+    parquet_path = _make_demo_parquet(tmp_path)
+    schema = DataFrameSchema(
+        columns={"depth": Column(float, coerce=True, nullable=True)},
+        strict=False,
+        metadata={
+            "parq-blockmodel": {
+                "compression": {
+                    "default": {"codec": "snappy", "level": None},
+                    "archive": {"codec": "zstd", "level": 9},
+                    "columns": {
+                        "depth": {"codec": "zstd", "level": 3},
+                    },
+                }
+            }
+        },
+    )
+
+    pbm = ParquetBlockModel.from_parquet(parquet_path, schema=schema)
+    reloaded = ParquetBlockModel(blockmodel_path=pbm.blockmodel_path, geometry=pbm.geometry)
+
+    assert reloaded.schema is not None
+    assert reloaded.schema.metadata["parq-blockmodel"]["compression"]["archive"]["level"] == 9
+
+
+def test_compress_rewrites_metadata_and_uses_archive_policy(tmp_path, monkeypatch):
+    parquet_path = _make_demo_parquet(tmp_path)
+    pbm = ParquetBlockModel.from_parquet(parquet_path)
+
+    captured = {}
+    real_writer = pq.ParquetWriter
+
+    class SpyWriter:
+        def __init__(self, path, schema, **kwargs):
+            captured["kwargs"] = kwargs
+            self._writer = real_writer(path, schema, **kwargs)
+
+        def write_batch(self, batch):
+            return self._writer.write_batch(batch)
+
+        def close(self):
+            return self._writer.close()
+
+    monkeypatch.setattr(pq, "ParquetWriter", SpyWriter)
+
+    pbm.compress(level=8)
+
+    assert pbm.compression["mode"] == "archive"
+    assert pbm.compression["default"] == {"codec": "zstd", "level": 8}
+    assert captured["kwargs"]["compression"] == "zstd"
+    assert captured["kwargs"]["compression_level"] == 8
+
+    metadata = pq.read_metadata(pbm.blockmodel_path).metadata or {}
+    payload = json.loads(metadata[b"parq-blockmodel"].decode("utf-8"))
+    assert payload["compression"]["default"]["level"] == 8
+
+
+def test_compress_uses_schema_column_overrides(tmp_path, monkeypatch):
+    parquet_path = _make_demo_parquet(tmp_path)
+    schema = DataFrameSchema(
+        columns={"depth": Column(float, coerce=True, nullable=True)},
+        strict=False,
+        metadata={
+            "parq-blockmodel": {
+                "compression": {
+                    "archive": {"codec": "zstd", "level": 7},
+                    "columns": {
+                        "depth": {"codec": "zstd", "level": 3},
+                    },
+                }
+            }
+        },
+    )
+    pbm = ParquetBlockModel.from_parquet(parquet_path, schema=schema)
+
+    captured = {}
+    real_writer = pq.ParquetWriter
+
+    class SpyWriter:
+        def __init__(self, path, schema, **kwargs):
+            captured["kwargs"] = kwargs
+            self._writer = real_writer(path, schema, **kwargs)
+
+        def write_batch(self, batch):
+            return self._writer.write_batch(batch)
+
+        def close(self):
+            return self._writer.close()
+
+    monkeypatch.setattr(pq, "ParquetWriter", SpyWriter)
+
+    pbm.compress()
+
+    assert captured["kwargs"]["compression"]["depth"] == "zstd"
+    assert captured["kwargs"]["compression_level"]["depth"] == 3
 
 
 def _calculated_schema() -> DataFrameSchema:

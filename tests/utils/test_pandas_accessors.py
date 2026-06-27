@@ -46,7 +46,7 @@ def test_geometry_from_df_from_parq_blockmodel_attrs(tmp_path):
     )
     df = pbm.read()
     # Manually inject 'parq-blockmodel' attrs (as from_dataframe would add)
-    df.attrs["parq-blockmodel"] = pbm.geometry.to_metadata_dict()
+    df.attrs["parq-blockmodel"] = {"geometry": pbm.geometry.to_metadata_dict()}
     geom = _geometry_from_df(df)
     assert geom is not None
     assert geom.local.shape == (4, 4, 4)
@@ -61,6 +61,5 @@ def test_to_pyvista_accessor_unstructured_without_block_size():
     df = pd.DataFrame({"a": [1, 2, 3]})
     with pytest.raises(ValueError, match="block_size must be provided"):
         df.to_pyvista(grid_type="unstructured")
-
 
 

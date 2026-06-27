@@ -620,11 +620,15 @@ class RegularGeometry:
         payload = attrs[key]
         if not isinstance(payload, dict):
             raise TypeError(
-                "Expected attrs[%r] to be a dict compatible with RegularGeometry.to_metadata_dict(), "
+                "Expected attrs[%r] to be a dict containing a nested geometry payload, "
                 "got %s." % (key, type(payload).__name__)
             )
 
-        return cls.from_metadata(payload)
+        geometry_payload = payload.get("geometry")
+        if not isinstance(geometry_payload, dict):
+            raise KeyError(f"Geometry metadata not found in attrs under key {key!r}['geometry'].")
+
+        return cls.from_metadata(geometry_payload)
 
     @classmethod
     def from_parquet_metadata(
@@ -671,13 +675,9 @@ class RegularGeometry:
 
         raw_value = meta_dict[key]
 
-        # Allow already-decoded dict payloads for convenience/testing.
-        if isinstance(raw_value, dict):
-            return cls.from_metadata(raw_value)
-
         if not isinstance(raw_value, str):
             raise TypeError(
-                f"Expected Parquet metadata value for key {key!r} to be a JSON string or dict, "
+                f"Expected Parquet metadata value for key {key!r} to be a JSON string, "
                 f"got {type(raw_value).__name__}."
             )
 
@@ -692,8 +692,11 @@ class RegularGeometry:
             raise ValueError(
                 f"Geometry metadata under key {key!r} must decode to a dict, got {type(payload).__name__}."
             )
+        geometry_payload = payload.get("geometry")
+        if not isinstance(geometry_payload, dict):
+            raise KeyError(f"Geometry metadata key {key!r} does not contain a geometry payload.")
 
-        return cls.from_metadata(payload)
+        return cls.from_metadata(geometry_payload)
 
     # ------------------------------------------------------------------
     # Legacy helpers
