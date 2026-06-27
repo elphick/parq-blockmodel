@@ -1532,7 +1532,8 @@ class ParquetBlockModel:
              frame: typing.Literal["world", "local"] = "world",
              threshold: bool = True, show_edges: bool = True,
              show_axes: bool = True, enable_picking: bool = False,
-             picked_attributes: Optional[list[str]] = None) -> 'pv.Plotter':
+             picked_attributes: Optional[list[str]] = None,
+             engine: Optional[typing.Any] = None) -> typing.Any:
         """Plot the block model using PyVista.
 
         Args:
@@ -1550,134 +1551,21 @@ class ParquetBlockModel:
 
         """
 
-        import pyvista as pv
-        if scalar not in self.available_columns:
-            raise ValueError(f"Column '{scalar}' not found in the ParquetBlockModel."
-                             f"Available columns are: {self.available_columns}")
+        from parq_blockmodel.visualization.blockmodel_plot import PyVistaBlockModelPlotEngine
 
-        # Create a PyVista plotter
-        plotter = pv.Plotter()
-
-        attributes = [scalar]
-        if enable_picking:
-            if picked_attributes is None:
-                attributes = self.available_attributes
-            else:
-                attributes = picked_attributes
-            if scalar not in attributes:
-                attributes.append(scalar)
-        mesh = self.to_pyvista(grid_type=grid_type, attributes=attributes, frame=frame)
-        is_categorical_scalar = f"{scalar}_json" in mesh.field_data
-        categorical_mappings: dict[str, dict[int, str]] = {}
-
-        add_mesh_kwargs: dict[str, typing.Any] = {
-            "scalars": scalar,
-            "show_edges": show_edges,
-        }
-        if is_categorical_scalar:
-            from parq_blockmodel.utils.pyvista.categorical_utils import load_mapping_dict
-
-            mapping = load_mapping_dict(mesh, scalar)
-            scalar_mapping = {int(float(k)): str(v) for k, v in mapping.items()}
-            categorical_mappings[scalar] = scalar_mapping
-            annotations = {float(k): str(v) for k, v in scalar_mapping.items()}
-            n_categories = max(len(scalar_mapping), 1)
-            scalar_values = np.asarray(mesh.cell_data[scalar], dtype=float)
-            has_nan = bool(np.isnan(scalar_values).any())
-            # Keep scalar bar numeric ticks hidden so categorical labels come
-            # from annotations only.
-            scalar_bar_args = {"n_labels": 0}
-            if has_nan:
-                scalar_bar_args["nan_annotation"] = True
-            base_palette = np.array(
-                [
-                    [31, 119, 180, 255],
-                    [255, 127, 14, 255],
-                    [44, 160, 44, 255],
-                    [214, 39, 40, 255],
-                    [148, 103, 189, 255],
-                    [140, 86, 75, 255],
-                    [227, 119, 194, 255],
-                    [127, 127, 127, 255],
-                    [188, 189, 34, 255],
-                    [23, 190, 207, 255],
-                ],
-                dtype=np.uint8,
-            )
-            lut_values = np.vstack([base_palette[i % len(base_palette)] for i in range(n_categories)])
-            lut = pv.LookupTable(
-                values=lut_values,
-                scalar_range=(-0.5, n_categories - 0.5),
-                nan_color="lightgray",
-            )
-            lut.annotations = annotations
-            add_mesh_kwargs.update(
-                {
-                    "categories": True,
-                    "annotations": annotations,
-                    "cmap": lut,
-                    "nan_color": "lightgray",
-                    "nan_opacity": 0.15,
-                    "scalar_bar_args": scalar_bar_args,
-                }
-            )
-        if enable_picking:
-            from parq_blockmodel.utils.pyvista.categorical_utils import load_mapping_dict
-            for attr in attributes:
-                if attr in categorical_mappings:
-                    continue
-                if f"{attr}_json" not in mesh.field_data:
-                    continue
-                mapping = load_mapping_dict(mesh, attr)
-                categorical_mappings[attr] = {int(float(k)): str(v) for k, v in mapping.items()}
-
-        # Add a thresholded mesh to the plotter
-        if threshold:
-            plotter.add_mesh_threshold(mesh, **add_mesh_kwargs)
-        else:
-            plotter.add_mesh(mesh, **add_mesh_kwargs)
-
-        plotter.title = self.name
-        if show_axes:
-            plotter.show_axes()
-
-        text_name = "cell_info_text"
-        plotter.add_text("", position="upper_left", font_size=12, name=text_name)
-        cell_centers = mesh.cell_centers().points  # shape: (n_cells, 3)
-
-        if enable_picking:
-            def cell_callback(picked_cell):
-                if text_name in plotter.actors:
-                    plotter.remove_actor(text_name)
-                if hasattr(picked_cell, "n_cells") and picked_cell.n_cells == 1:
-                    if "vtkOriginalCellIds" in picked_cell.cell_data:
-                        cell_id = int(picked_cell.cell_data["vtkOriginalCellIds"][0])
-                        centroid = cell_centers[cell_id]  # numpy array of (x, y, z)
-                        centroid_str = f"({centroid[0]:.1f}, {centroid[1]:.1f}, {centroid[2]:.1f})"
-                        values: dict[str, typing.Any] = {}
-                        for attr in attributes:
-                            raw_value = mesh.cell_data[attr][cell_id]
-                            if attr in categorical_mappings:
-                                if pd.isna(raw_value):
-                                    values[attr] = "<NA>"
-                                else:
-                                    code = int(np.rint(float(raw_value)))
-                                    values[attr] = categorical_mappings[attr].get(code, f"<unknown:{code}>")
-                            else:
-                                values[attr] = raw_value
-                        msg = f"Cell ID: {cell_id}, {centroid_str}, " + ", ".join(
-                            f"{k}: {v}" for k, v in values.items())
-                    else:
-                        value = picked_cell.cell_data[scalar][0]
-                        msg = f"Picked cell value: {scalar}: {value}"
-                    plotter.add_text(msg, position="upper_left", font_size=12, name=text_name)
-                else:
-                    plotter.add_text("No valid cell picked.", position="upper_left", font_size=12, name=text_name)
-
-            plotter.enable_cell_picking(callback=cell_callback, show_message=False, through=False)
-            plotter.title = f"{self.name} - Press R and select a cell for attribute data"
-
-        return plotter
+        if engine is None:
+            engine = PyVistaBlockModelPlotEngine()
+        return engine.plot(
+            self,
+            scalar=scalar,
+            grid_type=grid_type,
+            frame=frame,
+            threshold=threshold,
+            show_edges=show_edges,
+            show_axes=show_axes,
+            enable_picking=enable_picking,
+            picked_attributes=picked_attributes,
+        )
 
     def read(
         self,

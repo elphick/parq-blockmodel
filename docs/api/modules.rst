@@ -17,4 +17,5 @@ API Reference
     schema
     reblocking
     mesh
+    visualization
     utils

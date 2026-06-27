@@ -7,6 +7,7 @@ from .blockmodel import ParquetBlockModel
 from .geometry import RegularGeometry, LocalGeometry, WorldFrame, Extents
 from .polygon_field import PolygonField
 from .solid import Solid, MeshSolid
+from .visualization import BlockModelPlotEngine, BlockModelPlotState, BlockModelTrameApp, PyVistaBlockModelPlotEngine
 from .utils.demo_block_model import create_demo_blockmodel
 
 try:
@@ -25,4 +26,8 @@ __all__ = [
     "PolygonField",
     "Solid",
     "MeshSolid",
+    "BlockModelPlotEngine",
+    "BlockModelPlotState",
+    "PyVistaBlockModelPlotEngine",
+    "BlockModelTrameApp",
 ]
