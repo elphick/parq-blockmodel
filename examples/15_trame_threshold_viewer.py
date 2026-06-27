@@ -24,7 +24,7 @@ from parq_blockmodel.visualization import BlockModelTrameApp
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
-# sphinx_gallery_thumbnail_path = "../docs/_static/branding/parq-blockmodel.svg"
+# sphinx_gallery_thumbnail_path = "../docs/_static/branding/parq-blockmodel-gallery-thumbnail.svg"
 DEMO_SOURCE_KIND = "file"  # "file" or "hive"
 
 
