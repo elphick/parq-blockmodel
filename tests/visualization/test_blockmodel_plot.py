@@ -146,35 +146,32 @@ def test_trame_example_seeds_temp_demo_when_sample_missing(tmp_path, monkeypatch
     spec.loader.exec_module(module)
 
     launched = {}
-
-    class FakePBM:
-        def __init__(self, path):
-            self.blockmodel_path = Path(path).with_suffix(".pbm")
-            self.available_attributes = ["grade"]
+    created = []
 
     def fake_create_toy_blockmodel(*, filename, shape):
-        launched["created"] = Path(filename)
+        created.append(Path(filename))
         launched["shape"] = shape
-        return FakePBM(filename)
+        return object()
 
     class FakeApp:
-        def __init__(self, pbm, scalar):
-            launched["pbm"] = pbm
-            launched["scalar"] = scalar
-
         def launch(self):
             launched["launched"] = True
+
+    def fake_from_source_path(source_path):
+        launched["source_path"] = Path(source_path)
+        return FakeApp()
 
     monkeypatch.setattr(module.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(module.tempfile, "gettempdir", lambda: str(tmp_path))
     monkeypatch.setattr(module.ParquetBlockModel, "create_toy_blockmodel", staticmethod(fake_create_toy_blockmodel))
-    monkeypatch.setattr(module, "BlockModelTrameApp", FakeApp)
+    monkeypatch.setattr(module.BlockModelTrameApp, "from_source_path", staticmethod(fake_from_source_path))
 
     module.main()
 
     assert launched["launched"] is True
     assert launched["shape"] == (4, 4, 4)
-    assert launched["created"].parent == tmp_path / "parq_blockmodel_trame_demo"
+    assert launched["source_path"].suffix == ".pbm"
+    assert len(created) == 2
 
 
 def test_trame_example_skips_launch_during_gallery_build(tmp_path, monkeypatch):
@@ -185,32 +182,66 @@ def test_trame_example_skips_launch_during_gallery_build(tmp_path, monkeypatch):
     spec.loader.exec_module(module)
 
     launched = {}
+    created = []
 
-    class FakePBM:
-        def __init__(self, path):
-            self.blockmodel_path = Path(path).with_suffix(".pbm")
-            self.available_attributes = ["grade"]
+    def fake_create_toy_blockmodel(*, filename, shape):
+        created.append(Path(filename))
+        return object()
 
     class FakeApp:
-        def __init__(self, pbm, scalar):
-            launched["pbm"] = pbm
-            launched["scalar"] = scalar
-
         def launch(self):
             launched["launched"] = True
 
+    def fake_from_source_path(source_path):
+        launched["source_path"] = Path(source_path)
+        return FakeApp()
+
     monkeypatch.setattr(module.Path, "cwd", lambda: tmp_path)
     monkeypatch.setattr(module.tempfile, "gettempdir", lambda: str(tmp_path))
-    monkeypatch.setattr(module, "ParquetBlockModel", type("PBMFactory", (), {
-        "blockmodel_path": None,
-        "create_toy_blockmodel": staticmethod(lambda **kwargs: FakePBM(kwargs["filename"]))
-    }))
-    monkeypatch.setattr(module, "BlockModelTrameApp", FakeApp)
+    monkeypatch.setattr(module.ParquetBlockModel, "create_toy_blockmodel", staticmethod(fake_create_toy_blockmodel))
+    monkeypatch.setattr(module.BlockModelTrameApp, "from_source_path", staticmethod(fake_from_source_path))
     monkeypatch.setattr(module.pv, "BUILDING_GALLERY", True, raising=False)
 
     module.main()
 
     assert "launched" not in launched
+    assert len(created) == 2
+
+
+def test_trame_example_hive_toggle_uses_directory_source(tmp_path, monkeypatch):
+    example_path = Path(__file__).resolve().parents[2] / "examples" / "15_trame_threshold_viewer.py"
+    spec = util.spec_from_file_location("trame_threshold_viewer", example_path)
+    module = util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+
+    launched: dict[str, object] = {}
+    created: list[Path] = []
+
+    def fake_create_toy_blockmodel(*, filename, shape):
+        created.append(Path(filename))
+        launched["shape"] = shape
+        return object()
+
+    class FakeApp:
+        def launch(self):
+            launched["launched"] = True
+
+    def fake_from_source_path(source_path):
+        launched["source_path"] = Path(source_path)
+        return FakeApp()
+
+    monkeypatch.setattr(module, "DEMO_SOURCE_KIND", "hive")
+    monkeypatch.setattr(module.tempfile, "gettempdir", lambda: str(tmp_path))
+    monkeypatch.setattr(module.ParquetBlockModel, "create_toy_blockmodel", staticmethod(fake_create_toy_blockmodel))
+    monkeypatch.setattr(module.BlockModelTrameApp, "from_source_path", staticmethod(fake_from_source_path))
+
+    module.main()
+
+    assert launched["launched"] is True
+    assert launched["shape"] == (4, 4, 4)
+    assert launched["source_path"] == tmp_path / "parq_blockmodel_trame_hive_demo"
+    assert len(created) == 2
 
 
 def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):

@@ -1,41 +1,67 @@
 Trame visualization
 ===================
 
-The Trame visualization path provides a read-only viewer for a loaded
+The Trame viewer provides a read-only interactive view for
 :class:`parq_blockmodel.blockmodel.ParquetBlockModel`.
 
-Phase 1 focuses on a single PBM at a time:
+Supported workflows
+-------------------
 
-* load a PBM from a file path,
-* choose one attribute,
+The viewer supports both:
+
+* single-PBM launch from a specific file path,
+* hive-style drill-down selection using ``key=value`` directories plus PBM name.
+
+In both modes you can:
+
+* choose an attribute,
 * adjust a threshold slider,
-* and refresh the scene without mutating the source model.
+* refresh the rendered scene without mutating source PBM files.
 
-The implementation is split into a reusable plotting module and a small Trame
-session wrapper:
+Data source loader
+------------------
 
-* :mod:`parq_blockmodel.visualization.blockmodel_plot`
-* :mod:`parq_blockmodel.visualization.trame_app`
+The left drawer now starts with a collapsible **Data source** panel containing
+a server path field and a **Load** button.
 
-Example
--------
+* If the path is a ``.pbm`` file, the app switches to single-model mode.
+* If the path is a directory, the app treats it as a hive root and enables the
+  hive selector panel.
 
-The example script ``examples/15_trame_threshold_viewer.py`` shows the
-standalone entry point. If the sample PBM is missing, the script creates a toy
-model in the system temporary directory and logs a warning before launching the
-viewer.
+Hive-style selector
+-------------------
 
-Gallery-safe pattern
---------------------
+When launched from a hive root, the left drawer shows an **Asset selector**
+panel. The selector exposes:
 
-For interactive examples that should appear in Sphinx-Gallery but not start a
-live server during docs builds, keep the example executable and gate the final
-``app.launch()`` call on ``pyvista.BUILDING_GALLERY`` (or a similar docs-only
-flag). Pair that with ``# sphinx_gallery_thumbnail_path = ...`` so the gallery
-still gets a stable thumbnail.
+* one dropdown per hive level key (in discovered order),
+* a ``PBM name`` dropdown (``pbm.name`` / file stem),
+* the resolved PBM file path.
 
-Future work
------------
+Changing selection loads the matching PBM in-place in the same app session.
 
-Hive-directory browsing and multi-PBM filtering are intentionally deferred to a
-later phase.
+API
+---
+
+Use :meth:`parq_blockmodel.visualization.trame_app.BlockModelTrameApp.from_source_path`
+to launch from either a PBM file or a hive directory:
+
+.. code-block:: python
+
+   from parq_blockmodel.visualization import BlockModelTrameApp
+
+   app = BlockModelTrameApp.from_source_path("path/to/source")
+   app.launch()
+
+Examples
+--------
+
+One combined example is provided:
+
+* ``examples/15_trame_threshold_viewer.py``: combined file/hive demo. The
+  ``DEMO_SOURCE_KIND`` constant in the script switches between:
+  * file startup from a single ``.pbm`` path,
+  * hive startup from a directory path with selector drill-down.
+
+For interactive examples included in Sphinx-Gallery, gate ``app.launch()`` with
+``pyvista.BUILDING_GALLERY`` so docs builds do not start a live Trame server.
