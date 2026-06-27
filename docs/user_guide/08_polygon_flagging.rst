@@ -74,4 +74,5 @@ See also
 --------
 
 * Gallery example: :doc:`/auto_examples/13_polygon_flagging`
+* Next: :doc:`/user_guide/09_surface_encoding`
 * API: :class:`parq_blockmodel.polygon_field.PolygonField`

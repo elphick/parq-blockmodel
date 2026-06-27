@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg"
-     viewBox="40 0 120 90"
+     viewBox="0 0 180 140"
      aria-label="parq-blockmodel icon">
 
   <!-- colours -->
@@ -10,6 +10,9 @@
   <!-- missing:    #FFFFFF -->
 
   <!-- ================= MAIN SOLID ================= -->
+
+  <g opacity="1.0"
+   transform="translate(90,70) scale(1.0) translate(-100,-40)">
 
   <!-- top face -->
   <polygon points="60,20 108,0 152,20 100,40"
@@ -86,5 +89,5 @@
     <polygon points="152,20 100,40 100,70 152,50"/>
 
   </g>
-
+</g>
 </svg>

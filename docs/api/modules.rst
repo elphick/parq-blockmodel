@@ -11,6 +11,7 @@ API Reference
     blockmodel
     geometry
     polygon_field
+    surface
     solid
     io
     reporting

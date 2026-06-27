@@ -7,6 +7,7 @@ from .blockmodel import ParquetBlockModel
 from .geometry import RegularGeometry, LocalGeometry, WorldFrame, Extents
 from .polygon_field import PolygonField
 from .solid import Solid, MeshSolid
+from .surface import Surface, RasterSurface, MeshSurface
 from .visualization import BlockModelPlotEngine, BlockModelPlotState, BlockModelTrameApp, PyVistaBlockModelPlotEngine
 from .utils.demo_block_model import create_demo_blockmodel
 
@@ -26,6 +27,9 @@ __all__ = [
     "PolygonField",
     "Solid",
     "MeshSolid",
+    "Surface",
+    "RasterSurface",
+    "MeshSurface",
     "BlockModelPlotEngine",
     "BlockModelPlotState",
     "PyVistaBlockModelPlotEngine",

@@ -73,6 +73,7 @@ Current v1 scope excludes:
 See also
 --------
 
-* Gallery example: :doc:`/auto_examples/14_solid_flagging`
+* Gallery example: :doc:`/auto_examples/15_solid_flagging`
+* Previous: :doc:`/user_guide/09_surface_encoding`
 * :class:`parq_blockmodel.solid.MeshSolid`
 * :class:`parq_blockmodel.polygon_field.PolygonField`
