@@ -22,7 +22,7 @@ The **canonical on-disk container** for a block model is a file with a
 * stores block attributes (grades, density, rock type, ...),
 * may include centroid columns ``x``, ``y``, ``z`` for convenience and
   interoperability, and
-* always carries embedded geometry metadata under a reserved key
+* always carries embedded PBM metadata under a reserved key
   (``"parq-blockmodel"``).
 
 The geometry metadata encodes a regular logical grid in terms of
@@ -39,6 +39,9 @@ World coordinates ``(x, y, z)`` are therefore a **derived view** of
 ``(i, j, k) + geometry`` rather than the primary index. Existing
 xyz-centric Parquet files remain supported, and ``ParquetBlockModel`` can
 promote them into canonical ``.pbm`` containers with embedded geometry.
+
+Compression lifecycle, fast writes, archive rewrites, and schema-driven
+compression overrides are covered in :doc:`user_guide/11_compression_framework`.
 
 For a deeper, developer-oriented discussion of how geometry and metadata
 are encoded, see :ref:`geometry-metadata-design`.

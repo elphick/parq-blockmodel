@@ -1,5 +1,6 @@
 """Tests for schema utility functions."""
 
+import json
 import pytest
 from pathlib import Path
 import pandas as pd
@@ -127,3 +128,39 @@ class TestValidateChunk:
         df = pd.DataFrame({"x": ["not_a_number"]})
         with pytest.raises(Exception):  # pandera.errors.SchemaError
             validate_chunk(df, schema)
+
+
+class TestCompressionMetadata:
+    """Test compression metadata helpers."""
+
+    def test_resolve_active_compression_policy_default_is_snappy(self):
+        from parq_blockmodel.schema.utils import resolve_active_compression_policy
+
+        policy = resolve_active_compression_policy()
+        assert policy["mode"] == "active"
+        assert policy["default"] == {"codec": "snappy", "level": None}
+        assert policy["columns"] == {}
+
+    def test_resolve_active_compression_policy_integer_uses_zstd_level(self):
+        from parq_blockmodel.schema.utils import resolve_active_compression_policy
+
+        policy = resolve_active_compression_policy(5)
+        assert policy["default"] == {"codec": "zstd", "level": 5}
+
+    def test_build_schema_metadata_can_persist_compression(self):
+        from parq_blockmodel.geometry import RegularGeometry
+        from parq_blockmodel.schema.utils import build_schema_metadata, PBM_METADATA_KEY
+
+        geometry = RegularGeometry.create()
+        metadata = build_schema_metadata(
+            geometry=geometry,
+            schema=None,
+            compression={
+                "mode": "active",
+                "default": {"codec": "snappy", "level": None},
+                "columns": {},
+            },
+        )
+        assert PBM_METADATA_KEY in metadata
+        payload = json.loads(metadata[PBM_METADATA_KEY].decode("utf-8"))
+        assert payload["compression"]["default"]["codec"] == "snappy"

@@ -22,6 +22,7 @@ except ImportError:
     print("Install parq-blockmodel[schema] to run this example.")
     raise SystemExit(0)
 
+# sphinx_gallery_thumbnail_path = "../docs/_static/branding/parq-blockmodel-gallery-thumbnail.svg"
 
 # %%
 # Build a small demo model with persisted base attributes.

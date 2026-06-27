@@ -16,6 +16,7 @@ import pyarrow.parquet as pq
 
 from parq_blockmodel.geometry import RegularGeometry
 from parq_blockmodel.io.ingest_utils import assert_block_id_xyz_consistent, build_world_id_encoding_from_xyz
+from parq_blockmodel.schema import utils as schema_utils
 from parq_blockmodel.utils.spatial_encoding import (
     decode_world_coordinates,
     encode_world_coordinates,
@@ -67,6 +68,7 @@ class IngestWriter:
         geometry: RegularGeometry,
         schema: Optional["DataFrameSchema"] = None,
         engine_initializer: Optional[typing.Callable] = None,
+        compression: typing.Any = "fast",
     ) -> None:
         """Initialize the IngestWriter with input/output paths and geometry.
 
@@ -93,6 +95,7 @@ class IngestWriter:
         self.geometry = geometry
         self.schema = schema
         self.engine_initializer = engine_initializer
+        self.compression = compression
 
         if self.input_path is not None and not self.input_path.exists():
             raise ValueError(f"Input file does not exist: {self.input_path}")
@@ -139,6 +142,7 @@ class IngestWriter:
 
         pf = pq.ParquetFile(self.input_path)
         src_cols = pf.schema.names
+        compression_policy = schema_utils.resolve_active_compression_policy(self.compression)
 
         # Determine output columns
         if columns is None:
@@ -341,13 +345,17 @@ class IngestWriter:
                         geometry=self.geometry,
                         schema=self.schema,
                         base_metadata=dict(table.schema.metadata or {}),
+                        compression=compression_policy,
                     )
                     table = table.replace_schema_metadata(meta)
 
                     # Write batch (first batch initializes writer)
                     if writer is None:
-                        # todo: extract compression to a config file.
-                        writer = pq.ParquetWriter(tmp_path, table.schema, compression="zstd",  compression_level=3)
+                        writer = pq.ParquetWriter(
+                            tmp_path,
+                            table.schema,
+                            **schema_utils.build_parquet_compression_kwargs(table.column_names, compression_policy),
+                        )
                     else:
                         if table.schema != writer.schema:
                             table = table.cast(writer.schema)
@@ -544,6 +552,7 @@ class IngestWriter:
         ordered = ParquetBlockModel._ordered_columns(output_cols)
         ordered = [c for c in ordered if c in df_work.columns]
         write_df = df_work[ordered]
+        compression_policy = schema_utils.resolve_active_compression_policy(self.compression)
 
         # Write to Parquet with metadata
         table = pa.Table.from_pandas(write_df, preserve_index=False)
@@ -551,8 +560,13 @@ class IngestWriter:
             geometry=self.geometry,
             schema=self.schema,
             base_metadata=dict(table.schema.metadata or {}),
+            compression=compression_policy,
         )
         table = table.replace_schema_metadata(meta)
-        pq.write_table(table, self.output_path)
+        pq.write_table(
+            table,
+            self.output_path,
+            **schema_utils.build_parquet_compression_kwargs(ordered, compression_policy),
+        )
 
         logger.info(f"Successfully wrote canonical .pbm file to {self.output_path} from DataFrame.")
