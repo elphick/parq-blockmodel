@@ -57,3 +57,18 @@ for detailed documentation on calculated attributes, including custom lookups an
 
 For polygon-based block flagging workflows (including persisted named polygons in GeoParquet),
 see the [Polygon Flagging guide](https://parq-blockmodel.readthedocs.io/en/stable/user_guide/08_polygon_flagging.html).
+
+## Visualization
+
+The block-model plotting path now delegates through `parq_blockmodel.visualization`, which keeps the
+rendering logic isolated from `ParquetBlockModel` itself.
+
+```python
+from parq_blockmodel import ParquetBlockModel
+from parq_blockmodel.visualization import BlockModelTrameApp
+
+pbm = ParquetBlockModel.from_parquet("orebody.parquet")
+plotter = pbm.plot(scalar="grade")
+
+app = BlockModelTrameApp(pbm, scalar="grade")
+```

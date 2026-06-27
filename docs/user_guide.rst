@@ -45,6 +45,9 @@ are encoded, see :ref:`geometry-metadata-design`.
 
 Profiling and HTML report generation are covered in :doc:`user_guide/05_reports`.
 
+Interactive Trame-based visualization is documented in
+:doc:`user_guide/10_trame_visualization`.
+
 .. toctree::
    :maxdepth: 2
    :hidden:
