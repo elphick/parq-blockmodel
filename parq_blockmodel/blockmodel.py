@@ -74,6 +74,7 @@ if typing.TYPE_CHECKING:
     from pandera import DataFrameSchema  # type: ignore[import]
     from parq_blockmodel.polygon_field import PolygonField
     from parq_blockmodel.solid import MeshSolid
+    from parq_blockmodel.surface import Surface
 
 logger = logging.getLogger(__name__)
 
@@ -747,6 +748,11 @@ class ParquetBlockModel:
     def origin(self) -> Point:
         """Backward-compatible access to the world-frame origin."""
         return self.geometry.origin
+
+    @property
+    def grid(self) -> RegularGeometry:
+        """Backward-compatible access to the canonical block model grid."""
+        return self.geometry
 
     @property
     def centroid_index(self) -> pd.MultiIndex:
@@ -1880,6 +1886,31 @@ class ParquetBlockModel:
             outside_value=outside_value,
             as_categorical=as_categorical,
         )
+
+    def evaluate_surface(
+        self,
+        surface: "Surface",
+        *,
+        column: str,
+    ) -> np.ndarray:
+        """Evaluate a Surface and persist the resulting values into a column."""
+        values = np.asarray(surface.evaluate(self.geometry), dtype=float)
+        expected_len = int(np.prod(self.geometry.local.shape))
+        if values.shape != (expected_len,):
+            raise ValueError(
+                f"Surface value length mismatch: expected ({expected_len},), got {values.shape}."
+            )
+
+        rows = self.read(columns=["block_id"], index=None)
+        block_ids = rows["block_id"].to_numpy(dtype=np.int64)
+        payload = pd.DataFrame(
+            {
+                "block_id": block_ids,
+                column: values[block_ids],
+            }
+        )
+        self.write(payload, merge=True)
+        return values
 
     def write(
             self,

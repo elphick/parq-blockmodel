@@ -55,9 +55,6 @@ pbm.validate(sample_chunks=1)  # quick spot-check for large models
 See the [User Guide](https://parq-blockmodel.readthedocs.io/en/stable/user_guide/07_calculated_attributes.html)
 for detailed documentation on calculated attributes, including custom lookups and functions.
 
-For polygon-based block flagging workflows (including persisted named polygons in GeoParquet),
-see the [Polygon Flagging guide](https://parq-blockmodel.readthedocs.io/en/stable/user_guide/08_polygon_flagging.html).
-
 ## Visualization
 
 The block-model plotting path now delegates through `parq_blockmodel.visualization`, which keeps the
@@ -72,3 +69,11 @@ plotter = pbm.plot(scalar="grade")
 
 app = BlockModelTrameApp(pbm, scalar="grade")
 ```
+
+## Geometry operations
+
+`parq-blockmodel` supports three geometry flagging workflows:
+
+* [Polygon flagging](https://parq-blockmodel.readthedocs.io/en/stable/user_guide/08_polygon_flagging.html) for 2D XY regions.
+* [Surface flagging](https://parq-blockmodel.readthedocs.io/en/stable/user_guide/09_surface_flagging.html) for 2.5D elevation surfaces (`z = f(x, y)`).
+* [Solid flagging](https://parq-blockmodel.readthedocs.io/en/stable/user_guide/10_solid_flagging.html) for closed 3D volumes.
