@@ -202,7 +202,10 @@ def render_plotter(
 
     plotter.title = state.title
     if show_axes:
-        plotter.add_axes()
+        if hasattr(plotter, "add_axes"):
+            plotter.add_axes()
+        elif hasattr(plotter, "show_axes"):
+            plotter.show_axes()
 
     text_name = "cell_info_text"
     plotter.add_text("", position="upper_left", font_size=12, name=text_name)
