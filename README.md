@@ -75,5 +75,5 @@ app = BlockModelTrameApp(pbm, scalar="grade")
 `parq-blockmodel` supports three geometry flagging workflows:
 
 * [Polygon flagging](https://parq-blockmodel.readthedocs.io/en/stable/user_guide/08_polygon_flagging.html) for 2D XY regions.
-* [Surface flagging](https://parq-blockmodel.readthedocs.io/en/stable/user_guide/09_surface_flagging.html) for 2.5D elevation surfaces (`z = f(x, y)`).
+* [Surface encoding](https://parq-blockmodel.readthedocs.io/en/stable/user_guide/09_surface_encoding.html) for 2.5D elevation surfaces (`z = f(x, y)`).
 * [Solid flagging](https://parq-blockmodel.readthedocs.io/en/stable/user_guide/10_solid_flagging.html) for closed 3D volumes.
