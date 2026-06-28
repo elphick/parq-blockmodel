@@ -282,6 +282,52 @@ def test_trame_hive_directory_starts_without_blockmodel(tmp_path, monkeypatch):
     assert app._initial_scalar == ""
 
 
+def test_trame_reset_model_view_clears_loaded_state(tmp_path, monkeypatch):
+    parquet_path = tmp_path / "reset_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+
+    class FakePlotter:
+        def __init__(self, *args, **kwargs):
+            self.cleared = False
+
+        def clear(self):
+            self.cleared = True
+
+        def add_mesh(self, *args, **kwargs):
+            return None
+
+        def view_isometric(self):
+            return None
+
+        def reset_camera_clipping_range(self):
+            return None
+
+        def add_axes(self):
+            return None
+
+        def render(self):
+            return None
+
+        def show(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+
+    app = BlockModelTrameApp(pbm, scalar=pbm.available_attributes[0], show_edges=False)
+    app._load_plot_state(app._initial_scalar)
+    app._server = SimpleNamespace(state=SimpleNamespace())
+    app._reset_model_view()
+
+    assert app.blockmodel is None
+    assert app.state is None
+    assert app.threshold is not None
+    assert app.threshold.value == 0.0
+    assert app.filter_enabled is False
+    assert app.plotter.cleared is True
+    assert app._server.state.active_attribute == ""
+    assert app._server.state.model_name == ""
+
+
 def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
     parquet_path = tmp_path / "trame_source.parquet"
     pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))

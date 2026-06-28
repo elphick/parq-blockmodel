@@ -243,6 +243,28 @@ class BlockModelTrameApp:
         if self._remote_view is not None:
             self._remote_view.update()
 
+    def _reset_model_view(self) -> None:
+        self.blockmodel = None
+        self.state = None
+        self.threshold = ThresholdRange(minimum=0.0, maximum=1.0, value=0.0, step=0.005)
+        self.filter_enabled = False
+        self._initial_scalar = ""
+        self.plotter.clear()
+        if self._remote_view is not None:
+            self._remote_view.update()
+        if self._server is not None:
+            state = self._server.state
+            state.attribute_options = []
+            state.active_attribute = ""
+            state.threshold_min = self.threshold.minimum
+            state.threshold_max = self.threshold.maximum
+            state.threshold = self.threshold.value
+            state.threshold_display = self._format_threshold(self.threshold.value)
+            state.threshold_step = self.threshold.step
+            state.filter_active = False
+            state.model_name = ""
+            state.model_path = ""
+
 
 
     def _load_plot_state(self, scalar: str) -> None:
@@ -401,15 +423,15 @@ class BlockModelTrameApp:
                      
                     # Update current level
                     self._asset_level_values[level_key] = new_value
-                     
+
                     # Clear all child levels and asset name when parent changes
                     for idx in range(level_index + 1, len(self._asset_level_keys)):
                         self._asset_level_values[self._asset_level_keys[idx]] = ""
                     self._selected_asset_name = ""
-                     
-                    # Clear canvas when selection changes
-                    self.plotter.clear()
-                     
+
+                    # Clear model view immediately when selection changes
+                    self._reset_model_view()
+
                     self._asset_selectors_autofilled = True
                     # Let _sync_asset_selector_state manage _syncing_state
                     self._sync_asset_selector_state()
@@ -438,15 +460,16 @@ class BlockModelTrameApp:
                  
                 self._selected_asset_name = new_name
                 self._asset_selectors_autofilled = True
-                
+
                 # Only load when asset name is explicitly selected (not empty)
                 if new_name:
+                    self._reset_model_view()
                     self._load_selected_asset()
                     # Sync state AFTER loading asset so attribute_options are available
                     self._sync_asset_selector_state()
                 else:
                     # Clear canvas if asset name is deselected
-                    self.plotter.clear()
+                    self._reset_model_view()
                     self._sync_asset_selector_state()
 
             ctrl.update_asset_name = _asset_name_changed
