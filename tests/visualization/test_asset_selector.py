@@ -7,7 +7,8 @@ from parq_blockmodel.visualization import BlockModelTrameApp, HivePbmCatalog
 
 
 def _create_demo_pbm(root: Path, relative_parquet_path: str) -> ParquetBlockModel:
-    parquet_path = root / relative_parquet_path
+    relative_parquet_path = relative_parquet_path.replace("\\", "/")
+    parquet_path = root.joinpath(*Path(relative_parquet_path).parts)
     parquet_path.parent.mkdir(parents=True, exist_ok=True)
     return ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
 
