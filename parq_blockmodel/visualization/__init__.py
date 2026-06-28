@@ -2,6 +2,7 @@ from .blockmodel_plot import (
     BlockModelPlotEngine,
     BlockModelPlotState,
     PyVistaBlockModelPlotEngine,
+    TrameBlockModelPlotEngine,
     prepare_plot_state,
 )
 from .asset_selector import HivePbmCatalog, PbmAsset
@@ -13,6 +14,7 @@ __all__ = [
     "HivePbmCatalog",
     "PbmAsset",
     "PyVistaBlockModelPlotEngine",
+    "TrameBlockModelPlotEngine",
     "BlockModelTrameApp",
     "prepare_plot_state",
 ]

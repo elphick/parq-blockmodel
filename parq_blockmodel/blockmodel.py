@@ -1583,6 +1583,8 @@ class ParquetBlockModel:
              threshold: bool = True, show_edges: bool = True,
              show_axes: bool = True, enable_picking: bool = False,
              picked_attributes: Optional[list[str]] = None,
+             z_up_lock: bool = False,
+             z_up_hotkey: str = "z",
              engine: Optional[typing.Any] = None) -> typing.Any:
         """Plot the block model using PyVista.
 
@@ -1596,6 +1598,8 @@ class ParquetBlockModel:
             show_axes: Show the axes in the plot.
             enable_picking: If True, enables picking mode to interactively select cells in the plot.
             picked_attributes: A list of attributes that will be returned in picking mode. If None, all attributes are returned.
+            z_up_lock: If True, hold the configured hotkey during interaction to enforce +Z camera up direction.
+            z_up_hotkey: Single-letter hotkey used with ``z_up_lock``. Defaults to ``"z"``.
 
         Returns:
 
@@ -1615,6 +1619,8 @@ class ParquetBlockModel:
             show_axes=show_axes,
             enable_picking=enable_picking,
             picked_attributes=picked_attributes,
+            z_up_lock=z_up_lock,
+            z_up_hotkey=z_up_hotkey,
         )
 
     def read(

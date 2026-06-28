@@ -40,6 +40,26 @@ panel. The selector exposes:
 
 Changing selection loads the matching PBM in-place in the same app session.
 
+Navigation and hotkeys
+----------------------
+
+The Trame view uses VTK-style camera interactions. Common controls are:
+
+* **Left drag**: rotate/orbit camera
+* **Shift + left drag**: translate (pan)
+* **Middle drag**: translate (pan)
+* **Right drag**: dolly/zoom
+* **Mouse wheel**: zoom
+
+When ``z_up_lock=True`` is enabled, hold ``z`` while rotating to keep +Z
+vertical on screen (turntable-style orbit with no roll).
+
+Notes:
+
+* In browser-based Trame sessions, click inside the 3D view first so keyboard
+  events are captured by the app.
+* Exact interaction feel can vary slightly by platform/browser.
+
 API
 ---
 

@@ -39,8 +39,33 @@ If the `viz` extra is installed, you can visualize the block model using the `pl
 
     import pyvista as pv
 
-    p: pv.Plotter = pbm.plot()
+    p: pv.Plotter = pbm.plot(z_up_lock=True, z_up_hotkey="z")
     p.show()
+
+To use the Trame viewer from ``pbm.plot(...)``:
+
+..  code-block:: python
+
+    from parq_blockmodel.visualization import TrameBlockModelPlotEngine
+
+    app = pbm.plot(
+        scalar=pbm.available_attributes[0],
+        engine=TrameBlockModelPlotEngine(),
+        z_up_lock=True,
+        z_up_hotkey="z",
+    )
+    app.launch(port=8080)
+
+You can also construct the app directly:
+
+..  code-block:: python
+
+    from parq_blockmodel.visualization import BlockModelTrameApp
+
+    app = BlockModelTrameApp(pbm, scalar=pbm.available_attributes[0], z_up_lock=True, z_up_hotkey="z")
+    app.launch(port=8080)
+
+With ``z_up_lock=True``, hold ``z`` for turntable-style orbit (yaw/pitch, no roll) with camera up aligned to +Z.
 
 
 For examples that demonstrate a range of use cases, see the :doc:`/auto_examples/index`.

@@ -10,7 +10,14 @@ from uuid import uuid4
 import numpy as np
 import pyvista as pv
 
-from parq_blockmodel.visualization.blockmodel_plot import BlockModelPlotState, _plotter_add_mesh_kwargs, prepare_plot_state
+from parq_blockmodel.visualization.blockmodel_plot import (
+    BlockModelPlotState,
+    _normalize_z_up_hotkey,
+    _plotter_add_mesh_kwargs,
+    _register_z_up_rotation_lock,
+    _set_z_up_hotkey_state,
+    prepare_plot_state,
+)
 from parq_blockmodel.visualization.asset_selector import HivePbmCatalog
 
 if TYPE_CHECKING:
@@ -42,6 +49,8 @@ class BlockModelTrameApp:
         frame: str = "world",
         title: Optional[str] = None,
         show_edges: bool = True,
+        z_up_lock: bool = False,
+        z_up_hotkey: str = "z",
         asset_catalog: Optional[HivePbmCatalog] = None,
         asset_catalog_root: Optional[str | Path] = None,
     ) -> None:
@@ -51,6 +60,8 @@ class BlockModelTrameApp:
         self._title_override = title is not None
         self.title = title or (blockmodel.name if blockmodel else "")
         self.show_edges = show_edges
+        self.z_up_lock = bool(z_up_lock)
+        self.z_up_hotkey = _normalize_z_up_hotkey(z_up_hotkey)
         self._initial_scalar = scalar or (self._default_scalar() if blockmodel is not None else "")
         self.asset_catalog = asset_catalog
         self.asset_catalog_root = (
@@ -69,6 +80,8 @@ class BlockModelTrameApp:
         self.threshold: Optional[ThresholdRange] = None
         self.filter_enabled = True
         self.plotter = pv.Plotter(off_screen=True)
+        if self.z_up_lock:
+            _register_z_up_rotation_lock(self.plotter, self.z_up_hotkey)
         self._remote_view = None
         self._server = None
         self._syncing_state = False
@@ -86,6 +99,8 @@ class BlockModelTrameApp:
         frame: str = "world",
         title: Optional[str] = None,
         show_edges: bool = True,
+        z_up_lock: bool = False,
+        z_up_hotkey: str = "z",
     ) -> "BlockModelTrameApp":
         from parq_blockmodel.blockmodel import ParquetBlockModel
 
@@ -96,6 +111,8 @@ class BlockModelTrameApp:
             frame=frame,
             title=title,
             show_edges=show_edges,
+            z_up_lock=z_up_lock,
+            z_up_hotkey=z_up_hotkey,
         )
 
     @classmethod
@@ -108,6 +125,8 @@ class BlockModelTrameApp:
         frame: str = "world",
         title: Optional[str] = None,
         show_edges: bool = True,
+        z_up_lock: bool = False,
+        z_up_hotkey: str = "z",
     ) -> "BlockModelTrameApp":
         catalog = HivePbmCatalog.discover(root_path)
         # For hive mode, don't load any blockmodel initially - user selects via UI
@@ -119,6 +138,8 @@ class BlockModelTrameApp:
             frame=frame,
             title=title,
             show_edges=show_edges,
+            z_up_lock=z_up_lock,
+            z_up_hotkey=z_up_hotkey,
             asset_catalog=catalog,
             asset_catalog_root=Path(root_path),
         )
@@ -136,6 +157,8 @@ class BlockModelTrameApp:
         frame: str = "world",
         title: Optional[str] = None,
         show_edges: bool = True,
+        z_up_lock: bool = False,
+        z_up_hotkey: str = "z",
     ) -> "BlockModelTrameApp":
         path = Path(source_path).expanduser()
         if not path.is_absolute():
@@ -152,6 +175,8 @@ class BlockModelTrameApp:
                 frame=frame,
                 title=title,
                 show_edges=show_edges,
+                z_up_lock=z_up_lock,
+                z_up_hotkey=z_up_hotkey,
             )
         if path.is_dir():
             return cls.from_hive_directory(
@@ -161,6 +186,8 @@ class BlockModelTrameApp:
                 frame=frame,
                 title=title,
                 show_edges=show_edges,
+                z_up_lock=z_up_lock,
+                z_up_hotkey=z_up_hotkey,
             )
         raise ValueError(f"Selected path is not a file or directory: {path}")
 
@@ -638,6 +665,10 @@ class BlockModelTrameApp:
                 "Trame dependencies are required for the interactive app. "
                 "Install the 'trame', 'trame-vtk', and 'trame-vuetify' packages."
             ) from exc
+        try:  # Optional: used for browser key-capture hotkeys.
+            from trame.widgets import trame as trame_widgets
+        except ImportError:  # pragma: no cover
+            trame_widgets = None
 
         # Reset all instance state to ensure fresh launch (not stale from previous launch)
         self._asset_level_values = {}
@@ -726,6 +757,57 @@ class BlockModelTrameApp:
         ctrl.apply_threshold_text = _apply_threshold_text
         ctrl.reset_filter = self.reset_filter
         ctrl.update_asset_name = lambda **_: None
+        def _extract_client_key(event_payload=None, **kwargs) -> str:
+            values = []
+            if isinstance(event_payload, dict):
+                values.extend(
+                    [
+                        event_payload.get("key"),
+                        event_payload.get("keySym"),
+                        event_payload.get("keysym"),
+                        event_payload.get("code"),
+                        event_payload.get("keyCode"),
+                    ]
+                )
+            values.extend(
+                [
+                    kwargs.get("key"),
+                    kwargs.get("keySym"),
+                    kwargs.get("keysym"),
+                    kwargs.get("code"),
+                    kwargs.get("keyCode"),
+                ]
+            )
+            for value in values:
+                if value is None:
+                    continue
+                if isinstance(value, (int, float)):
+                    code = int(value)
+                    if 0 <= code <= 255:
+                        return chr(code).lower()
+                key_text = str(value).strip().lower()
+                if key_text:
+                    return key_text
+            return ""
+
+        def _on_zup_key_down(event=None, **kwargs):
+            if not self.z_up_lock:
+                return
+            key = _extract_client_key(event, **kwargs)
+            if key and key != self.z_up_hotkey:
+                return
+            _set_z_up_hotkey_state(self.plotter, True)
+
+        def _on_zup_key_up(event=None, **kwargs):
+            if not self.z_up_lock:
+                return
+            key = _extract_client_key(event, **kwargs)
+            if key and key != self.z_up_hotkey:
+                return
+            _set_z_up_hotkey_state(self.plotter, False)
+
+        ctrl.zup_key_down = _on_zup_key_down
+        ctrl.zup_key_up = _on_zup_key_up
         if self.asset_catalog is not None:
             self._register_asset_selector_handlers()
             self._syncing_state = True
@@ -925,10 +1007,29 @@ class BlockModelTrameApp:
             with layout.content:
                 layout.content.classes = "pa-0 ma-0"
                 layout.content.style = "height: calc(100vh - 64px); overflow: hidden;"
+                if self.z_up_lock and trame_widgets is not None:
+                    key_trap = trame_widgets.MouseTrap(
+                        ZUpKeyDown=ctrl.zup_key_down,
+                        ZUpKeyUp=ctrl.zup_key_up,
+                    )
+                    key_trap.bind("z", "ZUpKeyDown", listen_to="keydown")
+                    key_trap.bind("z", "ZUpKeyUp", listen_to="keyup")
+                remote_view_kwargs = {
+                    "interactive_ratio": 1,
+                    "style": "width: 100%; height: 100%; min-height: 600px;",
+                }
+                if self.z_up_lock:
+                    remote_view_kwargs.update(
+                        {
+                            "interactor_events": ("zup_interactor_events", ["KeyDown", "KeyPress", "KeyUp"]),
+                            "KeyDown": ctrl.zup_key_down,
+                            "KeyPress": ctrl.zup_key_down,
+                            "KeyUp": ctrl.zup_key_up,
+                        }
+                    )
                 self._remote_view = vtk.VtkRemoteView(
                     self.plotter.ren_win,
-                    interactive_ratio=1,
-                    style="width: 100%; height: 100%; min-height: 600px;",
+                    **remote_view_kwargs,
                 )
                 self._remote_view.update()
 

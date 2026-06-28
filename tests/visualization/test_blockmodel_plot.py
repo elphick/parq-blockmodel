@@ -6,7 +6,8 @@ from types import ModuleType, SimpleNamespace
 import pandas as pd
 
 from parq_blockmodel import ParquetBlockModel
-from parq_blockmodel.visualization import BlockModelTrameApp
+from parq_blockmodel.visualization import BlockModelTrameApp, TrameBlockModelPlotEngine
+from parq_blockmodel.visualization.blockmodel_plot import _register_z_up_rotation_lock, _set_z_up_hotkey_state
 
 
 class FakeEngine:
@@ -35,6 +36,177 @@ def test_blockmodel_plot_delegates_to_custom_engine(tmp_path):
     assert blockmodel is pbm
     assert kwargs["scalar"] == pbm.available_attributes[0]
     assert kwargs["threshold"] is False
+
+
+def test_blockmodel_plot_forwards_z_up_settings_to_engine(tmp_path):
+    parquet_path = tmp_path / "engine_zup_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+    engine = FakeEngine()
+
+    pbm.plot(
+        scalar=pbm.available_attributes[0],
+        engine=engine,
+        z_up_lock=True,
+        z_up_hotkey="z",
+    )
+
+    _, kwargs = engine.calls[0]
+    assert kwargs["z_up_lock"] is True
+    assert kwargs["z_up_hotkey"] == "z"
+
+
+def test_register_z_up_rotation_lock_uses_turntable_style_while_held(monkeypatch):
+    callbacks = {}
+    style_changes = []
+
+    class FakeStyle:
+        def __init__(self, name):
+            self.name = name
+
+    class FakeInteractor:
+        def __init__(self):
+            self.current_style = FakeStyle("trackball")
+
+        def add_observer(self, event_name, callback):
+            callbacks[event_name] = callback
+
+        def GetInteractorStyle(self):
+            return self.current_style
+
+        def SetInteractorStyle(self, style):
+            style_changes.append(style)
+            self.current_style = style
+
+    class FakeCamera:
+        def __init__(self):
+            self.view_up = None
+            self.orthogonalized = 0
+
+        def SetViewUp(self, x, y, z):
+            self.view_up = (x, y, z)
+
+        def OrthogonalizeViewUp(self):
+            self.orthogonalized += 1
+
+    class FakePlotter:
+        def __init__(self):
+            self.iren = FakeInteractor()
+            self.camera = FakeCamera()
+            self.render_calls = 0
+            self.renderer = object()
+
+        def render(self):
+            self.render_calls += 1
+
+    class FakeEventSource:
+        def __init__(self, key):
+            self._key = key
+
+        def GetKeySym(self):
+            return self._key
+
+    class FakeTerrainStyle:
+        def __init__(self):
+            self.default_renderer = None
+
+        def SetDefaultRenderer(self, renderer):
+            self.default_renderer = renderer
+
+    monkeypatch.setattr(
+        "parq_blockmodel.visualization.blockmodel_plot.pv._vtk.vtkInteractorStyleTerrain",
+        FakeTerrainStyle,
+    )
+
+    plotter = FakePlotter()
+    original_style = plotter.iren.GetInteractorStyle()
+    _register_z_up_rotation_lock(plotter, hotkey="z")
+
+    callbacks["KeyPressEvent"](FakeEventSource("z"), None)
+    callbacks["InteractionEvent"](None, None)
+    callbacks["KeyReleaseEvent"](FakeEventSource("z"), None)
+
+    assert plotter.camera.view_up == (0, 0, 1)
+    assert plotter.camera.orthogonalized >= 1
+    assert plotter.render_calls >= 2
+    assert plotter._pbm_z_up_hotkey_down is False
+    assert plotter._pbm_z_up_turntable_active is False
+    assert isinstance(style_changes[0], FakeTerrainStyle)
+    assert style_changes[-1] is original_style
+
+
+def test_set_z_up_hotkey_state_toggles_registered_callbacks():
+    calls = []
+
+    class FakePlotter:
+        pass
+
+    plotter = FakePlotter()
+    plotter._pbm_z_up_callbacks_registered = True
+    plotter._pbm_z_up_enable_turntable_mode = lambda: calls.append("enable")
+    plotter._pbm_z_up_disable_turntable_mode = lambda: calls.append("disable")
+
+    _set_z_up_hotkey_state(plotter, True)
+    _set_z_up_hotkey_state(plotter, False)
+
+    assert plotter._pbm_z_up_hotkey_down is False
+    assert calls == ["enable", "disable"]
+
+
+def test_trame_plot_engine_returns_trame_app_with_z_up(tmp_path, monkeypatch):
+    parquet_path = tmp_path / "engine_trame_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+
+    class FakeInteractor:
+        def __init__(self):
+            self.observers = []
+
+        def add_observer(self, event_name, callback):
+            self.observers.append((event_name, callback))
+
+    class FakeCamera:
+        def SetViewUp(self, *_):
+            return None
+
+    class FakePlotter:
+        def __init__(self, *args, **kwargs):
+            self.iren = FakeInteractor()
+            self.camera = FakeCamera()
+            self.ren_win = object()
+            self.actors = {}
+
+        def clear(self):
+            return None
+
+        def add_mesh(self, *args, **kwargs):
+            return None
+
+        def view_isometric(self):
+            return None
+
+        def reset_camera_clipping_range(self):
+            return None
+
+        def add_axes(self):
+            return None
+
+        def render(self):
+            return None
+
+        def show(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    engine = TrameBlockModelPlotEngine()
+    app = pbm.plot(
+        scalar=pbm.available_attributes[0],
+        engine=engine,
+        z_up_lock=True,
+        z_up_hotkey="z",
+    )
+
+    assert isinstance(app, BlockModelTrameApp)
+    assert app.z_up_lock is True
+    assert app.z_up_hotkey == "z"
 
 
 def test_trame_app_thresholding_updates_filtered_scene_without_mutating_pbm(tmp_path, monkeypatch):
@@ -475,8 +647,19 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
     fake_trame_ui_vuetify.VAppLayout = FakeLayout
     fake_trame_ui_vuetify.SinglePageLayout = FakeLayout
     fake_trame_widgets.vtk = SimpleNamespace(
-        VtkRemoteView=lambda ren_win, **kwargs: SimpleNamespace(update=lambda: None)
+        VtkRemoteView=lambda ren_win, **kwargs: (
+            calls.update({"remote_view_kwargs": kwargs}) or SimpleNamespace(update=lambda: None)
+        )
     )
+    mouse_bindings = []
+
+    class FakeMouseTrap:
+        def __init__(self, **kwargs):
+            self.kwargs = kwargs
+
+        def bind(self, keys, event_name, stop_propagation=False, listen_to=None):
+            mouse_bindings.append((keys, event_name, stop_propagation, listen_to))
+
     def make_widget(*args, **kwargs):
         return DummyContext()
 
@@ -511,6 +694,7 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
         VTextField=make_widget,
         VCheckbox=make_widget,
     )
+    fake_trame_widgets.trame = SimpleNamespace(MouseTrap=FakeMouseTrap)
 
     fake_trame.app = fake_trame_app
     fake_trame.ui = fake_trame_ui
@@ -526,7 +710,7 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
 
     from parq_blockmodel.visualization.trame_app import BlockModelTrameApp
 
-    app = BlockModelTrameApp(pbm, scalar=pbm.available_attributes[0])
+    app = BlockModelTrameApp(pbm, scalar=pbm.available_attributes[0], z_up_lock=True, z_up_hotkey="z")
     app.launch()
 
     assert calls["client_type"] == "vue2"
@@ -537,3 +721,8 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
     assert calls["logo_max_width"] == 50
     assert calls["toolbar_color"] == "grey lighten-3"
     assert calls["toolbar_dark"] is False
+    assert ("z", "ZUpKeyDown", False, "keydown") in mouse_bindings
+    assert ("z", "ZUpKeyUp", False, "keyup") in mouse_bindings
+    assert calls["remote_view_kwargs"]["interactor_events"][1] == ["KeyDown", "KeyPress", "KeyUp"]
+    assert callable(calls["remote_view_kwargs"]["KeyDown"])
+    assert callable(calls["remote_view_kwargs"]["KeyUp"])
