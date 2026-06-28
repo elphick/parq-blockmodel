@@ -328,6 +328,51 @@ def test_trame_reset_model_view_clears_loaded_state(tmp_path, monkeypatch):
     assert app._server.state.model_name == ""
 
 
+def test_trame_refresh_plot_uses_default_camera_on_first_render(tmp_path, monkeypatch):
+    parquet_path = tmp_path / "camera_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+
+    class FakePlotter:
+        def __init__(self, *args, **kwargs):
+            self.view_isometric_calls = 0
+            self.camera_position = ("preset",)
+
+        def clear(self):
+            return None
+
+        def add_mesh(self, *args, **kwargs):
+            return None
+
+        def view_isometric(self):
+            self.view_isometric_calls += 1
+            self.camera_position = ("isometric", self.view_isometric_calls)
+
+        def reset_camera_clipping_range(self):
+            return None
+
+        def add_axes(self):
+            return None
+
+        def render(self):
+            return None
+
+        def show(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+
+    app = BlockModelTrameApp(pbm, scalar=pbm.available_attributes[0], show_edges=False)
+    app._load_plot_state(app._initial_scalar)
+    app._refresh_plot(preserve_camera=True)
+    assert app.plotter.view_isometric_calls == 1
+    assert app.plotter.camera_position == ("isometric", 1)
+
+    app.plotter.camera_position = ("custom", 42)
+    app._refresh_plot(preserve_camera=True)
+    assert app.plotter.view_isometric_calls == 1
+    assert app.plotter.camera_position == ("custom", 42)
+
+
 def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
     parquet_path = tmp_path / "trame_source.parquet"
     pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))

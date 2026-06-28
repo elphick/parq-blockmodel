@@ -74,6 +74,7 @@ class BlockModelTrameApp:
         self._syncing_state = False
         self._drawer_default_open = True
         self._attribute_data_range: dict[str, tuple[float, float]] = {}
+        self._view_initialized = False
 
     @classmethod
     def from_path(
@@ -220,9 +221,12 @@ class BlockModelTrameApp:
             preference="cell",
         )
 
-    def _refresh_plot(self) -> None:
+    def _refresh_plot(self, *, preserve_camera: bool = True) -> None:
         if self.state is None:
             return
+        camera_position = None
+        if preserve_camera and self._view_initialized:
+            camera_position = getattr(self.plotter, "camera_position", None)
         self.plotter.clear()
         mesh = self._filtered_mesh()
         mesh_kwargs = _plotter_add_mesh_kwargs(self.state)
@@ -233,13 +237,17 @@ class BlockModelTrameApp:
             finite_values = mesh_values[np.isfinite(mesh_values)]
             if finite_values.size > 0:
                 mesh_kwargs["clim"] = (float(np.min(finite_values)), float(np.max(finite_values)))
-        
+
         self.plotter.add_mesh(mesh, name="blockmodel", **mesh_kwargs)
         self.plotter.title = self.title
         self.plotter.add_axes()
-        self.plotter.view_isometric()
+        if preserve_camera and camera_position not in (None, []):
+            self.plotter.camera_position = camera_position
+        else:
+            self.plotter.view_isometric()
         self.plotter.reset_camera_clipping_range()
         self.plotter.render()
+        self._view_initialized = True
         if self._remote_view is not None:
             self._remote_view.update()
 
@@ -249,6 +257,7 @@ class BlockModelTrameApp:
         self.threshold = ThresholdRange(minimum=0.0, maximum=1.0, value=0.0, step=0.005)
         self.filter_enabled = False
         self._initial_scalar = ""
+        self._view_initialized = False
         self.plotter.clear()
         if self._remote_view is not None:
             self._remote_view.update()
@@ -292,7 +301,7 @@ class BlockModelTrameApp:
                 scalar = self._resolve_initial_scalar(preferred_scalar)
                 self._initial_scalar = scalar
                 self._load_plot_state(scalar)
-                self._refresh_plot()
+                self._refresh_plot(preserve_camera=False)
             else:
                 # Hive mode: just prepare attributes, don't load a plot yet
                 self._initial_scalar = ""
@@ -557,7 +566,7 @@ class BlockModelTrameApp:
         self._syncing_state = True
         try:
             self._load_plot_state(attribute)
-            self._refresh_plot()
+            self._refresh_plot(preserve_camera=self._view_initialized)
             if self._server is not None and self.threshold is not None:
                 self._server.state.active_attribute = attribute
                 self._server.state.threshold_min = self.threshold.minimum
@@ -572,7 +581,7 @@ class BlockModelTrameApp:
             raise RuntimeError("Threshold range has not been initialised.")
         self.threshold.value = float(value)
         self.filter_enabled = True
-        self._refresh_plot()
+        self._refresh_plot(preserve_camera=self._view_initialized)
         if self._server is not None:
             self._server.state.threshold = self.threshold.value
             self._server.state.threshold_display = self._format_threshold(self.threshold.value)
@@ -597,7 +606,7 @@ class BlockModelTrameApp:
             raise RuntimeError("Threshold range has not been initialised.")
         self.filter_enabled = False
         self.threshold.value = self.threshold.minimum
-        self._refresh_plot()
+        self._refresh_plot(preserve_camera=self._view_initialized)
         if self._server is not None:
             self._syncing_state = True
             try:
