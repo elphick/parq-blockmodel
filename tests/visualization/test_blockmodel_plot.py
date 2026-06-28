@@ -244,6 +244,44 @@ def test_trame_example_hive_toggle_uses_directory_source(tmp_path, monkeypatch):
     assert len(created) == 2
 
 
+def test_trame_hive_directory_starts_without_blockmodel(tmp_path, monkeypatch):
+    class FakePlotter:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def clear(self):
+            return None
+
+        def add_mesh(self, *args, **kwargs):
+            return None
+
+        def view_isometric(self):
+            return None
+
+        def reset_camera_clipping_range(self):
+            return None
+
+        def add_axes(self):
+            return None
+
+        def render(self):
+            return None
+
+        def show(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr(
+        "parq_blockmodel.visualization.trame_app.HivePbmCatalog.discover",
+        staticmethod(lambda root_path: SimpleNamespace(assets=[])),
+    )
+
+    app = BlockModelTrameApp.from_hive_directory(tmp_path)
+
+    assert app.blockmodel is None
+    assert app._initial_scalar == ""
+
+
 def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
     parquet_path = tmp_path / "trame_source.parquet"
     pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))

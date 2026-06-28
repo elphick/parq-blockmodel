@@ -51,7 +51,7 @@ class BlockModelTrameApp:
         self._title_override = title is not None
         self.title = title or (blockmodel.name if blockmodel else "")
         self.show_edges = show_edges
-        self._initial_scalar = scalar or self._default_scalar()
+        self._initial_scalar = scalar or (self._default_scalar() if blockmodel is not None else "")
         self.asset_catalog = asset_catalog
         self.asset_catalog_root = (
             Path(asset_catalog_root).resolve() if asset_catalog_root is not None else None
@@ -164,9 +164,13 @@ class BlockModelTrameApp:
         raise ValueError(f"Selected path is not a file or directory: {path}")
 
     def _default_scalar(self) -> str:
+        if self.blockmodel is None:
+            return ""
         return self.blockmodel.available_attributes[0]
 
     def _resolve_initial_scalar(self, preferred_scalar: Optional[str] = None) -> str:
+        if self.blockmodel is None:
+            return ""
         candidate = preferred_scalar or self._initial_scalar
         if candidate in self.blockmodel.available_attributes:
             return candidate
