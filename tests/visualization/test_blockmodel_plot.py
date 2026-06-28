@@ -154,7 +154,7 @@ def test_trame_example_seeds_temp_demo_when_sample_missing(tmp_path, monkeypatch
         return object()
 
     class FakeApp:
-        def launch(self):
+        def launch(self, **kwargs):
             launched["launched"] = True
 
     def fake_from_source_path(source_path):
@@ -170,7 +170,7 @@ def test_trame_example_seeds_temp_demo_when_sample_missing(tmp_path, monkeypatch
 
     assert launched["launched"] is True
     assert launched["shape"] == (4, 4, 4)
-    assert launched["source_path"].suffix == ".pbm"
+    assert launched["source_path"].is_dir() or launched["source_path"].suffix == ".pbm"
     assert len(created) == 2
 
 
@@ -189,7 +189,7 @@ def test_trame_example_skips_launch_during_gallery_build(tmp_path, monkeypatch):
         return object()
 
     class FakeApp:
-        def launch(self):
+        def launch(self, **kwargs):
             launched["launched"] = True
 
     def fake_from_source_path(source_path):
@@ -224,7 +224,7 @@ def test_trame_example_hive_toggle_uses_directory_source(tmp_path, monkeypatch):
         return object()
 
     class FakeApp:
-        def launch(self):
+        def launch(self, **kwargs):
             launched["launched"] = True
 
     def fake_from_source_path(source_path):

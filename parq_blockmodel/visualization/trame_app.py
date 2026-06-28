@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional
 from urllib.parse import quote
+from uuid import uuid4
 
 import numpy as np
 import pyvista as pv
@@ -34,7 +35,7 @@ class BlockModelTrameApp:
 
     def __init__(
         self,
-        blockmodel: "ParquetBlockModel",
+        blockmodel: Optional["ParquetBlockModel"] = None,
         *,
         scalar: Optional[str] = None,
         grid_type: str = "image",
@@ -48,7 +49,7 @@ class BlockModelTrameApp:
         self.grid_type = grid_type
         self.frame = frame
         self._title_override = title is not None
-        self.title = title or blockmodel.name
+        self.title = title or (blockmodel.name if blockmodel else "")
         self.show_edges = show_edges
         self._initial_scalar = scalar or self._default_scalar()
         self.asset_catalog = asset_catalog
@@ -60,8 +61,10 @@ class BlockModelTrameApp:
         self._selected_asset_name = ""
         self._registered_asset_level_indices: set[int] = set()
         self._asset_name_handler_registered = False
+        self._asset_selectors_autofilled = False
         self._source_mode = "hive" if asset_catalog is not None else "file"
-        self._source_path = str(self.asset_catalog_root or self.blockmodel.blockmodel_path)
+        self._source_path = str(self.asset_catalog_root or (self.blockmodel.blockmodel_path if blockmodel else ""))
+        self._skip_initial_blockmodel_load = False
         self.state: Optional[BlockModelPlotState] = None
         self.threshold: Optional[ThresholdRange] = None
         self.filter_enabled = True
@@ -70,6 +73,7 @@ class BlockModelTrameApp:
         self._server = None
         self._syncing_state = False
         self._drawer_default_open = True
+        self._attribute_data_range: dict[str, tuple[float, float]] = {}
 
     @classmethod
     def from_path(
@@ -104,13 +108,11 @@ class BlockModelTrameApp:
         title: Optional[str] = None,
         show_edges: bool = True,
     ) -> "BlockModelTrameApp":
-        from parq_blockmodel.blockmodel import ParquetBlockModel
-
         catalog = HivePbmCatalog.discover(root_path)
-        first_asset = catalog.assets[0]
-        blockmodel = ParquetBlockModel(blockmodel_path=first_asset.path)
-        return cls(
-            blockmodel,
+        # For hive mode, don't load any blockmodel initially - user selects via UI
+        # Start with blockmodel=None to avoid unnecessary loading of first asset
+        app = cls(
+            blockmodel=None,
             scalar=scalar,
             grid_type=grid_type,
             frame=frame,
@@ -119,6 +121,9 @@ class BlockModelTrameApp:
             asset_catalog=catalog,
             asset_catalog_root=Path(root_path),
         )
+        # Mark that we should skip loading placeholder blockmodel on launch
+        app._skip_initial_blockmodel_load = True
+        return app
 
     @classmethod
     def from_source_path(
@@ -213,11 +218,18 @@ class BlockModelTrameApp:
 
     def _refresh_plot(self) -> None:
         if self.state is None:
-            raise RuntimeError("Plot state has not been loaded yet.")
+            return
         self.plotter.clear()
         mesh = self._filtered_mesh()
         mesh_kwargs = _plotter_add_mesh_kwargs(self.state)
         mesh_kwargs["show_edges"] = self.show_edges
+        
+        if not self.state.scalar_is_categorical:
+            mesh_values = np.asarray(self.state.mesh.cell_data[self.state.scalar], dtype=float)
+            finite_values = mesh_values[np.isfinite(mesh_values)]
+            if finite_values.size > 0:
+                mesh_kwargs["clim"] = (float(np.min(finite_values)), float(np.max(finite_values)))
+        
         self.plotter.add_mesh(mesh, name="blockmodel", **mesh_kwargs)
         self.plotter.title = self.title
         self.plotter.add_axes()
@@ -241,28 +253,49 @@ class BlockModelTrameApp:
         self.threshold = self._build_threshold_range(self.state.scalar)
         self.filter_enabled = True
 
-    def load_blockmodel(self, blockmodel: "ParquetBlockModel", *, preferred_scalar: Optional[str] = None) -> None:
+    def load_blockmodel(self, blockmodel: "ParquetBlockModel", *, preferred_scalar: Optional[str] = None, auto_select_scalar: bool = True) -> None:
         self.blockmodel = blockmodel
         if not self._title_override:
             self.title = self.blockmodel.name
-        scalar = self._resolve_initial_scalar(preferred_scalar)
-        self._initial_scalar = scalar
 
         self._syncing_state = True
         try:
-            self._load_plot_state(scalar)
-            self._refresh_plot()
-            if self._server is not None and self.threshold is not None and self.state is not None:
+            # Only load plot state if auto_select_scalar is True (file mode)
+            # For hive mode, just populate attributes and wait for user selection
+            if auto_select_scalar:
+                scalar = self._resolve_initial_scalar(preferred_scalar)
+                self._initial_scalar = scalar
+                self._load_plot_state(scalar)
+                self._refresh_plot()
+            else:
+                # Hive mode: just prepare attributes, don't load a plot yet
+                self._initial_scalar = ""
+            
+            if self._server is not None:
                 self._server.state.attribute_options = self.blockmodel.available_attributes
-                self._server.state.active_attribute = self.state.scalar
-                self._server.state.threshold_min = self.threshold.minimum
-                self._server.state.threshold_max = self.threshold.maximum
-                self._server.state.threshold = self.threshold.value
-                self._server.state.threshold_step = self.threshold.step
-                self._server.state.threshold_display = self._format_threshold(self.threshold.value)
-                self._server.state.filter_active = self.filter_enabled
                 self._server.state.model_name = self.blockmodel.name
                 self._server.state.model_path = str(self.blockmodel.blockmodel_path)
+                
+                if auto_select_scalar and self.threshold is not None and self.state is not None:
+                    # File mode: populate all threshold/attribute state
+                    self._server.state.active_attribute = self.state.scalar
+                    self._server.state.threshold_min = self.threshold.minimum
+                    self._server.state.threshold_max = self.threshold.maximum
+                    self._server.state.threshold = self.threshold.value
+                    self._server.state.threshold_step = self.threshold.step
+                    self._server.state.threshold_display = self._format_threshold(self.threshold.value)
+                    self._server.state.filter_active = self.filter_enabled
+                else:
+                    # Hive mode: leave attribute empty for user selection
+                    self._server.state.active_attribute = ""
+                    self._server.state.threshold_min = 0.0
+                    self._server.state.threshold_max = 1.0
+                    self._server.state.threshold = 0.0
+                    if self.threshold is None:
+                        self.threshold = ThresholdRange(minimum=0.0, maximum=1.0, value=0.0, step=0.005)
+                    self._server.state.threshold_step = self.threshold.step
+                    self._server.state.threshold_display = "0"
+                    self._server.state.filter_active = False
         finally:
             self._syncing_state = False
 
@@ -282,16 +315,23 @@ class BlockModelTrameApp:
         for key in self._asset_level_keys:
             options = self.asset_catalog.level_options(key, selection_prefix)
             current_value = self._asset_level_values.get(key, "")
-            if current_value not in options:
-                current_value = options[0] if options else ""
+            # IMPORTANT: Don't auto-fill to first option on initial load
+            # Only auto-fill if user has explicitly selected values AND an option is missing
+            if current_value and current_value not in options:
+                # Only auto-select if user has already interacted with this level
+                if self._asset_selectors_autofilled:
+                    current_value = options[0] if options else ""
+            # Don't set to first option just because list is empty
             self._asset_level_values[key] = current_value
             if current_value:
                 selection_prefix[key] = current_value
             level_options.append(options)
 
         name_options = self.asset_catalog.pbm_name_options(self._asset_selection())
-        if self._selected_asset_name not in name_options:
-            self._selected_asset_name = name_options[0] if name_options else ""
+        # Similar logic for asset name - don't auto-select first PBM on initial load
+        if self._selected_asset_name and self._selected_asset_name not in name_options:
+            if self._asset_selectors_autofilled:
+                self._selected_asset_name = name_options[0] if name_options else ""
         return level_options, name_options
 
     def _sync_asset_selector_state(self) -> None:
@@ -308,11 +348,15 @@ class BlockModelTrameApp:
         level_options, name_options = self._refresh_asset_selector_values()
         self._syncing_state = True
         try:
+            # IMPORTANT: Set values FIRST before options to prevent Vuetify from clearing v_model
+            # when items array is updated
+            for idx, key in enumerate(self._asset_level_keys):
+                setattr(state, f"asset_level_{idx}_value", self._asset_level_values.get(key, ""))
+            state.selected_asset_name = self._selected_asset_name
+            # Now set options after values are in place
             for idx, key in enumerate(self._asset_level_keys):
                 setattr(state, f"asset_level_{idx}_options", level_options[idx])
-                setattr(state, f"asset_level_{idx}_value", self._asset_level_values.get(key, ""))
             state.asset_name_options = name_options
-            state.selected_asset_name = self._selected_asset_name
             try:
                 asset = self.asset_catalog.select_asset(self._asset_selection(), self._selected_asset_name)
                 state.asset_selected_path = str(asset.path)
@@ -334,14 +378,38 @@ class BlockModelTrameApp:
             def _make_asset_level_handler(level_index: int, watched_field: str):
                 @state.change(watched_field)
                 def _asset_level_changed(**kwargs):
+                    # IMPORTANT: Only process if the watched field is actually in kwargs
+                    # Trame sometimes calls handlers with empty kwargs for internal events
+                    if watched_field not in kwargs:
+                        return
+                     
                     if self._syncing_state:
                         return
                     if level_index >= len(self._asset_level_keys):
                         return
                     level_key = self._asset_level_keys[level_index]
-                    self._asset_level_values[level_key] = str(kwargs.get(watched_field) or "")
+                    new_value = str(kwargs.get(watched_field) or "")
+                    old_value = self._asset_level_values.get(level_key, "")
+                     
+                    # Only sync if value actually changed
+                    if new_value == old_value:
+                        return
+                     
+                    # Update current level
+                    self._asset_level_values[level_key] = new_value
+                     
+                    # Clear all child levels and asset name when parent changes
+                    for idx in range(level_index + 1, len(self._asset_level_keys)):
+                        self._asset_level_values[self._asset_level_keys[idx]] = ""
+                    self._selected_asset_name = ""
+                     
+                    # Clear canvas when selection changes
+                    self.plotter.clear()
+                     
+                    self._asset_selectors_autofilled = True
+                    # Let _sync_asset_selector_state manage _syncing_state
                     self._sync_asset_selector_state()
-                    self._load_selected_asset()
+                    # NOTE: Don't call _load_selected_asset() - only load when asset name is selected
 
                 return _asset_level_changed
 
@@ -350,11 +418,32 @@ class BlockModelTrameApp:
         if not self._asset_name_handler_registered:
             @state.change("selected_asset_name")
             def _asset_name_changed(selected_asset_name=None, **_):
+                # IMPORTANT: Only process if selected_asset_name is not None
+                # Trame sometimes calls handlers with None for internal events
+                if selected_asset_name is None:
+                    return
+                 
                 if self._syncing_state:
                     return
-                self._selected_asset_name = str(selected_asset_name or "")
-                self._sync_asset_selector_state()
-                self._load_selected_asset()
+                new_name = str(selected_asset_name or "")
+                old_name = self._selected_asset_name
+                 
+                # Only proceed if value actually changed
+                if new_name == old_name:
+                    return
+                 
+                self._selected_asset_name = new_name
+                self._asset_selectors_autofilled = True
+                
+                # Only load when asset name is explicitly selected (not empty)
+                if new_name:
+                    self._load_selected_asset()
+                    # Sync state AFTER loading asset so attribute_options are available
+                    self._sync_asset_selector_state()
+                else:
+                    # Clear canvas if asset name is deselected
+                    self.plotter.clear()
+                    self._sync_asset_selector_state()
 
             ctrl.update_asset_name = _asset_name_changed
             self._asset_name_handler_registered = True
@@ -376,11 +465,16 @@ class BlockModelTrameApp:
             selected = self.asset_catalog.select_asset(self._asset_selection(), self._selected_asset_name)
         except LookupError:
             return
-        if selected.path.resolve() == self.blockmodel.blockmodel_path.resolve():
-            return
+        
+        # In file mode, skip if asset is already loaded
+        # In hive mode with None blockmodel, always load (first time)
+        if self._source_mode == "file" and self.blockmodel is not None:
+            if selected.path.resolve() == self.blockmodel.blockmodel_path.resolve():
+                return
+        
         from parq_blockmodel.blockmodel import ParquetBlockModel
 
-        self.load_blockmodel(ParquetBlockModel(blockmodel_path=selected.path))
+        self.load_blockmodel(ParquetBlockModel(blockmodel_path=selected.path), auto_select_scalar=False)
         self._set_asset_selection_from_current_model()
         self._sync_asset_selector_state()
 
@@ -401,6 +495,7 @@ class BlockModelTrameApp:
             self._asset_level_keys = []
             self._asset_level_values = {}
             self._selected_asset_name = ""
+            self._asset_selectors_autofilled = False
             self._source_mode = "file"
             self._source_path = str(path)
             self.load_blockmodel(ParquetBlockModel(blockmodel_path=path))
@@ -415,16 +510,15 @@ class BlockModelTrameApp:
             raise ValueError(f"Selected path is not a file or directory: {path}")
 
         catalog = HivePbmCatalog.discover(path)
-        first_asset = catalog.assets[0]
         self.asset_catalog = catalog
         self.asset_catalog_root = path.resolve()
         self._asset_level_keys = list(catalog.level_keys)
         self._asset_level_values = {key: "" for key in self._asset_level_keys}
-        self._selected_asset_name = first_asset.name
+        self._selected_asset_name = ""
+        self._asset_selectors_autofilled = False
         self._source_mode = "hive"
         self._source_path = str(path.resolve())
-        self.load_blockmodel(ParquetBlockModel(blockmodel_path=first_asset.path))
-        self._set_asset_selection_from_current_model()
+        # Don't auto-load first asset - let user select from DDLs
         if self._server is not None:
             self._server.state.source_mode = self._source_mode
             self._server.state.source_path_input = self._source_path
@@ -457,6 +551,20 @@ class BlockModelTrameApp:
             self._server.state.threshold_display = self._format_threshold(self.threshold.value)
             self._server.state.filter_active = True
 
+    def set_threshold_from_text(self, text_value: str) -> None:
+        if self.threshold is None:
+            raise RuntimeError("Threshold range has not been initialised.")
+        try:
+            value = float(text_value)
+            if not (self.threshold.minimum <= value <= self.threshold.maximum):
+                if self._server is not None:
+                    self._server.state.threshold_display = self._format_threshold(self.threshold.value)
+                return
+            self.set_threshold(value)
+        except (ValueError, TypeError):
+            if self._server is not None:
+                self._server.state.threshold_display = self._format_threshold(self.threshold.value)
+
     def reset_filter(self) -> None:
         if self.threshold is None:
             raise RuntimeError("Threshold range has not been initialised.")
@@ -472,7 +580,19 @@ class BlockModelTrameApp:
             finally:
                 self._syncing_state = False
 
-    def launch(self, server_name: str = "parq-blockmodel-trame"):
+    def launch(self, server_name: str = "parq-blockmodel-trame", port: Optional[int] = None):
+        """Launch the Trame visualization app.
+        
+        Parameters
+        ----------
+        server_name : str, optional
+            Base name for the Trame server, by default "parq-blockmodel-trame"
+            A UUID suffix is appended to ensure unique server instances.
+        port : int, optional
+            Port number for the server. If None, Trame will auto-assign a port.
+            Useful for running multiple instances without server state conflicts.
+            Example: launch(port=8080), launch(port=8081), etc.
+        """
         try:
             from trame.app import get_server
             from trame.ui.vuetify import SinglePageWithDrawerLayout
@@ -483,35 +603,68 @@ class BlockModelTrameApp:
                 "Install the 'trame', 'trame-vtk', and 'trame-vuetify' packages."
             ) from exc
 
-        server = get_server(server_name, client_type="vue2")
+        # Reset all instance state to ensure fresh launch (not stale from previous launch)
+        self._asset_level_values = {}
+        self._selected_asset_name = ""
+        self._asset_selectors_autofilled = False
+        
+        # Use unique server name to force fresh Trame server instance (prevents caching)
+        unique_server_name = f"{server_name}-{uuid4().hex[:8]}"
+        server = get_server(unique_server_name, client_type="vue2")
         self._server = server
         state, ctrl = server.state, server.controller
-        self.load_blockmodel(self.blockmodel, preferred_scalar=self._initial_scalar)
-        state.attribute_options = self.blockmodel.available_attributes
-        state.active_attribute = self.state.scalar
-        state.threshold_min = self.threshold.minimum
-        state.threshold_max = self.threshold.maximum
-        state.threshold = self.threshold.value
-        state.threshold_display = self._format_threshold(self.threshold.value)
-        state.threshold_step = self.threshold.step
-        state.filter_active = self.filter_enabled
-        state.control_panel = 0
-        state.model_name = self.blockmodel.name
-        state.model_path = str(self.blockmodel.blockmodel_path)
-        state.source_mode = self._source_mode
-        state.source_path_input = self._source_path
-        state.source_status = ""
-        state.asset_selector_enabled = self.asset_catalog is not None
-        if self.asset_catalog is not None:
-            self._asset_level_keys = list(self.asset_catalog.level_keys)
-            self._asset_level_values = {key: "" for key in self._asset_level_keys}
-            self._set_asset_selection_from_current_model()
-            self._register_asset_selector_handlers()
-            self._sync_asset_selector_state()
+        
+        self.plotter.clear()
+        
+        self._syncing_state = True
+        try:
+            # For hive mode, skip initial blockmodel load - user will select via dropdowns
+            if not self._skip_initial_blockmodel_load:
+                self.load_blockmodel(self.blockmodel, preferred_scalar=self._initial_scalar)
+            
+            # Set state only if blockmodel was loaded
+            if self.state is not None:
+                state.attribute_options = self.blockmodel.available_attributes
+                state.active_attribute = self.state.scalar
+                state.threshold_min = self.threshold.minimum
+                state.threshold_max = self.threshold.maximum
+                state.threshold = self.threshold.value
+                state.threshold_display = self._format_threshold(self.threshold.value)
+                state.threshold_step = self.threshold.step
+                state.filter_active = self.filter_enabled
+            else:
+                # Empty state for hive mode before user selection
+                if self.threshold is None:
+                    self.threshold = ThresholdRange(minimum=0.0, maximum=1.0, value=0.0, step=0.005)
+                state.attribute_options = []
+                state.active_attribute = ""
+                state.threshold_min = self.threshold.minimum
+                state.threshold_max = self.threshold.maximum
+                state.threshold = self.threshold.value
+                state.threshold_display = self._format_threshold(self.threshold.value)
+                state.threshold_step = self.threshold.step
+                state.filter_active = False
+            
+            state.control_panel = 0
+            if self.state is not None:
+                state.model_name = self.blockmodel.name
+                state.model_path = str(self.blockmodel.blockmodel_path)
+            else:
+                state.model_name = ""
+                state.model_path = ""
+            state.source_mode = self._source_mode
+            state.source_path_input = self._source_path
+            state.source_status = ""
+            state.asset_selector_enabled = self.asset_catalog is not None
+            if self.asset_catalog is not None:
+                self._asset_level_keys = list(self.asset_catalog.level_keys)
+                self._asset_level_values = {key: "" for key in self._asset_level_keys}
+        finally:
+            self._syncing_state = False
 
         @state.change("active_attribute")
         def _attribute_changed(active_attribute=None, **_):
-            if self._syncing_state or active_attribute is None:
+            if self._syncing_state or active_attribute is None or not active_attribute:
                 return
             self.set_attribute(active_attribute)
 
@@ -521,6 +674,12 @@ class BlockModelTrameApp:
                 return
             self.set_threshold(threshold)
 
+        @state.change("threshold_display")
+        def _threshold_display_changed(threshold_display=None, **_):
+            if self._syncing_state or threshold_display is None:
+                return
+            self.set_threshold_from_text(str(threshold_display))
+
         @state.change("filter_active")
         def _filter_active_changed(filter_active=None, **_):
             if self._syncing_state or filter_active is None:
@@ -529,10 +688,16 @@ class BlockModelTrameApp:
 
         ctrl.update_attribute = _attribute_changed
         ctrl.update_threshold = _threshold_changed
+        ctrl.update_threshold_text = _threshold_display_changed
         ctrl.reset_filter = self.reset_filter
         ctrl.update_asset_name = lambda **_: None
         if self.asset_catalog is not None:
             self._register_asset_selector_handlers()
+            self._syncing_state = True
+            try:
+                self._sync_asset_selector_state()
+            finally:
+                self._syncing_state = False
 
         def _load_data_source(**_):
             if self._syncing_state:
@@ -662,8 +827,8 @@ class BlockModelTrameApp:
                             )
                             with vuetify.VExpansionPanelContent(classes="pt-1 pb-2 px-2"):
                                 vuetify.VSelect(
-                                    v_model=("active_attribute", self.state.scalar),
-                                    items=("attribute_options", self.blockmodel.available_attributes),
+                                    v_model=("active_attribute", self.state.scalar if self.state else ""),
+                                    items=("attribute_options", self.blockmodel.available_attributes if self.state else []),
                                     label="Attribute",
                                     dense=True,
                                     hide_details=True,
@@ -686,12 +851,12 @@ class BlockModelTrameApp:
                                 )
                                 vuetify.VTextField(
                                     v_model=("threshold_display", self._format_threshold(self.threshold.value)),
-                                    label="Current value",
-                                    readonly=True,
+                                    label="Threshold value",
                                     dense=True,
                                     outlined=True,
                                     hide_details=True,
                                     classes="mt-2",
+                                    change=ctrl.update_threshold_text,
                                 )
                                 vuetify.VBtn(
                                     "Reset",
@@ -727,5 +892,8 @@ class BlockModelTrameApp:
                 self._remote_view.update()
 
         state.ready()
-        server.start(open_browser=True, show_connection_info=True)
+        start_kwargs = {"open_browser": True, "show_connection_info": True}
+        if port is not None:
+            start_kwargs["port"] = port
+        server.start(**start_kwargs)
         return server
