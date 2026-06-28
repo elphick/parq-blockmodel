@@ -10,9 +10,11 @@ import tempfile
 
 from pathlib import Path
 
+import pyvista as pv
 from pandera import Column, DataFrameSchema
 
 from parq_blockmodel import ParquetBlockModel
+from parq_blockmodel.visualization import BlockModelTrameApp, TrameBlockModelPlotEngine
 
 # %%
 # Create a Parquet Block Model
@@ -54,6 +56,49 @@ print(f"Report saved to: {report.output_path}")
 # %%
 # Visualise the Model
 # -------------------
-
-p = pbm.plot(scalar='depth', threshold=False, enable_picking=True)
+# Hold "z" while rotating for turntable orbit with +Z staying up on screen.
+p = pbm.plot(
+    scalar="depth",
+    threshold=False,
+    enable_picking=True,
+    z_up_lock=True,
+    z_up_hotkey="z",
+)
 p.show()
+
+# %%
+# Trame backend from pbm.plot
+# ---------------------------
+# ``TrameBlockModelPlotEngine`` lets you request a Trame app via ``pbm.plot(...)``.
+
+trame_app_from_plot = pbm.plot(
+    scalar="depth",
+    threshold=False,
+    engine=TrameBlockModelPlotEngine(),
+    z_up_lock=True,
+    z_up_hotkey="z",
+)
+
+# %%
+# Direct Trame app
+# ----------------
+# ``BlockModelTrameApp`` provides the same viewer path directly.
+
+trame_app = BlockModelTrameApp(
+    pbm,
+    scalar="depth",
+    show_edges=True,
+    z_up_lock=True,
+    z_up_hotkey="z",
+)
+
+# %%
+# Optional launch
+# ---------------
+# Trame launch is skipped during gallery/doc builds.
+
+if not getattr(pv, "BUILDING_GALLERY", False):
+    # Launch one of these:
+    # trame_app_from_plot.launch(port=8080)
+    # trame_app.launch(port=8080)
+    pass

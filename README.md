@@ -62,13 +62,22 @@ rendering logic isolated from `ParquetBlockModel` itself.
 
 ```python
 from parq_blockmodel import ParquetBlockModel
-from parq_blockmodel.visualization import BlockModelTrameApp
+from parq_blockmodel.visualization import BlockModelTrameApp, TrameBlockModelPlotEngine
 
 pbm = ParquetBlockModel.from_parquet("orebody.parquet")
-plotter = pbm.plot(scalar="grade")
+plotter = pbm.plot(scalar="grade", z_up_lock=True, z_up_hotkey="z")
 
-app = BlockModelTrameApp(pbm, scalar="grade")
+trame_app_from_plot = pbm.plot(
+    scalar="grade",
+    engine=TrameBlockModelPlotEngine(),
+    z_up_lock=True,
+    z_up_hotkey="z",
+)
+
+app = BlockModelTrameApp(pbm, scalar="grade", z_up_lock=True, z_up_hotkey="z")
 ```
+
+With ``z_up_lock=True``, hold ``z`` for turntable-style orbit (yaw/pitch, no roll) with camera up aligned to +Z.
 
 ## Geometry operations
 
