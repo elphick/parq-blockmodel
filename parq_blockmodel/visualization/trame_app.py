@@ -678,12 +678,6 @@ class BlockModelTrameApp:
                 return
             self.set_threshold(threshold)
 
-        @state.change("threshold_display")
-        def _threshold_display_changed(threshold_display=None, **_):
-            if self._syncing_state or threshold_display is None:
-                return
-            self.set_threshold_from_text(str(threshold_display))
-
         @state.change("filter_active")
         def _filter_active_changed(filter_active=None, **_):
             if self._syncing_state or filter_active is None:
@@ -692,7 +686,12 @@ class BlockModelTrameApp:
 
         ctrl.update_attribute = _attribute_changed
         ctrl.update_threshold = _threshold_changed
-        ctrl.update_threshold_text = _threshold_display_changed
+        def _apply_threshold_text(**_):
+            if self._syncing_state or self._server is None:
+                return
+            self.set_threshold_from_text(str(self._server.state.threshold_display))
+
+        ctrl.apply_threshold_text = _apply_threshold_text
         ctrl.reset_filter = self.reset_filter
         ctrl.update_asset_name = lambda **_: None
         if self.asset_catalog is not None:
@@ -860,7 +859,13 @@ class BlockModelTrameApp:
                                     outlined=True,
                                     hide_details=True,
                                     classes="mt-2",
-                                    change=ctrl.update_threshold_text,
+                                )
+                                vuetify.VBtn(
+                                    "Apply",
+                                    click=ctrl.apply_threshold_text,
+                                    block=True,
+                                    color="primary",
+                                    classes="mt-2",
                                 )
                                 vuetify.VBtn(
                                     "Reset",
