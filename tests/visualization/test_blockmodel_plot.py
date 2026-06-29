@@ -263,6 +263,257 @@ def test_trame_app_thresholding_updates_filtered_scene_without_mutating_pbm(tmp_
     assert app.plotter.last_mesh_n_cells == base_cells
 
 
+def test_trame_app_data_filter_uses_cached_column_values(tmp_path, monkeypatch):
+    parquet_path = tmp_path / "trame_cache_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(3, 3, 3))
+    filter_attribute = pbm.available_attributes[0]
+
+    class FakePlotter:
+        def __init__(self, *args, **kwargs):
+            self.actors = {}
+
+        def clear(self):
+            self.actors.clear()
+
+        def add_mesh(self, mesh, **kwargs):
+            self.actors["blockmodel"] = mesh
+
+        def view_isometric(self):
+            return None
+
+        def reset_camera_clipping_range(self):
+            return None
+
+        def add_axes(self):
+            return None
+
+        def render(self):
+            return None
+
+        def show(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+
+    app = BlockModelTrameApp(pbm, scalar=filter_attribute, show_edges=False)
+    app._load_plot_state(app._initial_scalar)
+    app._refresh_filter_options()
+
+    calls = {"count": 0}
+    original_loader = app._load_filter_attribute_values
+
+    def _counting_loader(attribute):
+        calls["count"] += 1
+        return original_loader(attribute)
+
+    monkeypatch.setattr(app, "_load_filter_attribute_values", _counting_loader)
+
+    app.set_data_filter_attribute(0, filter_attribute)
+    low, high = app._data_filters[0].range_values
+    mid = (low + high) / 2.0
+    app.set_data_filter_range(0, [low, mid])
+    app.set_data_filter_range(0, [mid, high])
+
+    assert calls["count"] == 1
+
+
+def test_trame_app_reuses_cached_values_when_switching_attributes(tmp_path, monkeypatch):
+    parquet_path = tmp_path / "trame_cache_switch_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(3, 3, 3))
+    assert len(pbm.available_attributes) >= 2
+    attr1 = pbm.available_attributes[0]
+    attr2 = pbm.available_attributes[1]
+
+    class FakePlotter:
+        def __init__(self, *args, **kwargs):
+            self.actors = {}
+
+        def clear(self):
+            self.actors.clear()
+
+        def add_mesh(self, mesh, **kwargs):
+            self.actors["blockmodel"] = mesh
+
+        def view_isometric(self):
+            return None
+
+        def reset_camera_clipping_range(self):
+            return None
+
+        def add_axes(self):
+            return None
+
+        def render(self):
+            return None
+
+        def show(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+
+    app = BlockModelTrameApp(pbm, scalar=attr1, show_edges=False)
+    app._load_plot_state(app._initial_scalar)
+    app._refresh_filter_options()
+
+    calls = {"count": 0}
+    original_loader = app._load_filter_attribute_values
+
+    def _counting_loader(attribute):
+        calls["count"] += 1
+        return original_loader(attribute)
+
+    monkeypatch.setattr(app, "_load_filter_attribute_values", _counting_loader)
+
+    app.set_data_filter_attribute(0, attr1)
+    app.set_data_filter_attribute(0, attr2)
+    app.set_data_filter_attribute(0, attr1)
+
+    assert calls["count"] == 2
+
+
+def test_trame_app_accepts_initial_data_filter_bounds(tmp_path, monkeypatch):
+    parquet_path = tmp_path / "trame_filter_preset_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(3, 3, 3))
+    filter_attribute = pbm.available_attributes[0]
+
+    class FakePlotter:
+        def __init__(self, *args, **kwargs):
+            self.actors = {}
+
+        def clear(self):
+            self.actors.clear()
+
+        def add_mesh(self, mesh, **kwargs):
+            self.actors["blockmodel"] = mesh
+
+        def view_isometric(self):
+            return None
+
+        def reset_camera_clipping_range(self):
+            return None
+
+        def add_axes(self):
+            return None
+
+        def render(self):
+            return None
+
+        def show(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+
+    app = BlockModelTrameApp(
+        pbm,
+        scalar=filter_attribute,
+        data_filter_1_attribute=filter_attribute,
+        data_filter_1_min=-1.0e9,
+        data_filter_1_max=1.0e9,
+        show_edges=False,
+    )
+    app._load_plot_state(app._initial_scalar)
+    app._refresh_filter_options()
+    app._apply_initial_data_filters()
+
+    slot = app._data_filters[0]
+    assert slot.attribute == filter_attribute
+    assert slot.range_values[0] == slot.minimum
+    assert slot.range_values[1] == slot.maximum
+
+
+def test_trame_app_supports_categorical_data_filter(tmp_path, monkeypatch):
+    parquet_path = tmp_path / "trame_categorical_filter_source.parquet"
+    ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(3, 3, 3))
+    df = pd.read_parquet(parquet_path)
+    categories = pd.Categorical(["A", "B", "C"] * 9)
+    df["rock_type"] = categories[: len(df)]
+    df.to_parquet(parquet_path, index=False)
+    pbm = ParquetBlockModel.from_parquet(parquet_path)
+
+    class FakePlotter:
+        def __init__(self, *args, **kwargs):
+            self.actors = {}
+            self.last_mesh_n_cells = None
+
+        def clear(self):
+            self.actors.clear()
+
+        def add_mesh(self, mesh, **kwargs):
+            self.last_mesh_n_cells = mesh.n_cells
+            self.actors["blockmodel"] = mesh
+
+        def view_isometric(self):
+            return None
+
+        def reset_camera_clipping_range(self):
+            return None
+
+        def add_axes(self):
+            return None
+
+        def render(self):
+            return None
+
+        def show(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+
+    app = BlockModelTrameApp(pbm, scalar=pbm.available_attributes[0], show_edges=False)
+    app._load_plot_state(app._initial_scalar)
+    app._refresh_filter_options()
+    app._refresh_plot()
+    base_cells = app.plotter.last_mesh_n_cells
+
+    app.set_data_filter_attribute(0, "rock_type")
+    app.set_data_filter_categories(0, ["A"])
+
+    assert app._data_filters[0].is_categorical is True
+    assert app.plotter.last_mesh_n_cells < base_cells
+
+
+def test_trame_app_data_filter_summary_tracks_selected_values(tmp_path, monkeypatch):
+    parquet_path = tmp_path / "trame_summary_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(3, 3, 3))
+    attr = pbm.available_attributes[0]
+
+    class FakePlotter:
+        def __init__(self, *args, **kwargs):
+            self.actors = {}
+
+        def clear(self):
+            self.actors.clear()
+
+        def add_mesh(self, mesh, **kwargs):
+            self.actors["blockmodel"] = mesh
+
+        def view_isometric(self):
+            return None
+
+        def reset_camera_clipping_range(self):
+            return None
+
+        def add_axes(self):
+            return None
+
+        def render(self):
+            return None
+
+        def show(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+
+    app = BlockModelTrameApp(pbm, scalar=attr, show_edges=False)
+    app._load_plot_state(app._initial_scalar)
+    app._refresh_filter_options()
+    app.set_data_filter_attribute(0, attr)
+
+    summary = app._data_filter_slot_summary(app._data_filters[0])
+    assert f"{attr}:" in summary
+    assert "to" in summary
+
+
 def test_trame_app_renders_categorical_attributes(tmp_path, monkeypatch):
     parquet_path = tmp_path / "categorical_source.parquet"
     ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(3, 3, 3))
@@ -728,6 +979,7 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
     fake_trame_widgets.vuetify = SimpleNamespace(
         VSelect=make_widget,
         VSlider=make_widget,
+        VRangeSlider=make_widget,
         VBtn=make_widget,
         VAppLayout=FakeLayout,
         VAppBar=make_widget,

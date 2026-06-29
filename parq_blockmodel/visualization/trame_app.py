@@ -8,8 +8,10 @@ from urllib.parse import quote
 from uuid import uuid4
 
 import numpy as np
+import pandas as pd
 import pyvista as pv
 
+from parq_blockmodel.utils.pyvista.categorical_utils import load_mapping_dict
 from parq_blockmodel.visualization.blockmodel_plot import (
     BlockModelPlotState,
     _bin_to_deciles,
@@ -34,6 +36,29 @@ class ThresholdRange:
     step: float
 
 
+@dataclass(slots=True)
+class DataFilterSlot:
+    attribute: str = ""
+    is_categorical: bool = False
+    minimum: float = 0.0
+    maximum: float = 1.0
+    step: float = 0.005
+    range_values: list[float] = None  # type: ignore[assignment]
+    category_options: list[str] = None  # type: ignore[assignment]
+    selected_categories: list[str] = None  # type: ignore[assignment]
+    preset_min: Optional[float] = None
+    preset_max: Optional[float] = None
+    preset_categories: Optional[list[str]] = None
+
+    def __post_init__(self) -> None:
+        if self.range_values is None:
+            self.range_values = [0.0, 1.0]
+        if self.category_options is None:
+            self.category_options = []
+        if self.selected_categories is None:
+            self.selected_categories = []
+
+
 class BlockModelTrameApp:
     """Read-only Trame-friendly block-model session.
 
@@ -47,6 +72,18 @@ class BlockModelTrameApp:
         blockmodel: Optional["ParquetBlockModel"] = None,
         *,
         scalar: Optional[str] = None,
+        # Backward-compatible alias for first data filter preset
+        filter_attribute: Optional[str] = None,
+        filter_min: Optional[float] = None,
+        filter_max: Optional[float] = None,
+        data_filter_1_attribute: Optional[str] = None,
+        data_filter_1_min: Optional[float] = None,
+        data_filter_1_max: Optional[float] = None,
+        data_filter_1_categories: Optional[list[str]] = None,
+        data_filter_2_attribute: Optional[str] = None,
+        data_filter_2_min: Optional[float] = None,
+        data_filter_2_max: Optional[float] = None,
+        data_filter_2_categories: Optional[list[str]] = None,
         grid_type: str = "image",
         frame: str = "world",
         title: Optional[str] = None,
@@ -82,7 +119,7 @@ class BlockModelTrameApp:
         self._skip_initial_blockmodel_load = False
         self.state: Optional[BlockModelPlotState] = None
         self.threshold: Optional[ThresholdRange] = None
-        self.filter_enabled = True
+        self.filter_enabled = False
         self.colormap = "viridis"
         self.discretize_deciles = False
         self.available_colormaps: list[str] = []
@@ -94,6 +131,39 @@ class BlockModelTrameApp:
         self._syncing_state = False
         self._drawer_default_open = True
         self._attribute_data_range: dict[str, tuple[float, float]] = {}
+        self._filter_attribute_options: list[str] = []
+        self._filter_attribute_cache: dict[str, np.ndarray] = {}
+        self._filter_category_code_to_label: dict[str, dict[float, str]] = {}
+        self._data_filters = [
+            DataFilterSlot(
+                attribute=str(data_filter_1_attribute or filter_attribute or ""),
+                preset_min=(
+                    float(data_filter_1_min)
+                    if data_filter_1_min is not None
+                    else (float(filter_min) if filter_min is not None else None)
+                ),
+                preset_max=(
+                    float(data_filter_1_max)
+                    if data_filter_1_max is not None
+                    else (float(filter_max) if filter_max is not None else None)
+                ),
+                preset_categories=(
+                    list(data_filter_1_categories)
+                    if data_filter_1_categories is not None
+                    else None
+                ),
+            ),
+            DataFilterSlot(
+                attribute=str(data_filter_2_attribute or ""),
+                preset_min=float(data_filter_2_min) if data_filter_2_min is not None else None,
+                preset_max=float(data_filter_2_max) if data_filter_2_max is not None else None,
+                preset_categories=(
+                    list(data_filter_2_categories)
+                    if data_filter_2_categories is not None
+                    else None
+                ),
+            ),
+        ]
         self._view_initialized = False
 
     @classmethod
@@ -102,6 +172,17 @@ class BlockModelTrameApp:
         blockmodel_path: str | Path,
         *,
         scalar: Optional[str] = None,
+        filter_attribute: Optional[str] = None,
+        filter_min: Optional[float] = None,
+        filter_max: Optional[float] = None,
+        data_filter_1_attribute: Optional[str] = None,
+        data_filter_1_min: Optional[float] = None,
+        data_filter_1_max: Optional[float] = None,
+        data_filter_1_categories: Optional[list[str]] = None,
+        data_filter_2_attribute: Optional[str] = None,
+        data_filter_2_min: Optional[float] = None,
+        data_filter_2_max: Optional[float] = None,
+        data_filter_2_categories: Optional[list[str]] = None,
         grid_type: str = "image",
         frame: str = "world",
         title: Optional[str] = None,
@@ -115,6 +196,17 @@ class BlockModelTrameApp:
         return cls(
             ParquetBlockModel(blockmodel_path=Path(blockmodel_path)),
             scalar=scalar,
+            filter_attribute=filter_attribute,
+            filter_min=filter_min,
+            filter_max=filter_max,
+            data_filter_1_attribute=data_filter_1_attribute,
+            data_filter_1_min=data_filter_1_min,
+            data_filter_1_max=data_filter_1_max,
+            data_filter_1_categories=data_filter_1_categories,
+            data_filter_2_attribute=data_filter_2_attribute,
+            data_filter_2_min=data_filter_2_min,
+            data_filter_2_max=data_filter_2_max,
+            data_filter_2_categories=data_filter_2_categories,
             grid_type=grid_type,
             frame=frame,
             title=title,
@@ -130,6 +222,17 @@ class BlockModelTrameApp:
         root_path: str | Path,
         *,
         scalar: Optional[str] = None,
+        filter_attribute: Optional[str] = None,
+        filter_min: Optional[float] = None,
+        filter_max: Optional[float] = None,
+        data_filter_1_attribute: Optional[str] = None,
+        data_filter_1_min: Optional[float] = None,
+        data_filter_1_max: Optional[float] = None,
+        data_filter_1_categories: Optional[list[str]] = None,
+        data_filter_2_attribute: Optional[str] = None,
+        data_filter_2_min: Optional[float] = None,
+        data_filter_2_max: Optional[float] = None,
+        data_filter_2_categories: Optional[list[str]] = None,
         grid_type: str = "image",
         frame: str = "world",
         title: Optional[str] = None,
@@ -144,6 +247,17 @@ class BlockModelTrameApp:
         app = cls(
             blockmodel=None,
             scalar=scalar,
+            filter_attribute=filter_attribute,
+            filter_min=filter_min,
+            filter_max=filter_max,
+            data_filter_1_attribute=data_filter_1_attribute,
+            data_filter_1_min=data_filter_1_min,
+            data_filter_1_max=data_filter_1_max,
+            data_filter_1_categories=data_filter_1_categories,
+            data_filter_2_attribute=data_filter_2_attribute,
+            data_filter_2_min=data_filter_2_min,
+            data_filter_2_max=data_filter_2_max,
+            data_filter_2_categories=data_filter_2_categories,
             grid_type=grid_type,
             frame=frame,
             title=title,
@@ -164,6 +278,17 @@ class BlockModelTrameApp:
         source_path: str | Path,
         *,
         scalar: Optional[str] = None,
+        filter_attribute: Optional[str] = None,
+        filter_min: Optional[float] = None,
+        filter_max: Optional[float] = None,
+        data_filter_1_attribute: Optional[str] = None,
+        data_filter_1_min: Optional[float] = None,
+        data_filter_1_max: Optional[float] = None,
+        data_filter_1_categories: Optional[list[str]] = None,
+        data_filter_2_attribute: Optional[str] = None,
+        data_filter_2_min: Optional[float] = None,
+        data_filter_2_max: Optional[float] = None,
+        data_filter_2_categories: Optional[list[str]] = None,
         grid_type: str = "image",
         frame: str = "world",
         title: Optional[str] = None,
@@ -183,6 +308,17 @@ class BlockModelTrameApp:
             return cls.from_path(
                 path,
                 scalar=scalar,
+                filter_attribute=filter_attribute,
+                filter_min=filter_min,
+                filter_max=filter_max,
+                data_filter_1_attribute=data_filter_1_attribute,
+                data_filter_1_min=data_filter_1_min,
+                data_filter_1_max=data_filter_1_max,
+                data_filter_1_categories=data_filter_1_categories,
+                data_filter_2_attribute=data_filter_2_attribute,
+                data_filter_2_min=data_filter_2_min,
+                data_filter_2_max=data_filter_2_max,
+                data_filter_2_categories=data_filter_2_categories,
                 grid_type=grid_type,
                 frame=frame,
                 title=title,
@@ -195,6 +331,17 @@ class BlockModelTrameApp:
             return cls.from_hive_directory(
                 path,
                 scalar=scalar,
+                filter_attribute=filter_attribute,
+                filter_min=filter_min,
+                filter_max=filter_max,
+                data_filter_1_attribute=data_filter_1_attribute,
+                data_filter_1_min=data_filter_1_min,
+                data_filter_1_max=data_filter_1_max,
+                data_filter_1_categories=data_filter_1_categories,
+                data_filter_2_attribute=data_filter_2_attribute,
+                data_filter_2_min=data_filter_2_min,
+                data_filter_2_max=data_filter_2_max,
+                data_filter_2_categories=data_filter_2_categories,
                 grid_type=grid_type,
                 frame=frame,
                 title=title,
@@ -238,6 +385,279 @@ class BlockModelTrameApp:
             step=span / 200.0,
         )
 
+    def _clear_filter_cache(self) -> None:
+        self._filter_attribute_cache = {}
+        self._filter_category_code_to_label = {}
+
+    def _is_categorical_attribute(self, attribute: str) -> bool:
+        if self.blockmodel is None:
+            return False
+        dtype = self.blockmodel.column_dtypes.get(attribute)
+        if dtype is None:
+            return False
+        return isinstance(dtype, pd.CategoricalDtype)
+
+    def _is_continuous_attribute(self, attribute: str) -> bool:
+        if self.blockmodel is None:
+            return False
+        dtype = self.blockmodel.column_dtypes.get(attribute)
+        if dtype is None:
+            return False
+        if self._is_categorical_attribute(attribute):
+            return False
+        try:
+            return bool(np.issubdtype(np.dtype(dtype), np.number))
+        except TypeError:
+            return False
+
+    def _all_filter_attribute_options(self) -> list[str]:
+        if self.blockmodel is None:
+            return []
+        return list(self.blockmodel.available_attributes)
+
+    def _load_filter_category_mapping(self, mesh: pv.DataSet, attribute: str) -> dict[float, str]:
+        if f"{attribute}_json" not in mesh.field_data:
+            return {}
+        raw_mapping = load_mapping_dict(mesh, attribute)
+        code_to_label: dict[float, str] = {}
+        for raw_code, label in raw_mapping.items():
+            code_to_label[float(raw_code)] = str(label)
+        return code_to_label
+
+    def _load_filter_attribute_values(self, attribute: str) -> np.ndarray:
+        if self.blockmodel is None:
+            raise RuntimeError("No blockmodel is loaded.")
+        if self.state is not None and attribute in self.state.mesh.cell_data:
+            self._filter_category_code_to_label[attribute] = self._load_filter_category_mapping(
+                self.state.mesh, attribute
+            )
+            return np.asarray(self.state.mesh.cell_data[attribute], dtype=float)
+        attribute_mesh = self.blockmodel.to_pyvista(
+            grid_type=self.grid_type,
+            attributes=[attribute],
+            frame=self.frame,
+        )
+        self._filter_category_code_to_label[attribute] = self._load_filter_category_mapping(
+            attribute_mesh, attribute
+        )
+        return np.asarray(attribute_mesh.cell_data[attribute], dtype=float)
+
+    def _get_filter_attribute_values(self, attribute: str) -> np.ndarray:
+        cached = self._filter_attribute_cache.get(attribute)
+        if cached is not None:
+            return cached
+        loaded = self._load_filter_attribute_values(attribute)
+        self._filter_attribute_cache[attribute] = loaded
+        return loaded
+
+    def _build_data_filter_range(self, attribute: str) -> tuple[float, float, float]:
+        values = self._get_filter_attribute_values(attribute)
+        finite_values = values[np.isfinite(values)]
+        if finite_values.size == 0:
+            return 0.0, 1.0, 0.01
+        minimum = float(np.min(finite_values))
+        maximum = float(np.max(finite_values))
+        span = max(maximum - minimum, 1.0)
+        return minimum, maximum, span / 200.0
+
+    def _filter_slot_name(self, slot_index: int) -> str:
+        return f"data_filter_{slot_index + 1}"
+
+    def _get_filter_slot(self, slot_index: int) -> DataFilterSlot:
+        if slot_index not in (0, 1):
+            raise ValueError("data filter slot_index must be 0 or 1.")
+        return self._data_filters[slot_index]
+
+    def _reset_filter_slot(self, slot_index: int) -> None:
+        slot = self._get_filter_slot(slot_index)
+        slot.attribute = ""
+        slot.is_categorical = False
+        slot.minimum = 0.0
+        slot.maximum = 1.0
+        slot.step = 0.005
+        slot.range_values = [0.0, 1.0]
+        slot.category_options = []
+        slot.selected_categories = []
+
+    def _set_filter_slot_attribute(
+        self,
+        slot_index: int,
+        attribute: str,
+        *,
+        selected_min: Optional[float] = None,
+        selected_max: Optional[float] = None,
+        selected_categories: Optional[list[str]] = None,
+    ) -> None:
+        slot = self._get_filter_slot(slot_index)
+        normalized = str(attribute or "")
+        if normalized == "":
+            self._reset_filter_slot(slot_index)
+            return
+        if normalized not in self._filter_attribute_options:
+            raise ValueError(f"Filter attribute '{normalized}' is not available.")
+
+        slot.attribute = normalized
+        slot.is_categorical = self._is_categorical_attribute(normalized)
+        values = self._get_filter_attribute_values(normalized)
+
+        if slot.is_categorical:
+            code_to_label = self._filter_category_code_to_label.get(normalized, {})
+            ordered_labels = [label for _, label in sorted(code_to_label.items(), key=lambda item: item[0])]
+            if not ordered_labels:
+                finite_values = values[np.isfinite(values)]
+                unique_codes = sorted({float(v) for v in finite_values.tolist()})
+                ordered_labels = [str(int(code) if float(code).is_integer() else code) for code in unique_codes]
+                code_to_label = {
+                    float(code): str(int(code) if float(code).is_integer() else code) for code in unique_codes
+                }
+                self._filter_category_code_to_label[normalized] = code_to_label
+            slot.category_options = ordered_labels
+            if selected_categories is None:
+                chosen = list(slot.preset_categories or ordered_labels)
+            else:
+                chosen = list(selected_categories)
+            slot.selected_categories = [label for label in chosen if label in slot.category_options]
+            slot.minimum = 0.0
+            slot.maximum = 1.0
+            slot.step = 0.005
+            slot.range_values = [0.0, 1.0]
+        else:
+            minimum, maximum, step = self._build_data_filter_range(normalized)
+            low_source = selected_min if selected_min is not None else slot.preset_min
+            high_source = selected_max if selected_max is not None else slot.preset_max
+            low = minimum if low_source is None else max(minimum, min(maximum, float(low_source)))
+            high = maximum if high_source is None else max(minimum, min(maximum, float(high_source)))
+            if low > high:
+                low, high = high, low
+            slot.minimum = minimum
+            slot.maximum = maximum
+            slot.step = step
+            slot.range_values = [low, high]
+            slot.category_options = []
+            slot.selected_categories = []
+
+        slot.preset_min = None
+        slot.preset_max = None
+        slot.preset_categories = None
+
+    def _apply_initial_data_filters(self) -> None:
+        for idx, slot in enumerate(self._data_filters):
+            if slot.attribute:
+                self._set_filter_slot_attribute(
+                    idx,
+                    slot.attribute,
+                    selected_min=slot.preset_min,
+                    selected_max=slot.preset_max,
+                    selected_categories=slot.preset_categories,
+                )
+
+    def _data_filter_slot_summary(self, slot: DataFilterSlot) -> str:
+        if not slot.attribute:
+            return "None"
+        if slot.is_categorical:
+            selected = slot.selected_categories
+            total = len(slot.category_options)
+            if not selected:
+                return f"{slot.attribute}: 0/{total} selected"
+            if len(selected) <= 3:
+                return f"{slot.attribute}: {', '.join(selected)}"
+            return f"{slot.attribute}: {len(selected)}/{total} selected"
+        low, high = slot.range_values
+        return f"{slot.attribute}: {self._format_threshold(low)} to {self._format_threshold(high)}"
+
+    def _sync_data_filter_state(self) -> None:
+        if self._server is None:
+            return
+        state = self._server.state
+        state.data_filter_attribute_options = list(self._filter_attribute_options)
+        for idx, slot in enumerate(self._data_filters):
+            prefix = self._filter_slot_name(idx)
+            setattr(state, f"{prefix}_attribute", slot.attribute)
+            setattr(state, f"{prefix}_is_categorical", slot.is_categorical)
+            setattr(state, f"{prefix}_range_min", slot.minimum)
+            setattr(state, f"{prefix}_range_max", slot.maximum)
+            setattr(state, f"{prefix}_range_step", slot.step)
+            setattr(state, f"{prefix}_range", list(slot.range_values))
+            setattr(state, f"{prefix}_category_options", list(slot.category_options))
+            setattr(state, f"{prefix}_selected_categories", list(slot.selected_categories))
+            setattr(state, f"{prefix}_summary", self._data_filter_slot_summary(slot))
+
+    def set_data_filter_attribute(self, slot_index: int, attribute: str) -> None:
+        self._set_filter_slot_attribute(slot_index, attribute)
+        if self.state is not None:
+            self._refresh_plot(preserve_camera=self._view_initialized)
+        if self._server is not None:
+            self._syncing_state = True
+            try:
+                self._sync_data_filter_state()
+            finally:
+                self._syncing_state = False
+
+    def set_data_filter_range(self, slot_index: int, values: list[float] | tuple[float, float]) -> None:
+        slot = self._get_filter_slot(slot_index)
+        if not slot.attribute or slot.is_categorical:
+            return
+        if len(values) != 2:
+            raise ValueError("Filter range must have exactly two values.")
+        lower = max(slot.minimum, min(slot.maximum, float(values[0])))
+        upper = max(slot.minimum, min(slot.maximum, float(values[1])))
+        if lower > upper:
+            lower, upper = upper, lower
+        if lower == slot.range_values[0] and upper == slot.range_values[1]:
+            return
+        slot.range_values = [lower, upper]
+        if self.state is not None:
+            self._refresh_plot(preserve_camera=self._view_initialized)
+        if self._server is not None:
+            self._syncing_state = True
+            try:
+                prefix = self._filter_slot_name(slot_index)
+                setattr(self._server.state, f"{prefix}_range", list(slot.range_values))
+                setattr(self._server.state, f"{prefix}_summary", self._data_filter_slot_summary(slot))
+            finally:
+                self._syncing_state = False
+
+    def set_data_filter_categories(self, slot_index: int, categories: list[str]) -> None:
+        slot = self._get_filter_slot(slot_index)
+        if not slot.attribute or not slot.is_categorical:
+            return
+        slot.selected_categories = [label for label in categories if label in slot.category_options]
+        if self.state is not None:
+            self._refresh_plot(preserve_camera=self._view_initialized)
+        if self._server is not None:
+            self._syncing_state = True
+            try:
+                prefix = self._filter_slot_name(slot_index)
+                setattr(
+                    self._server.state,
+                    f"{prefix}_selected_categories",
+                    list(slot.selected_categories),
+                )
+                setattr(self._server.state, f"{prefix}_summary", self._data_filter_slot_summary(slot))
+            finally:
+                self._syncing_state = False
+
+    def reset_data_filter(self, slot_index: Optional[int] = None) -> None:
+        if slot_index is None:
+            self._reset_filter_slot(0)
+            self._reset_filter_slot(1)
+        else:
+            self._reset_filter_slot(slot_index)
+        if self.state is not None:
+            self._refresh_plot(preserve_camera=self._view_initialized)
+        if self._server is not None:
+            self._syncing_state = True
+            try:
+                self._sync_data_filter_state()
+            finally:
+                self._syncing_state = False
+
+    def _refresh_filter_options(self) -> None:
+        self._filter_attribute_options = self._all_filter_attribute_options()
+        for idx, slot in enumerate(self._data_filters):
+            if slot.attribute and slot.attribute not in self._filter_attribute_options:
+                self._reset_filter_slot(idx)
+
     def _format_threshold(self, value: float) -> str:
         return f"{value:,.3f}".rstrip("0").rstrip(".")
 
@@ -252,15 +672,38 @@ class BlockModelTrameApp:
     def _filtered_mesh(self) -> pv.DataSet:
         if self.state is None:
             raise RuntimeError("Plot state has not been loaded yet.")
-        if self.state.scalar_is_categorical:
+        cell_count = self.state.mesh.n_cells
+        mask = np.ones(cell_count, dtype=bool)
+
+        if not self.state.scalar_is_categorical and self.filter_enabled:
+            threshold_values = np.asarray(self.state.mesh.cell_data[self.state.scalar], dtype=float)
+            mask &= np.isfinite(threshold_values) & (threshold_values >= self.threshold.value)
+
+        for slot in self._data_filters:
+            if not slot.attribute:
+                continue
+            values = self._get_filter_attribute_values(slot.attribute)
+            if values.shape[0] != cell_count:
+                continue
+            if slot.is_categorical:
+                code_to_label = self._filter_category_code_to_label.get(slot.attribute, {})
+                selected_labels = set(slot.selected_categories)
+                selected_codes = [
+                    code
+                    for code, label in code_to_label.items()
+                    if label in selected_labels
+                ]
+                if selected_codes:
+                    mask &= np.isin(values, np.asarray(selected_codes, dtype=float))
+                else:
+                    mask &= np.zeros(cell_count, dtype=bool)
+            else:
+                lower, upper = slot.range_values
+                mask &= np.isfinite(values) & (values >= lower) & (values <= upper)
+
+        if bool(np.all(mask)):
             return self.state.mesh
-        if not self.filter_enabled:
-            return self.state.mesh
-        return self.state.mesh.threshold(
-            self.threshold.value,
-            scalars=self.state.scalar,
-            preference="cell",
-        )
+        return self.state.mesh.extract_cells(mask)
 
     def _mesh_with_decile_scalars(self, mesh: pv.DataSet) -> tuple[pv.DataSet, np.ndarray]:
         if self.state is None:
@@ -320,6 +763,10 @@ class BlockModelTrameApp:
         self.state = None
         self.threshold = ThresholdRange(minimum=0.0, maximum=1.0, value=0.0, step=0.005)
         self.filter_enabled = False
+        self._reset_filter_slot(0)
+        self._reset_filter_slot(1)
+        self._filter_attribute_options = []
+        self._clear_filter_cache()
         self._initial_scalar = ""
         self._view_initialized = False
         self.plotter.clear()
@@ -335,6 +782,18 @@ class BlockModelTrameApp:
             state.threshold_display = self._format_threshold(self.threshold.value)
             state.threshold_step = self.threshold.step
             state.filter_active = False
+            state.data_filter_attribute_options = []
+            for idx in range(2):
+                prefix = self._filter_slot_name(idx)
+                setattr(state, f"{prefix}_attribute", "")
+                setattr(state, f"{prefix}_is_categorical", False)
+                setattr(state, f"{prefix}_range_min", 0.0)
+                setattr(state, f"{prefix}_range_max", 1.0)
+                setattr(state, f"{prefix}_range_step", 0.005)
+                setattr(state, f"{prefix}_range", [0.0, 1.0])
+                setattr(state, f"{prefix}_category_options", [])
+                setattr(state, f"{prefix}_selected_categories", [])
+                setattr(state, f"{prefix}_summary", "None")
             state.model_name = ""
             state.model_path = ""
 
@@ -356,6 +815,8 @@ class BlockModelTrameApp:
         self.blockmodel = blockmodel
         if not self._title_override:
             self.title = self.blockmodel.name
+        self._clear_filter_cache()
+        self._refresh_filter_options()
 
         self._syncing_state = True
         try:
@@ -369,6 +830,7 @@ class BlockModelTrameApp:
             else:
                 # Hive mode: just prepare attributes, don't load a plot yet
                 self._initial_scalar = ""
+            self._apply_initial_data_filters()
             
             if self._server is not None:
                 self._server.state.attribute_options = self.blockmodel.available_attributes
@@ -395,6 +857,7 @@ class BlockModelTrameApp:
                     self._server.state.threshold_step = self.threshold.step
                     self._server.state.threshold_display = "0"
                     self._server.state.filter_active = False
+                self._sync_data_filter_state()
         finally:
             self._syncing_state = False
 
@@ -636,7 +1099,8 @@ class BlockModelTrameApp:
                 self._server.state.threshold_min = self.threshold.minimum
                 self._server.state.threshold_max = self.threshold.maximum
                 self._server.state.threshold = self.threshold.value
-                self._server.state.filter_active = True
+                self._server.state.filter_active = self.filter_enabled
+                self._sync_data_filter_state()
         finally:
             self._syncing_state = False
 
@@ -649,7 +1113,7 @@ class BlockModelTrameApp:
         if self._server is not None:
             self._server.state.threshold = self.threshold.value
             self._server.state.threshold_display = self._format_threshold(self.threshold.value)
-            self._server.state.filter_active = True
+            self._server.state.filter_active = self.filter_enabled
 
     def set_threshold_from_text(self, text_value: str) -> None:
         if self.threshold is None:
@@ -762,6 +1226,8 @@ class BlockModelTrameApp:
             
             # Initialize available colormaps
             self.available_colormaps = self._get_available_colormaps()
+            self._refresh_filter_options()
+            self._apply_initial_data_filters()
             
             # Set state only if blockmodel was loaded
             if self.state is not None:
@@ -785,6 +1251,7 @@ class BlockModelTrameApp:
                 state.threshold_display = self._format_threshold(self.threshold.value)
                 state.threshold_step = self.threshold.step
                 state.filter_active = False
+            self._sync_data_filter_state()
             
             state.colormap_options = self.available_colormaps
             state.selected_colormap = self.colormap
@@ -823,6 +1290,43 @@ class BlockModelTrameApp:
             if self._syncing_state or filter_active is None:
                 return
             self.filter_enabled = bool(filter_active)
+            self._refresh_plot(preserve_camera=self._view_initialized)
+
+        @state.change("data_filter_1_attribute")
+        def _data_filter_1_attribute_changed(data_filter_1_attribute=None, **_):
+            if self._syncing_state or data_filter_1_attribute is None:
+                return
+            self.set_data_filter_attribute(0, str(data_filter_1_attribute))
+
+        @state.change("data_filter_2_attribute")
+        def _data_filter_2_attribute_changed(data_filter_2_attribute=None, **_):
+            if self._syncing_state or data_filter_2_attribute is None:
+                return
+            self.set_data_filter_attribute(1, str(data_filter_2_attribute))
+
+        @state.change("data_filter_1_range")
+        def _data_filter_1_range_changed(data_filter_1_range=None, **_):
+            if self._syncing_state or data_filter_1_range is None:
+                return
+            self.set_data_filter_range(0, data_filter_1_range)
+
+        @state.change("data_filter_2_range")
+        def _data_filter_2_range_changed(data_filter_2_range=None, **_):
+            if self._syncing_state or data_filter_2_range is None:
+                return
+            self.set_data_filter_range(1, data_filter_2_range)
+
+        @state.change("data_filter_1_selected_categories")
+        def _data_filter_1_categories_changed(data_filter_1_selected_categories=None, **_):
+            if self._syncing_state or data_filter_1_selected_categories is None:
+                return
+            self.set_data_filter_categories(0, list(data_filter_1_selected_categories))
+
+        @state.change("data_filter_2_selected_categories")
+        def _data_filter_2_categories_changed(data_filter_2_selected_categories=None, **_):
+            if self._syncing_state or data_filter_2_selected_categories is None:
+                return
+            self.set_data_filter_categories(1, list(data_filter_2_selected_categories))
 
         @state.change("selected_colormap")
         def _colormap_changed(selected_colormap=None, **_):
@@ -840,6 +1344,12 @@ class BlockModelTrameApp:
         ctrl.update_threshold = _threshold_changed
         ctrl.update_colormap = _colormap_changed
         ctrl.update_discretize_deciles = _discretize_deciles_changed
+        ctrl.update_data_filter_1_attribute = _data_filter_1_attribute_changed
+        ctrl.update_data_filter_2_attribute = _data_filter_2_attribute_changed
+        ctrl.update_data_filter_1_range = _data_filter_1_range_changed
+        ctrl.update_data_filter_2_range = _data_filter_2_range_changed
+        ctrl.update_data_filter_1_categories = _data_filter_1_categories_changed
+        ctrl.update_data_filter_2_categories = _data_filter_2_categories_changed
         def _apply_threshold_text(**_):
             if self._syncing_state or self._server is None:
                 return
@@ -847,6 +1357,8 @@ class BlockModelTrameApp:
 
         ctrl.apply_threshold_text = _apply_threshold_text
         ctrl.reset_filter = self.reset_filter
+        ctrl.reset_data_filter_1 = lambda **_: self.reset_data_filter(0)
+        ctrl.reset_data_filter_2 = lambda **_: self.reset_data_filter(1)
         ctrl.update_asset_name = lambda **_: None
         def _extract_client_key(event_payload=None, **kwargs) -> str:
             values = []
@@ -1029,6 +1541,121 @@ class BlockModelTrameApp:
                     ):
                         with vuetify.VExpansionPanel():
                             vuetify.VExpansionPanelHeader(
+                                "Data Filter",
+                                dense=True,
+                                classes="py-1 px-2 text-subtitle-2",
+                            )
+                            with vuetify.VExpansionPanelContent(classes="pt-1 pb-2 px-2"):
+                                vuetify.VSelect(
+                                    v_model=("data_filter_1_attribute", self._data_filters[0].attribute),
+                                    items=("data_filter_attribute_options", self._filter_attribute_options),
+                                    label="Filter 1 attribute",
+                                    dense=True,
+                                    hide_details=True,
+                                    outlined=True,
+                                    classes="mt-2",
+                                    clearable=True,
+                                    change=ctrl.update_data_filter_1_attribute,
+                                )
+                                vuetify.VRangeSlider(
+                                    v_if=("!data_filter_1_is_categorical",),
+                                    v_model=("data_filter_1_range", list(self._data_filters[0].range_values)),
+                                    min=("data_filter_1_range_min", self._data_filters[0].minimum),
+                                    max=("data_filter_1_range_max", self._data_filters[0].maximum),
+                                    step=("data_filter_1_range_step", self._data_filters[0].step),
+                                    label="Filter 1 range",
+                                    dense=True,
+                                    hide_details=True,
+                                    thumb_label=False,
+                                    classes="mt-2",
+                                    disabled=("data_filter_1_attribute === ''",),
+                                    change=ctrl.update_data_filter_1_range,
+                                )
+                                vuetify.VSelect(
+                                    v_if=("data_filter_1_is_categorical",),
+                                    v_model=("data_filter_1_selected_categories", list(self._data_filters[0].selected_categories)),
+                                    items=("data_filter_1_category_options", list(self._data_filters[0].category_options)),
+                                    label="Filter 1 categories",
+                                    dense=True,
+                                    hide_details=True,
+                                    outlined=True,
+                                    classes="mt-2",
+                                    multiple=True,
+                                    chips=True,
+                                    deletable_chips=True,
+                                    change=ctrl.update_data_filter_1_categories,
+                                )
+                                vuetify.VBtn(
+                                    "Reset filter 1",
+                                    click=ctrl.reset_data_filter_1,
+                                    block=True,
+                                    color="primary",
+                                    classes="mt-2",
+                                )
+                                vuetify.VChip(
+                                    "{{ data_filter_1_summary }}",
+                                    label=True,
+                                    small=True,
+                                    outlined=True,
+                                    classes="mt-2 text-caption text-truncate",
+                                    style="max-width: 100%;",
+                                )
+                                vuetify.VSelect(
+                                    v_model=("data_filter_2_attribute", self._data_filters[1].attribute),
+                                    items=("data_filter_attribute_options", self._filter_attribute_options),
+                                    label="Filter 2 attribute",
+                                    dense=True,
+                                    hide_details=True,
+                                    outlined=True,
+                                    classes="mt-4",
+                                    clearable=True,
+                                    change=ctrl.update_data_filter_2_attribute,
+                                )
+                                vuetify.VRangeSlider(
+                                    v_if=("!data_filter_2_is_categorical",),
+                                    v_model=("data_filter_2_range", list(self._data_filters[1].range_values)),
+                                    min=("data_filter_2_range_min", self._data_filters[1].minimum),
+                                    max=("data_filter_2_range_max", self._data_filters[1].maximum),
+                                    step=("data_filter_2_range_step", self._data_filters[1].step),
+                                    label="Filter 2 range",
+                                    dense=True,
+                                    hide_details=True,
+                                    thumb_label=False,
+                                    classes="mt-2",
+                                    disabled=("data_filter_2_attribute === ''",),
+                                    change=ctrl.update_data_filter_2_range,
+                                )
+                                vuetify.VSelect(
+                                    v_if=("data_filter_2_is_categorical",),
+                                    v_model=("data_filter_2_selected_categories", list(self._data_filters[1].selected_categories)),
+                                    items=("data_filter_2_category_options", list(self._data_filters[1].category_options)),
+                                    label="Filter 2 categories",
+                                    dense=True,
+                                    hide_details=True,
+                                    outlined=True,
+                                    classes="mt-2",
+                                    multiple=True,
+                                    chips=True,
+                                    deletable_chips=True,
+                                    change=ctrl.update_data_filter_2_categories,
+                                )
+                                vuetify.VBtn(
+                                    "Reset filter 2",
+                                    click=ctrl.reset_data_filter_2,
+                                    block=True,
+                                    color="primary",
+                                    classes="mt-2",
+                                )
+                                vuetify.VChip(
+                                    "{{ data_filter_2_summary }}",
+                                    label=True,
+                                    small=True,
+                                    outlined=True,
+                                    classes="mt-2 text-caption text-truncate",
+                                    style="max-width: 100%;",
+                                )
+                        with vuetify.VExpansionPanel():
+                            vuetify.VExpansionPanelHeader(
                                 "Controls",
                                 dense=True,
                                 classes="py-1 px-2 text-subtitle-2",
@@ -1091,7 +1718,7 @@ class BlockModelTrameApp:
                                     classes="mt-2",
                                 )
                                 vuetify.VBtn(
-                                    "Reset",
+                                    "Reset threshold",
                                     click=ctrl.reset_filter,
                                     block=True,
                                     color="primary",
