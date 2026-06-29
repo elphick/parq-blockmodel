@@ -381,7 +381,7 @@ def test_trame_example_seeds_temp_demo_when_sample_missing(tmp_path, monkeypatch
         def launch(self, **kwargs):
             launched["launched"] = True
 
-    def fake_from_source_path(source_path):
+    def fake_from_source_path(source_path, **_):
         launched["source_path"] = Path(source_path)
         return FakeApp()
 
@@ -416,7 +416,7 @@ def test_trame_example_skips_launch_during_gallery_build(tmp_path, monkeypatch):
         def launch(self, **kwargs):
             launched["launched"] = True
 
-    def fake_from_source_path(source_path):
+    def fake_from_source_path(source_path, **_):
         launched["source_path"] = Path(source_path)
         return FakeApp()
 
@@ -451,7 +451,7 @@ def test_trame_example_hive_toggle_uses_directory_source(tmp_path, monkeypatch):
         def launch(self, **kwargs):
             launched["launched"] = True
 
-    def fake_from_source_path(source_path):
+    def fake_from_source_path(source_path, **_):
         launched["source_path"] = Path(source_path)
         return FakeApp()
 
