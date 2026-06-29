@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 # sphinx_gallery_thumbnail_path = "../docs/_static/branding/parq-blockmodel-gallery-thumbnail.svg"
-DEMO_SOURCE_KIND = "hive"  # "file" or "hive"
+DEMO_SOURCE_KIND = "file"  # "file" or "hive"
 
 
 def _seed_temporary_hive_demo() -> Path:
@@ -58,7 +58,7 @@ def _resolve_source_path() -> Path:
 def main() -> None:
     source_path = _resolve_source_path()
     logger.warning("Launching Trame demo from %s", source_path)
-    app = BlockModelTrameApp.from_source_path(source_path)
+    app = BlockModelTrameApp.from_source_path(source_path, app_name='Demo App')
 
     if getattr(pv, "BUILDING_GALLERY", False):
         logger.info("Skipping live Trame launch while building the gallery.")

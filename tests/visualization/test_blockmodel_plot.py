@@ -3,6 +3,7 @@ from importlib import util
 from pathlib import Path
 from types import ModuleType, SimpleNamespace
 
+import numpy as np
 import pandas as pd
 
 from parq_blockmodel import ParquetBlockModel
@@ -308,6 +309,57 @@ def test_trame_app_renders_categorical_attributes(tmp_path, monkeypatch):
     assert app.state is not None
     assert app.state.scalar_is_categorical is True
     assert app.plotter.last_mesh_n_cells > 0
+
+
+def test_trame_app_discretises_continuous_values_to_deciles(tmp_path, monkeypatch):
+    parquet_path = tmp_path / "decile_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(3, 3, 3))
+
+    class FakePlotter:
+        def __init__(self, *args, **kwargs):
+            self.actors = {}
+            self.last_kwargs = {}
+            self.last_mesh = None
+
+        def clear(self):
+            self.actors.clear()
+
+        def add_mesh(self, mesh, **kwargs):
+            self.last_mesh = mesh
+            self.last_kwargs = kwargs
+            self.actors["blockmodel"] = mesh
+
+        def view_isometric(self):
+            return None
+
+        def reset_camera_clipping_range(self):
+            return None
+
+        def add_axes(self):
+            return None
+
+        def render(self):
+            return None
+
+        def show(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+
+    app = BlockModelTrameApp(pbm, scalar=pbm.available_attributes[0], show_edges=False)
+    app._load_plot_state(app._initial_scalar)
+    app.set_discretize_deciles(True)
+
+    assert app.plotter.last_mesh is not None
+    assert "__pbm_decile_bin__" in app.plotter.last_mesh.cell_data
+    assert app.plotter.last_kwargs.get("scalars") == "__pbm_decile_bin__"
+    assert app.plotter.last_kwargs.get("categories") is True
+    assert "clim" not in app.plotter.last_kwargs
+    decile_values = np.asarray(app.plotter.last_mesh.cell_data["__pbm_decile_bin__"], dtype=float)
+    finite_values = decile_values[np.isfinite(decile_values)]
+    assert finite_values.size > 0
+    assert float(np.min(finite_values)) >= 0.0
+    assert float(np.max(finite_values)) <= 9.0
 
 
 def test_trame_example_seeds_temp_demo_when_sample_missing(tmp_path, monkeypatch):
@@ -668,6 +720,11 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
         calls["logo_max_width"] = kwargs.get("max_width")
         return DummyContext()
 
+    def make_toolbar_title(*args, **kwargs):
+        if args:
+            calls["toolbar_title"] = args[0]
+        return DummyContext()
+
     fake_trame_widgets.vuetify = SimpleNamespace(
         VSelect=make_widget,
         VSlider=make_widget,
@@ -675,7 +732,7 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
         VAppLayout=FakeLayout,
         VAppBar=make_widget,
         VAppBarNavIcon=make_widget,
-        VToolbarTitle=make_widget,
+        VToolbarTitle=make_toolbar_title,
         VSpacer=make_widget,
         VChip=make_widget,
         VNavigationDrawer=make_widget,
@@ -710,13 +767,20 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
 
     from parq_blockmodel.visualization.trame_app import BlockModelTrameApp
 
-    app = BlockModelTrameApp(pbm, scalar=pbm.available_attributes[0], z_up_lock=True, z_up_hotkey="z")
+    app = BlockModelTrameApp(
+        pbm,
+        scalar=pbm.available_attributes[0],
+        z_up_lock=True,
+        z_up_hotkey="z",
+        app_name="Custom Viewer",
+    )
     app.launch()
 
     assert calls["client_type"] == "vue2"
     assert calls["start_kwargs"]["open_browser"] is True
     assert calls["start_kwargs"]["show_connection_info"] is True
     assert calls["layout_title"] == ""
+    assert calls["toolbar_title"] == "Custom Viewer"
     assert calls["logo_src"].startswith("data:image/svg+xml;charset=utf-8,")
     assert calls["logo_max_width"] == 50
     assert calls["toolbar_color"] == "grey lighten-3"
