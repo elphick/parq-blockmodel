@@ -100,9 +100,65 @@ def prepare_plot_state(
     )
 
 
-def _plotter_add_mesh_kwargs(state: BlockModelPlotState) -> dict[str, Any]:
+def _calculate_deciles(values: np.ndarray) -> np.ndarray:
+    finite = np.asarray(values, dtype=float)
+    finite = finite[np.isfinite(finite)]
+    if finite.size == 0:
+        return np.asarray([], dtype=float)
+    return np.percentile(finite, np.arange(10, 100, 10))
+
+
+def _bin_to_deciles(values: np.ndarray, decile_edges: np.ndarray) -> np.ndarray:
+    binned = np.full(values.shape, np.nan, dtype=float)
+    finite_mask = np.isfinite(values)
+    if not np.any(finite_mask):
+        return binned
+    if decile_edges.size == 0:
+        binned[finite_mask] = 0.0
+        return binned
+    finite_values = np.asarray(values[finite_mask], dtype=float)
+    finite_bins = np.digitize(finite_values, decile_edges, right=False)
+    finite_bins = np.clip(finite_bins, 0, 9)
+    binned[finite_mask] = finite_bins.astype(float)
+    return binned
+
+
+def _colormap_to_lookup_table(colormap: str, n_bins: int = 10) -> pv.LookupTable:
+    try:
+        import matplotlib.pyplot as plt
+
+        sampled = plt.get_cmap(colormap)(np.linspace(0.0, 1.0, n_bins))
+        colors = np.asarray(np.clip(np.rint(sampled * 255.0), 0, 255), dtype=np.uint8)
+    except ImportError:
+        fallback = np.array(
+            [
+                [31, 119, 180, 255],
+                [255, 127, 14, 255],
+                [44, 160, 44, 255],
+                [214, 39, 40, 255],
+                [148, 103, 189, 255],
+                [140, 86, 75, 255],
+                [227, 119, 194, 255],
+                [127, 127, 127, 255],
+                [188, 189, 34, 255],
+                [23, 190, 207, 255],
+            ],
+            dtype=np.uint8,
+        )
+        colors = np.vstack([fallback[i % len(fallback)] for i in range(n_bins)])
+    return pv.LookupTable(values=colors, scalar_range=(-0.5, n_bins - 0.5), nan_color="lightgray")
+
+
+def _plotter_add_mesh_kwargs(
+    state: BlockModelPlotState,
+    colormap: str = "viridis",
+    discretize_to_deciles: bool = False,
+    decile_edges: Optional[np.ndarray] = None,
+    scalar_for_coloring: Optional[str] = None,
+) -> dict[str, Any]:
+    scalar_name = scalar_for_coloring or state.scalar
     add_mesh_kwargs: dict[str, Any] = {
-        "scalars": state.scalar,
+        "scalars": scalar_name,
         "show_edges": True,
     }
     if state.scalar_is_categorical:
@@ -146,6 +202,33 @@ def _plotter_add_mesh_kwargs(state: BlockModelPlotState) -> dict[str, Any]:
                 "scalar_bar_args": scalar_bar_args,
             }
         )
+    elif discretize_to_deciles:
+        n_bins = 10
+        lut = _colormap_to_lookup_table(colormap, n_bins=n_bins)
+        if decile_edges is None:
+            decile_edges = np.asarray([], dtype=float)
+        decile_edges = np.asarray(decile_edges, dtype=float)
+        annotations: dict[float, str] = {}
+        if decile_edges.size == n_bins - 1:
+            labels = [f"<= {decile_edges[0]:.3g}"]
+            for i in range(1, n_bins - 1):
+                labels.append(f"{decile_edges[i - 1]:.3g} - {decile_edges[i]:.3g}")
+            labels.append(f"> {decile_edges[-1]:.3g}")
+            annotations = {float(i): labels[i] for i in range(n_bins)}
+            lut.annotations = annotations
+        scalar_bar_args = {"n_labels": 0, "nan_annotation": True}
+        add_mesh_kwargs.update(
+            {
+                "categories": True,
+                "annotations": annotations,
+                "cmap": lut,
+                "nan_color": "lightgray",
+                "nan_opacity": 0.15,
+                "scalar_bar_args": scalar_bar_args,
+            }
+        )
+    else:
+        add_mesh_kwargs["cmap"] = colormap
     return add_mesh_kwargs
 
 
@@ -398,10 +481,12 @@ class TrameBlockModelPlotEngine:
         launch_on_plot: bool = False,
         server_name: str = "parq-blockmodel-trame",
         port: Optional[int] = None,
+        app_name: str = "ParquetBlockModel Viewer",
     ) -> None:
         self.launch_on_plot = launch_on_plot
         self.server_name = server_name
         self.port = port
+        self.app_name = app_name
 
     def plot(
         self,
@@ -429,6 +514,7 @@ class TrameBlockModelPlotEngine:
             show_edges=show_edges,
             z_up_lock=z_up_lock,
             z_up_hotkey=z_up_hotkey,
+            app_name=self.app_name,
         )
         if self.launch_on_plot:
             return app.launch(server_name=self.server_name, port=self.port)

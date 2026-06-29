@@ -12,6 +12,8 @@ import pyvista as pv
 
 from parq_blockmodel.visualization.blockmodel_plot import (
     BlockModelPlotState,
+    _bin_to_deciles,
+    _calculate_deciles,
     _normalize_z_up_hotkey,
     _plotter_add_mesh_kwargs,
     _register_z_up_rotation_lock,
@@ -51,6 +53,7 @@ class BlockModelTrameApp:
         show_edges: bool = True,
         z_up_lock: bool = False,
         z_up_hotkey: str = "z",
+        app_name: str = "ParquetBlockModel Viewer",
         asset_catalog: Optional[HivePbmCatalog] = None,
         asset_catalog_root: Optional[str | Path] = None,
     ) -> None:
@@ -62,6 +65,7 @@ class BlockModelTrameApp:
         self.show_edges = show_edges
         self.z_up_lock = bool(z_up_lock)
         self.z_up_hotkey = _normalize_z_up_hotkey(z_up_hotkey)
+        self.app_name = str(app_name)
         self._initial_scalar = scalar or (self._default_scalar() if blockmodel is not None else "")
         self.asset_catalog = asset_catalog
         self.asset_catalog_root = (
@@ -79,6 +83,9 @@ class BlockModelTrameApp:
         self.state: Optional[BlockModelPlotState] = None
         self.threshold: Optional[ThresholdRange] = None
         self.filter_enabled = True
+        self.colormap = "viridis"
+        self.discretize_deciles = False
+        self.available_colormaps: list[str] = []
         self.plotter = pv.Plotter(off_screen=True)
         if self.z_up_lock:
             _register_z_up_rotation_lock(self.plotter, self.z_up_hotkey)
@@ -101,6 +108,7 @@ class BlockModelTrameApp:
         show_edges: bool = True,
         z_up_lock: bool = False,
         z_up_hotkey: str = "z",
+        app_name: str = "ParquetBlockModel Viewer",
     ) -> "BlockModelTrameApp":
         from parq_blockmodel.blockmodel import ParquetBlockModel
 
@@ -113,6 +121,7 @@ class BlockModelTrameApp:
             show_edges=show_edges,
             z_up_lock=z_up_lock,
             z_up_hotkey=z_up_hotkey,
+            app_name=app_name,
         )
 
     @classmethod
@@ -127,6 +136,7 @@ class BlockModelTrameApp:
         show_edges: bool = True,
         z_up_lock: bool = False,
         z_up_hotkey: str = "z",
+        app_name: str = "ParquetBlockModel Viewer",
     ) -> "BlockModelTrameApp":
         catalog = HivePbmCatalog.discover(root_path)
         # For hive mode, don't load any blockmodel initially - user selects via UI
@@ -140,6 +150,7 @@ class BlockModelTrameApp:
             show_edges=show_edges,
             z_up_lock=z_up_lock,
             z_up_hotkey=z_up_hotkey,
+            app_name=app_name,
             asset_catalog=catalog,
             asset_catalog_root=Path(root_path),
         )
@@ -159,6 +170,7 @@ class BlockModelTrameApp:
         show_edges: bool = True,
         z_up_lock: bool = False,
         z_up_hotkey: str = "z",
+        app_name: str = "ParquetBlockModel Viewer",
     ) -> "BlockModelTrameApp":
         path = Path(source_path).expanduser()
         if not path.is_absolute():
@@ -177,6 +189,7 @@ class BlockModelTrameApp:
                 show_edges=show_edges,
                 z_up_lock=z_up_lock,
                 z_up_hotkey=z_up_hotkey,
+                app_name=app_name,
             )
         if path.is_dir():
             return cls.from_hive_directory(
@@ -188,6 +201,7 @@ class BlockModelTrameApp:
                 show_edges=show_edges,
                 z_up_lock=z_up_lock,
                 z_up_hotkey=z_up_hotkey,
+                app_name=app_name,
             )
         raise ValueError(f"Selected path is not a file or directory: {path}")
 
@@ -248,6 +262,17 @@ class BlockModelTrameApp:
             preference="cell",
         )
 
+    def _mesh_with_decile_scalars(self, mesh: pv.DataSet) -> tuple[pv.DataSet, np.ndarray]:
+        if self.state is None:
+            raise RuntimeError("Plot state has not been loaded yet.")
+        scalar_values = np.asarray(self.state.mesh.cell_data[self.state.scalar], dtype=float)
+        decile_edges = _calculate_deciles(scalar_values)
+        mesh_values = np.asarray(mesh.cell_data[self.state.scalar], dtype=float)
+        decile_bins = _bin_to_deciles(mesh_values, decile_edges)
+        display_mesh = mesh.copy(deep=True)
+        display_mesh.cell_data["__pbm_decile_bin__"] = decile_bins
+        return display_mesh, decile_edges
+
     def _refresh_plot(self, *, preserve_camera: bool = True) -> None:
         if self.state is None:
             return
@@ -256,10 +281,22 @@ class BlockModelTrameApp:
             camera_position = getattr(self.plotter, "camera_position", None)
         self.plotter.clear()
         mesh = self._filtered_mesh()
-        mesh_kwargs = _plotter_add_mesh_kwargs(self.state)
+        is_decile_mode = self.discretize_deciles and not self.state.scalar_is_categorical
+        decile_edges: Optional[np.ndarray] = None
+        scalar_for_coloring = self.state.scalar
+        if is_decile_mode:
+            mesh, decile_edges = self._mesh_with_decile_scalars(mesh)
+            scalar_for_coloring = "__pbm_decile_bin__"
+        mesh_kwargs = _plotter_add_mesh_kwargs(
+            self.state,
+            colormap=self.colormap,
+            discretize_to_deciles=is_decile_mode,
+            decile_edges=decile_edges,
+            scalar_for_coloring=scalar_for_coloring,
+        )
         mesh_kwargs["show_edges"] = self.show_edges
-        
-        if not self.state.scalar_is_categorical:
+
+        if not self.state.scalar_is_categorical and not is_decile_mode:
             mesh_values = np.asarray(self.state.mesh.cell_data[self.state.scalar], dtype=float)
             finite_values = mesh_values[np.isfinite(mesh_values)]
             if finite_values.size > 0:
@@ -643,6 +680,40 @@ class BlockModelTrameApp:
             finally:
                 self._syncing_state = False
 
+    def set_colormap(self, colormap: str) -> None:
+        self.colormap = colormap
+        self._refresh_plot(preserve_camera=self._view_initialized)
+        if self._server is not None:
+            self._server.state.selected_colormap = colormap
+
+    def set_discretize_deciles(self, enabled: bool) -> None:
+        self.discretize_deciles = bool(enabled)
+        self._refresh_plot(preserve_camera=self._view_initialized)
+        if self._server is not None:
+            self._server.state.discretize_deciles = self.discretize_deciles
+
+    def _get_available_colormaps(self) -> list[str]:
+        try:
+            import matplotlib.pyplot as plt
+            all_cmaps = list(plt.colormaps())
+        except (ImportError, AttributeError):
+            all_cmaps = ["viridis", "plasma", "inferno", "cool", "hot"]
+        
+        useful_cmaps = [
+            "viridis", "plasma", "inferno", "magma", "cividis",
+            "cool", "hot", "spring", "summer", "autumn", "winter",
+            "jet", "RdYlBu", "RdYlGn", "Spectral", "coolwarm", "seismic",
+            "twilight", "twilight_shifted", "hsv", "bone", "copper",
+            "gray", "hot_r", "cool_r", "Greys", "Blues", "Greens", "Oranges",
+            "Reds", "Purples", "RdPu", "BuGn", "BuPu", "GnBu", "OrRd", "PuBu"
+        ]
+        
+        available = [c for c in useful_cmaps if c in all_cmaps]
+        if not available:
+            available = all_cmaps[:10]
+        
+        return sorted(available)
+
     def launch(self, server_name: str = "parq-blockmodel-trame", port: Optional[int] = None):
         """Launch the Trame visualization app.
         
@@ -689,6 +760,9 @@ class BlockModelTrameApp:
             if not self._skip_initial_blockmodel_load:
                 self.load_blockmodel(self.blockmodel, preferred_scalar=self._initial_scalar)
             
+            # Initialize available colormaps
+            self.available_colormaps = self._get_available_colormaps()
+            
             # Set state only if blockmodel was loaded
             if self.state is not None:
                 state.attribute_options = self.blockmodel.available_attributes
@@ -712,6 +786,9 @@ class BlockModelTrameApp:
                 state.threshold_step = self.threshold.step
                 state.filter_active = False
             
+            state.colormap_options = self.available_colormaps
+            state.selected_colormap = self.colormap
+            state.discretize_deciles = self.discretize_deciles
             state.control_panel = 0
             if self.state is not None:
                 state.model_name = self.blockmodel.name
@@ -747,8 +824,22 @@ class BlockModelTrameApp:
                 return
             self.filter_enabled = bool(filter_active)
 
+        @state.change("selected_colormap")
+        def _colormap_changed(selected_colormap=None, **_):
+            if self._syncing_state or selected_colormap is None or not selected_colormap:
+                return
+            self.set_colormap(selected_colormap)
+
+        @state.change("discretize_deciles")
+        def _discretize_deciles_changed(discretize_deciles=None, **_):
+            if self._syncing_state or discretize_deciles is None:
+                return
+            self.set_discretize_deciles(bool(discretize_deciles))
+
         ctrl.update_attribute = _attribute_changed
         ctrl.update_threshold = _threshold_changed
+        ctrl.update_colormap = _colormap_changed
+        ctrl.update_discretize_deciles = _discretize_deciles_changed
         def _apply_threshold_text(**_):
             if self._syncing_state or self._server is None:
                 return
@@ -836,7 +927,7 @@ class BlockModelTrameApp:
                 layout.title.set_text("")
             with layout.toolbar:
                 vuetify.VImg(src=brand_logo_src, max_width=50, contain=True, classes="mr-2")
-                vuetify.VToolbarTitle("ParquetBlockModel Viewer")
+                vuetify.VToolbarTitle(self.app_name)
                 vuetify.VSpacer()
                 vuetify.VChip(
                     "{{ model_name }}",
@@ -952,6 +1043,24 @@ class BlockModelTrameApp:
                                     outlined=True,
                                     classes="mt-2",
                                     change=ctrl.update_attribute,
+                                )
+                                vuetify.VSelect(
+                                    v_model=("selected_colormap", self.colormap),
+                                    items=("colormap_options", self.available_colormaps),
+                                    label="Colormap",
+                                    dense=True,
+                                    hide_details=True,
+                                    outlined=True,
+                                    classes="mt-2",
+                                    change=ctrl.update_colormap,
+                                )
+                                vuetify.VCheckbox(
+                                    v_model=("discretize_deciles", self.discretize_deciles),
+                                    label="Discretise to deciles",
+                                    dense=True,
+                                    hide_details=True,
+                                    classes="mt-2",
+                                    change=ctrl.update_discretize_deciles,
                                 )
                                 vuetify.VSlider(
                                     v_model=("threshold", self.threshold.value),
