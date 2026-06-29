@@ -2043,7 +2043,7 @@ class ParquetBlockModel:
 
     def compress(
         self,
-        level: int = 7,
+        level: int = 5,
         policy: Optional[dict[str, typing.Any]] = None,
     ) -> "ParquetBlockModel":
         """Rewrite the backing file with archive compression."""
