@@ -8,7 +8,11 @@ import pandas as pd
 
 from parq_blockmodel import ParquetBlockModel
 from parq_blockmodel.visualization import BlockModelTrameApp, TrameBlockModelPlotEngine
-from parq_blockmodel.visualization.blockmodel_plot import _register_z_up_rotation_lock, _set_z_up_hotkey_state
+from parq_blockmodel.visualization.blockmodel_plot import (
+    _add_elevation_overlay,
+    _register_z_up_rotation_lock,
+    _set_z_up_hotkey_state,
+)
 
 
 class FakeEngine:
@@ -54,6 +58,84 @@ def test_blockmodel_plot_forwards_z_up_settings_to_engine(tmp_path):
     _, kwargs = engine.calls[0]
     assert kwargs["z_up_lock"] is True
     assert kwargs["z_up_hotkey"] == "z"
+
+
+def test_blockmodel_plot_forwards_raster_settings_to_engine(tmp_path):
+    parquet_path = tmp_path / "engine_raster_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+    engine = FakeEngine()
+
+    pbm.plot(
+        scalar=pbm.available_attributes[0],
+        engine=engine,
+        elevation_raster="elev.tif",
+        imagery_raster="imagery.tif",
+    )
+
+    _, kwargs = engine.calls[0]
+    assert kwargs["elevation_raster"] == "elev.tif"
+    assert kwargs["imagery_raster"] == "imagery.tif"
+
+
+def test_add_elevation_overlay_adds_textured_surface_and_toggle(monkeypatch):
+    calls = {"add_mesh": [], "toggle": None}
+
+    class FakeActor:
+        def __init__(self):
+            self.visible = True
+
+        def SetVisibility(self, visible):
+            self.visible = bool(visible)
+
+    class FakeSurface:
+        def __init__(self):
+            self.mapped = False
+
+        def texture_map_to_plane(self, inplace=True, use_bounds=True):
+            self.mapped = bool(inplace and use_bounds)
+
+    class FakePlotter:
+        def __init__(self):
+            self.render_calls = 0
+
+        def add_mesh(self, mesh, **kwargs):
+            calls["add_mesh"].append((mesh, kwargs))
+            return FakeActor()
+
+        def add_checkbox_button_widget(self, callback, **kwargs):
+            calls["toggle"] = (callback, kwargs)
+
+        def add_text(self, *_args, **_kwargs):
+            return None
+
+        def render(self):
+            self.render_calls += 1
+
+    fake_surface = FakeSurface()
+    fake_plotter = FakePlotter()
+    monkeypatch.setattr(
+        "parq_blockmodel.visualization.blockmodel_plot._build_elevation_surface",
+        lambda _path: fake_surface,
+    )
+    monkeypatch.setattr(
+        "parq_blockmodel.visualization.blockmodel_plot.pv.read_texture",
+        lambda _path: "fake-texture",
+    )
+
+    _add_elevation_overlay(
+        fake_plotter,
+        elevation_raster="elev.tif",
+        imagery_raster="imagery.tif",
+    )
+
+    assert fake_surface.mapped is True
+    assert len(calls["add_mesh"]) == 1
+    _, mesh_kwargs = calls["add_mesh"][0]
+    assert mesh_kwargs["texture"] == "fake-texture"
+    assert calls["toggle"] is not None
+    callback, _ = calls["toggle"]
+    callback(False)
+    assert fake_plotter.render_calls == 1
 
 
 def test_register_z_up_rotation_lock_uses_turntable_style_while_held(monkeypatch):

@@ -73,6 +73,15 @@ from parq_blockmodel.visualization import BlockModelTrameApp, TrameBlockModelPlo
 pbm = ParquetBlockModel.from_parquet("orebody.parquet")
 plotter = pbm.plot(scalar="grade", z_up_lock=True, z_up_hotkey="z")
 
+# Optional terrain context for the PyVista engine:
+# - elevation_raster adds a DEM surface
+# - imagery_raster textures the DEM when both rasters align
+plotter = pbm.plot(
+    scalar="grade",
+    elevation_raster="dem.tif",
+    imagery_raster="imagery.tif",
+)
+
 trame_app_from_plot = pbm.plot(
     scalar="grade",
     engine=TrameBlockModelPlotEngine(),

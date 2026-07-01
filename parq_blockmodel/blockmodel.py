@@ -1585,6 +1585,8 @@ class ParquetBlockModel:
              picked_attributes: Optional[list[str]] = None,
              z_up_lock: bool = False,
              z_up_hotkey: str = "z",
+             elevation_raster: Optional[str | Path] = None,
+             imagery_raster: Optional[str | Path] = None,
              engine: Optional[typing.Any] = None) -> typing.Any:
         """Plot the block model using PyVista.
 
@@ -1600,6 +1602,8 @@ class ParquetBlockModel:
             picked_attributes: A list of attributes that will be returned in picking mode. If None, all attributes are returned.
             z_up_lock: If True, hold the configured hotkey during interaction to enforce +Z camera up direction.
             z_up_hotkey: Single-letter hotkey used with ``z_up_lock``. Defaults to ``"z"``.
+            elevation_raster: Optional raster path used to build an elevation surface overlay in PyVista.
+            imagery_raster: Optional raster path used as a texture for the elevation surface in PyVista.
 
         Returns:
 
@@ -1621,6 +1625,8 @@ class ParquetBlockModel:
             picked_attributes=picked_attributes,
             z_up_lock=z_up_lock,
             z_up_hotkey=z_up_hotkey,
+            elevation_raster=elevation_raster,
+            imagery_raster=imagery_raster,
         )
 
     def read(
