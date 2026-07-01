@@ -58,13 +58,16 @@ def _resolve_source_path() -> Path:
 def main() -> None:
     source_path = _resolve_source_path()
     logger.warning("Launching Trame demo from %s", source_path)
-    app = BlockModelTrameApp.from_source_path(source_path, app_name='Demo App')
+    app = BlockModelTrameApp.from_source_path(source_path, app_name='Demo App',
+                                              data_filter_1_attribute='density',
+                                              data_filter_1_min=2.4,
+                                              )
 
     if getattr(pv, "BUILDING_GALLERY", False):
         logger.info("Skipping live Trame launch while building the gallery.")
         return
 
-    app.launch(port=8080)
+    app.launch(port=8080, host="0.0.0.0")
 
 
 if __name__ == "__main__":

@@ -32,6 +32,12 @@ model attributes with Pandera schemas or load schema definitions from YAML:
 pip install "parq-blockmodel[schema]"
 ```
 
+Install the visualization extras when you want to use the Trame viewer:
+
+```bash
+pip install "parq-blockmodel[viz]"
+```
+
 ## Schema validation
 
 `ParquetBlockModel` accepts an optional `schema=` argument on its main
