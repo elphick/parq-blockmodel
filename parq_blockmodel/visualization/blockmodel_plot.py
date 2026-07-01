@@ -481,11 +481,13 @@ class TrameBlockModelPlotEngine:
         launch_on_plot: bool = False,
         server_name: str = "parq-blockmodel-trame",
         port: Optional[int] = None,
+        host: Optional[str] = None,
         app_name: str = "ParquetBlockModel Viewer",
     ) -> None:
         self.launch_on_plot = launch_on_plot
         self.server_name = server_name
         self.port = port
+        self.host = host
         self.app_name = app_name
 
     def plot(
@@ -517,5 +519,5 @@ class TrameBlockModelPlotEngine:
             app_name=self.app_name,
         )
         if self.launch_on_plot:
-            return app.launch(server_name=self.server_name, port=self.port)
+            return app.launch(server_name=self.server_name, port=self.port, host=self.host)
         return app

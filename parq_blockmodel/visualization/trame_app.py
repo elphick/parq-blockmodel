@@ -1178,7 +1178,20 @@ class BlockModelTrameApp:
         
         return sorted(available)
 
-    def launch(self, server_name: str = "parq-blockmodel-trame", port: Optional[int] = None):
+    def _build_launch_kwargs(self, port: Optional[int], host: Optional[str]) -> dict[str, object]:
+        start_kwargs: dict[str, object] = {"open_browser": True, "show_connection_info": True}
+        if port is not None:
+            start_kwargs["port"] = port
+        if host is not None:
+            start_kwargs["host"] = host
+        return start_kwargs
+
+    def launch(
+        self,
+        server_name: str = "parq-blockmodel-trame",
+        port: Optional[int] = None,
+        host: Optional[str] = None,
+    ):
         """Launch the Trame visualization app.
         
         Parameters
@@ -1190,6 +1203,8 @@ class BlockModelTrameApp:
             Port number for the server. If None, Trame will auto-assign a port.
             Useful for running multiple instances without server state conflicts.
             Example: launch(port=8080), launch(port=8081), etc.
+        host : str, optional
+            Host interface to bind to. Use "0.0.0.0" to accept external connections.
         """
         try:
             from trame.app import get_server
@@ -1770,8 +1785,5 @@ class BlockModelTrameApp:
                 self._remote_view.update()
 
         state.ready()
-        start_kwargs = {"open_browser": True, "show_connection_info": True}
-        if port is not None:
-            start_kwargs["port"] = port
-        server.start(**start_kwargs)
+        server.start(**self._build_launch_kwargs(port, host))
         return server

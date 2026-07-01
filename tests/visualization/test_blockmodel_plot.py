@@ -630,6 +630,7 @@ def test_trame_example_seeds_temp_demo_when_sample_missing(tmp_path, monkeypatch
 
     class FakeApp:
         def launch(self, **kwargs):
+            launched["kwargs"] = kwargs
             launched["launched"] = True
 
     def fake_from_source_path(source_path, **_):
@@ -644,6 +645,8 @@ def test_trame_example_seeds_temp_demo_when_sample_missing(tmp_path, monkeypatch
     module.main()
 
     assert launched["launched"] is True
+    assert launched["kwargs"]["port"] == 8080
+    assert launched["kwargs"]["host"] == "0.0.0.0"
     assert launched["shape"] == (4, 4, 4)
     assert launched["source_path"].is_dir() or launched["source_path"].suffix == ".pbm"
     assert len(created) == 2
@@ -665,6 +668,7 @@ def test_trame_example_skips_launch_during_gallery_build(tmp_path, monkeypatch):
 
     class FakeApp:
         def launch(self, **kwargs):
+            launched["kwargs"] = kwargs
             launched["launched"] = True
 
     def fake_from_source_path(source_path, **_):
@@ -700,6 +704,7 @@ def test_trame_example_hive_toggle_uses_directory_source(tmp_path, monkeypatch):
 
     class FakeApp:
         def launch(self, **kwargs):
+            launched["kwargs"] = kwargs
             launched["launched"] = True
 
     def fake_from_source_path(source_path, **_):
@@ -714,6 +719,8 @@ def test_trame_example_hive_toggle_uses_directory_source(tmp_path, monkeypatch):
     module.main()
 
     assert launched["launched"] is True
+    assert launched["kwargs"]["port"] == 8080
+    assert launched["kwargs"]["host"] == "0.0.0.0"
     assert launched["shape"] == (4, 4, 4)
     assert launched["source_path"] == tmp_path / "parq_blockmodel_trame_hive_demo"
     assert len(created) == 2
@@ -1026,11 +1033,13 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
         z_up_hotkey="z",
         app_name="Custom Viewer",
     )
-    app.launch()
+    app.launch(port=3080, host="0.0.0.0")
 
     assert calls["client_type"] == "vue2"
     assert calls["start_kwargs"]["open_browser"] is True
     assert calls["start_kwargs"]["show_connection_info"] is True
+    assert calls["start_kwargs"]["port"] == 3080
+    assert calls["start_kwargs"]["host"] == "0.0.0.0"
     assert calls["layout_title"] == ""
     assert calls["toolbar_title"] == "Custom Viewer"
     assert calls["logo_src"].startswith("data:image/svg+xml;charset=utf-8,")
@@ -1042,3 +1051,23 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
     assert calls["remote_view_kwargs"]["interactor_events"][1] == ["KeyDown", "KeyPress", "KeyUp"]
     assert callable(calls["remote_view_kwargs"]["KeyDown"])
     assert callable(calls["remote_view_kwargs"]["KeyUp"])
+
+
+def test_trame_plot_engine_forwards_launch_host(tmp_path, monkeypatch):
+    parquet_path = tmp_path / "engine_launch_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+
+    calls: dict[str, object] = {}
+
+    def fake_launch(self, **kwargs):
+        calls["kwargs"] = kwargs
+        return "launched"
+
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.BlockModelTrameApp.launch", fake_launch)
+
+    engine = TrameBlockModelPlotEngine(launch_on_plot=True, port=3080, host="0.0.0.0")
+    result = engine.plot(pbm, scalar=pbm.available_attributes[0])
+
+    assert result == "launched"
+    assert calls["kwargs"]["port"] == 3080
+    assert calls["kwargs"]["host"] == "0.0.0.0"
