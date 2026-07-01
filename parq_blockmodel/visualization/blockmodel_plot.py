@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Optional, Protocol, TYPE_CHECKING
 
 import numpy as np
@@ -38,6 +39,8 @@ class BlockModelPlotEngine(Protocol):
         picked_attributes: Optional[list[str]] = None,
         z_up_lock: bool = False,
         z_up_hotkey: str = "z",
+        elevation_raster: Optional[str | Path] = None,
+        imagery_raster: Optional[str | Path] = None,
     ) -> Any:
         ...
 
@@ -397,6 +400,66 @@ def _set_z_up_hotkey_state(plotter: pv.Plotter, is_down: bool) -> None:
         disable_cb()
 
 
+def _build_elevation_surface(elevation_raster: str | Path) -> pv.StructuredGrid:
+    from parq_blockmodel.surface import RasterSurface
+
+    surface = RasterSurface.from_file(elevation_raster)
+    x_coords = np.asarray(surface._x, dtype=float)
+    y_coords = np.asarray(surface._y, dtype=float)
+    elevation = np.asarray(surface._values, dtype=float)
+    points_x, points_y = np.meshgrid(x_coords, y_coords, indexing="xy")
+    grid = pv.StructuredGrid(points_x, points_y, elevation)
+    grid["elevation"] = elevation.ravel(order="C")
+    return grid
+
+
+def _add_elevation_overlay(
+    plotter: pv.Plotter,
+    *,
+    elevation_raster: Optional[str | Path] = None,
+    imagery_raster: Optional[str | Path] = None,
+) -> None:
+    if elevation_raster is None:
+        return
+
+    dem_surface = _build_elevation_surface(elevation_raster)
+    mesh_kwargs: dict[str, Any] = {
+        "show_edges": False,
+        "name": "pbm_dem_surface",
+    }
+    if imagery_raster is not None:
+        dem_surface.texture_map_to_plane(inplace=True, use_bounds=True)
+        mesh_kwargs["texture"] = pv.read_texture(str(imagery_raster))
+    else:
+        mesh_kwargs.update(
+            {
+                "scalars": "elevation",
+                "cmap": "terrain",
+                "show_scalar_bar": False,
+            }
+        )
+
+    actor = plotter.add_mesh(dem_surface, **mesh_kwargs)
+
+    if hasattr(plotter, "add_checkbox_button_widget"):
+        def _toggle_dem_surface(visible: bool) -> None:
+            actor.SetVisibility(bool(visible))
+            if hasattr(plotter, "render"):
+                plotter.render()
+
+        plotter.add_checkbox_button_widget(
+            _toggle_dem_surface,
+            value=True,
+            position=(10, 10),
+            size=28,
+            color_on="forestgreen",
+            color_off="gray",
+            border_size=2,
+        )
+        if hasattr(plotter, "add_text"):
+            plotter.add_text("DEM", position=(45, 18), font_size=10, name="pbm_dem_toggle_label")
+
+
 def render_plotter(
     state: BlockModelPlotState,
     *,
@@ -406,6 +469,8 @@ def render_plotter(
     enable_picking: bool = False,
     z_up_lock: bool = False,
     z_up_hotkey: str = "z",
+    elevation_raster: Optional[str | Path] = None,
+    imagery_raster: Optional[str | Path] = None,
 ) -> pv.Plotter:
     plotter = pv.Plotter()
     add_mesh_kwargs = _plotter_add_mesh_kwargs(state)
@@ -436,6 +501,12 @@ def render_plotter(
     if z_up_lock:
         _register_z_up_rotation_lock(plotter, hotkey=z_up_hotkey)
 
+    _add_elevation_overlay(
+        plotter,
+        elevation_raster=elevation_raster,
+        imagery_raster=imagery_raster,
+    )
+
     return plotter
 
 
@@ -454,6 +525,8 @@ class PyVistaBlockModelPlotEngine:
         picked_attributes: Optional[list[str]] = None,
         z_up_lock: bool = False,
         z_up_hotkey: str = "z",
+        elevation_raster: Optional[str | Path] = None,
+        imagery_raster: Optional[str | Path] = None,
     ) -> pv.Plotter:
         state = prepare_plot_state(
             blockmodel,
@@ -471,6 +544,8 @@ class PyVistaBlockModelPlotEngine:
             enable_picking=enable_picking,
             z_up_lock=z_up_lock,
             z_up_hotkey=z_up_hotkey,
+            elevation_raster=elevation_raster,
+            imagery_raster=imagery_raster,
         )
 
 
@@ -504,8 +579,10 @@ class TrameBlockModelPlotEngine:
         picked_attributes: Optional[list[str]] = None,
         z_up_lock: bool = False,
         z_up_hotkey: str = "z",
+        elevation_raster: Optional[str | Path] = None,
+        imagery_raster: Optional[str | Path] = None,
     ) -> Any:
-        del threshold, show_axes, enable_picking, picked_attributes
+        del threshold, show_axes, enable_picking, picked_attributes, elevation_raster, imagery_raster
         from parq_blockmodel.visualization.trame_app import BlockModelTrameApp
 
         app = BlockModelTrameApp(

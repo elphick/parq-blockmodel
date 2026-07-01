@@ -120,7 +120,7 @@ class BlockModelTrameApp:
         self.state: Optional[BlockModelPlotState] = None
         self.threshold: Optional[ThresholdRange] = None
         self.filter_enabled = False
-        self.colormap = "viridis"
+        self.colormap = "jet"
         self.discretize_deciles = False
         self.available_colormaps: list[str] = []
         self.plotter = pv.Plotter(off_screen=True)

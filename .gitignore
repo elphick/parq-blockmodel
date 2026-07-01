@@ -161,3 +161,4 @@ cython_debug/
 /docs/sg_execution_times.rst
 
 /.idea
+/scratch/private/
