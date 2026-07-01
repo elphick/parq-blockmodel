@@ -1,0 +1,970 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Calculated attributes &#8212; parq-blockmodel Documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+    <link rel="stylesheet" type="text/css" href="../_static/graphviz.css?v=fd3f3429" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery.css?v=fd6457a4" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-binder.css?v=f4aeca0c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-dataframe.css?v=2082cf3c" />
+    <link rel="stylesheet" type="text/css" href="../_static/sg_gallery-rendered-html.css?v=1277b6f3" />
+    <link rel="stylesheet" type="text/css" href="../_static/custom.css?v=e7540ee0" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../_static/documentation_options.js?v=9eb32ce0"></script>
+    <script src="../_static/doctools.js?v=9a2dae69"></script>
+    <script src="../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../_static/sg-tags.js?v=d80f6fa4"></script>
+    <script src="../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'user_guide/07_calculated_attributes';</script>
+    <link rel="icon" href="../_static/parq-blockmodel.svg"/>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Polygon Flagging (2D XY)" href="08_polygon_flagging.html" />
+    <link rel="prev" title="Reblocking (Up/Down Sampling)" href="06_reblocking.html" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="0.12.0" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../search.html"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../index.html">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../_static/parq-blockmodel.svg" class="logo__image only-light" alt=""/>
+    <img src="../_static/parq-blockmodel.svg" class="logo__image only-dark pst-js-only" alt=""/>
+  
+  
+    <p class="title logo__title">parq-blockmodel<br>(0.12.0)</p>
+  
+</a></div>
+        <div class="sidebar-primary-item">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../usage/installation.html">Installation</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="simple">
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../usage/quickstart.html">Quick Start Guide</a></li>
+<li class="toctree-l1 current active has-children"><a class="reference internal" href="../user_guide.html">User Guide</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="01_geometry.html">Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="02_geometry_coordinates.html">Geometry and Coordinate Transformations</a></li>
+<li class="toctree-l2"><a class="reference internal" href="03_blockmodels.html">Block Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="04_mesh_export.html">Mesh Module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="05_reports.html">Profiling Reports</a></li>
+<li class="toctree-l2"><a class="reference internal" href="06_reblocking.html">Reblocking (Up/Down Sampling)</a></li>
+<li class="toctree-l2 current active"><a class="current reference internal" href="#">Calculated attributes</a></li>
+
+<li class="toctree-l2"><a class="reference internal" href="08_polygon_flagging.html">Polygon Flagging (2D XY)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="09_surface_encoding.html">Surface Encoding (2.5D Elevation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="10_solid_flagging.html">Solid Flagging (3D Volumes)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="11_trame_visualization.html">Trame visualization</a></li>
+<li class="toctree-l2"><a class="reference internal" href="12_compression_framework.html">Compression framework</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../auto_examples/index.html">Example Gallery</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/01_regular_geometry.html">Regular Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/02_rotated_geometry.html">Rotated Geometry</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/03_visualise_blockmodel.html">Block Models</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/04_rotated_blockmodel.html">Rotated Blockmodel</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/05_heatmap.html">Heatmap</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/06_reblocking.html">Reblocking</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/07_mesh_export.html">Mesh Export</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/08_sparse_parquet_to_pbm.html">Dense and Sparse PBM from XYZ Parquet</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/09_rotated_parquet_to_pbm.html">Rotated XYZ Parquet to PBM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/10_calculated_attributes.html">Calculated Attributes</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/11_reblocking_calculated_attributes.html">Reblocking with Calculated Aggregation Inputs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/12_calculated_with_custom_lookups.html">Calculated Columns with Custom DictResolver Lookups</a></li>
+
+
+
+
+
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/13_polygon_flagging.html">Polygon Field Flagging</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/14_surface_encoding.html">Surface Encoding (2.5D Elevation)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/15_solid_flagging.html">Solid Flagging (3D Volume)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../auto_examples/17_compression_framework.html">Compression Framework</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../todo.html">To Do</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../glossary/glossary.html">Glossary</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../api/modules.html">API Reference</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.blockmodel.html">parq_blockmodel.blockmodel</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.blockmodel.ParquetBlockModel.html">parq_blockmodel.blockmodel.ParquetBlockModel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.html">parq_blockmodel.geometry</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.Extents.html">parq_blockmodel.geometry.Extents</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.LocalGeometry.html">parq_blockmodel.geometry.LocalGeometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.RegularGeometry.html">parq_blockmodel.geometry.RegularGeometry</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.geometry.WorldFrame.html">parq_blockmodel.geometry.WorldFrame</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.polygon_field.html">parq_blockmodel.polygon_field</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.polygon_field.PolygonField.html">parq_blockmodel.polygon_field.PolygonField</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.surface.html">parq_blockmodel.surface</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.surface.MeshSurface.html">parq_blockmodel.surface.MeshSurface</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.surface.RasterSurface.html">parq_blockmodel.surface.RasterSurface</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.surface.Surface.html">parq_blockmodel.surface.Surface</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.solid.html">parq_blockmodel.solid</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.solid.MeshSolid.html">parq_blockmodel.solid.MeshSolid</a></li>
+<li class="toctree-l3"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.solid.Solid.html">parq_blockmodel.solid.Solid</a></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.io.html">parq_blockmodel.io</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.io.ingest_utils.html">parq_blockmodel.io.ingest_utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.io.ingest_utils.assert_block_id_xyz_consistent.html">parq_blockmodel.io.ingest_utils.assert_block_id_xyz_consistent</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.io.ingest_utils.build_world_id_encoding_from_xyz.html">parq_blockmodel.io.ingest_utils.build_world_id_encoding_from_xyz</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.io.ingest_utils.validate_geometry.html">parq_blockmodel.io.ingest_utils.validate_geometry</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.io.ingest_utils.validate_xyz_parquet.html">parq_blockmodel.io.ingest_utils.validate_xyz_parquet</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.io.ingest_writer.html">parq_blockmodel.io.ingest_writer</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.io.ingest_writer.IngestWriter.html">parq_blockmodel.io.ingest_writer.IngestWriter</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reporting.html">parq_blockmodel.reporting</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reporting.report.html">parq_blockmodel.reporting.report</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reporting.report.BlockModelReport.html">parq_blockmodel.reporting.report.BlockModelReport</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reporting.utils.html">parq_blockmodel.reporting.utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reporting.utils.estimate_report_column_uncompressed_sizes.html">parq_blockmodel.reporting.utils.estimate_report_column_uncompressed_sizes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reporting.utils.max_report_batch_size_within_budget.html">parq_blockmodel.reporting.utils.max_report_batch_size_within_budget</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reporting.utils.parse_memory_budget.html">parq_blockmodel.reporting.utils.parse_memory_budget</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reporting.utils.resolve_report_columns_per_batch.html">parq_blockmodel.reporting.utils.resolve_report_columns_per_batch</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.html">parq_blockmodel.schema</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.service.html">parq_blockmodel.schema.service</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.service.SchemaService.html">parq_blockmodel.schema.service.SchemaService</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.utils.html">parq_blockmodel.schema.utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.utils.build_parquet_compression_kwargs.html">parq_blockmodel.schema.utils.build_parquet_compression_kwargs</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.utils.build_schema_metadata.html">parq_blockmodel.schema.utils.build_schema_metadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.utils.df_eval_operations_from_schema.html">parq_blockmodel.schema.utils.df_eval_operations_from_schema</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.utils.dump_schema_yaml.html">parq_blockmodel.schema.utils.dump_schema_yaml</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.utils.extract_column_aliases_from_schema.html">parq_blockmodel.schema.utils.extract_column_aliases_from_schema</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.utils.extract_required_columns_from_schema.html">parq_blockmodel.schema.utils.extract_required_columns_from_schema</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.utils.extract_schema_compression_policy.html">parq_blockmodel.schema.utils.extract_schema_compression_policy</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.utils.load_embedded_compression.html">parq_blockmodel.schema.utils.load_embedded_compression</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.utils.load_embedded_schema.html">parq_blockmodel.schema.utils.load_embedded_schema</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.utils.load_schema.html">parq_blockmodel.schema.utils.load_schema</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.utils.resolve_active_compression_policy.html">parq_blockmodel.schema.utils.resolve_active_compression_policy</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.utils.resolve_archive_compression_policy.html">parq_blockmodel.schema.utils.resolve_archive_compression_policy</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.utils.select_df_eval_operations.html">parq_blockmodel.schema.utils.select_df_eval_operations</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.schema.utils.validate_chunk.html">parq_blockmodel.schema.utils.validate_chunk</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reblocking.html">parq_blockmodel.reblocking</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reblocking.conversion.html">parq_blockmodel.reblocking.conversion</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reblocking.conversion.dict_3d_to_tabular.html">parq_blockmodel.reblocking.conversion.dict_3d_to_tabular</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reblocking.conversion.tabular_to_3d_dict.html">parq_blockmodel.reblocking.conversion.tabular_to_3d_dict</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reblocking.conversion.to_numeric.html">parq_blockmodel.reblocking.conversion.to_numeric</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reblocking.downsample.html">parq_blockmodel.reblocking.downsample</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reblocking.downsample.downsample_attributes.html">parq_blockmodel.reblocking.downsample.downsample_attributes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reblocking.downsample.normalise_missing_value.html">parq_blockmodel.reblocking.downsample.normalise_missing_value</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reblocking.reblocking.html">parq_blockmodel.reblocking.reblocking</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reblocking.reblocking.downsample_blockmodel.html">parq_blockmodel.reblocking.reblocking.downsample_blockmodel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reblocking.reblocking.upsample_blockmodel.html">parq_blockmodel.reblocking.reblocking.upsample_blockmodel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reblocking.upsample.html">parq_blockmodel.reblocking.upsample</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.reblocking.upsample.upsample_attributes.html">parq_blockmodel.reblocking.upsample.upsample_attributes</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.mesh.html">parq_blockmodel.mesh</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.mesh.glb.html">parq_blockmodel.mesh.glb</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.mesh.glb.write_glb.html">parq_blockmodel.mesh.glb.write_glb</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.mesh.ply.html">parq_blockmodel.mesh.ply</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.mesh.ply.read_ply.html">parq_blockmodel.mesh.ply.read_ply</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.mesh.ply.write_ply.html">parq_blockmodel.mesh.ply.write_ply</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.mesh.triangulation.html">parq_blockmodel.mesh.triangulation</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.mesh.triangulation.BlockMeshGenerator.html">parq_blockmodel.mesh.triangulation.BlockMeshGenerator</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.mesh.types.html">parq_blockmodel.mesh.types</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.mesh.types.MeshMetadata.html">parq_blockmodel.mesh.types.MeshMetadata</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.mesh.types.TriangleMesh.html">parq_blockmodel.mesh.types.TriangleMesh</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.visualization.html">parq_blockmodel.visualization</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.visualization.asset_selector.html">parq_blockmodel.visualization.asset_selector</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.visualization.asset_selector.HivePbmCatalog.html">parq_blockmodel.visualization.asset_selector.HivePbmCatalog</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.visualization.asset_selector.PbmAsset.html">parq_blockmodel.visualization.asset_selector.PbmAsset</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.visualization.blockmodel_plot.html">parq_blockmodel.visualization.blockmodel_plot</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.visualization.blockmodel_plot.prepare_plot_state.html">parq_blockmodel.visualization.blockmodel_plot.prepare_plot_state</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.visualization.blockmodel_plot.render_plotter.html">parq_blockmodel.visualization.blockmodel_plot.render_plotter</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.visualization.blockmodel_plot.BlockModelPlotEngine.html">parq_blockmodel.visualization.blockmodel_plot.BlockModelPlotEngine</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.visualization.blockmodel_plot.BlockModelPlotState.html">parq_blockmodel.visualization.blockmodel_plot.BlockModelPlotState</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.visualization.blockmodel_plot.PyVistaBlockModelPlotEngine.html">parq_blockmodel.visualization.blockmodel_plot.PyVistaBlockModelPlotEngine</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.visualization.blockmodel_plot.TrameBlockModelPlotEngine.html">parq_blockmodel.visualization.blockmodel_plot.TrameBlockModelPlotEngine</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.visualization.trame_app.html">parq_blockmodel.visualization.trame_app</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.visualization.trame_app.BlockModelTrameApp.html">parq_blockmodel.visualization.trame_app.BlockModelTrameApp</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.visualization.trame_app.DataFilterSlot.html">parq_blockmodel.visualization.trame_app.DataFilterSlot</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.visualization.trame_app.ThresholdRange.html">parq_blockmodel.visualization.trame_app.ThresholdRange</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l2 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.html">parq_blockmodel.utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.cicd.html">parq_blockmodel.utils.cicd</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.cicd.is_github_runner.html">parq_blockmodel.utils.cicd.is_github_runner</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.demo_block_model.html">parq_blockmodel.utils.demo_block_model</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade.html">parq_blockmodel.utils.demo_block_model.add_gradient_ellipsoid_grade</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.demo_block_model.create_demo_blockmodel.html">parq_blockmodel.utils.demo_block_model.create_demo_blockmodel</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.demo_block_model.create_toy_blockmodel.html">parq_blockmodel.utils.demo_block_model.create_toy_blockmodel</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.html">parq_blockmodel.utils.geometry_utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.angles_to_axes.html">parq_blockmodel.utils.geometry_utils.angles_to_axes</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.axes_to_angles.html">parq_blockmodel.utils.geometry_utils.axes_to_angles</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex.html">parq_blockmodel.utils.geometry_utils.dense_ijk_multiindex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.rotate_points.html">parq_blockmodel.utils.geometry_utils.rotate_points</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal.html">parq_blockmodel.utils.geometry_utils.validate_axes_orthonormal</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.geometry_utils.validate_geometry.html">parq_blockmodel.utils.geometry_utils.validate_geometry</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pandas.html">parq_blockmodel.utils.pandas</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pandas.aggregate.html">parq_blockmodel.utils.pandas.aggregate</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pandas_accessors.html">parq_blockmodel.utils.pandas_accessors</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor.html">parq_blockmodel.utils.pandas_accessors.ParquetBlockModelAccessor</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pandas_accessors.PyVistaAccessor.html">parq_blockmodel.utils.pandas_accessors.PyVistaAccessor</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.plotly_scraper.html">parq_blockmodel.utils.plotly_scraper</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser.html">parq_blockmodel.utils.plotly_scraper.autoset_plotly_browser</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pyvista.html">parq_blockmodel.utils.pyvista</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pyvista.categorical_utils.html">parq_blockmodel.utils.pyvista.categorical_utils</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pyvista.custom_plotter.html">parq_blockmodel.utils.pyvista.custom_plotter</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.pyvista.pyvista_utils.html">parq_blockmodel.utils.pyvista.pyvista_utils</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.html">parq_blockmodel.utils.spatial_encoding</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.decode_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_frame_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.decode_world_coordinates.html">parq_blockmodel.utils.spatial_encoding.decode_world_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.encode_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_frame_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.encode_world_coordinates.html">parq_blockmodel.utils.spatial_encoding.encode_world_coordinates</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex.html">parq_blockmodel.utils.spatial_encoding.encoded_index_to_multiindex</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.get_id_encoding_params.html">parq_blockmodel.utils.spatial_encoding.get_id_encoding_params</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params.html">parq_blockmodel.utils.spatial_encoding.get_world_id_encoding_params</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.is_integer.html">parq_blockmodel.utils.spatial_encoding.is_integer</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index.html">parq_blockmodel.utils.spatial_encoding.multiindex_to_encoded_index</a></li>
+</ul>
+</details></li>
+<li class="toctree-l3 has-children"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.temporal.html">parq_blockmodel.utils.temporal</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.temporal.demo_data.html">parq_blockmodel.utils.temporal.demo_data</a></li>
+<li class="toctree-l4"><a class="reference internal" href="../api/_autosummary/parq_blockmodel.utils.temporal.temporal_surfaces.html">parq_blockmodel.utils.temporal.temporal_surfaces</a></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+</ul>
+</details></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../license/license.html">License</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="simple">
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Developer docs:</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../design_ijk_metadata.html">Developer notes: geometry &amp; metadata</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../developer_testing.html">Developer Testing Guide</a></li>
+</ul>
+
+    </div>
+</nav></div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel/edit/main/docs/user_guide/07_calculated_attributes.rst" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/elphick/parq-blockmodel/issues/new?title=Issue%20on%20page%20%2Fuser_guide/07_calculated_attributes.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../_sources/user_guide/07_calculated_attributes.rst" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.rst</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Calculated attributes</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#">Calculated attributes</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#custom-lookups-and-functions">Custom lookups and functions</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#example-dictresolver-based-lookup-in-calculated-column">Example: DictResolver-based lookup in calculated column</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#combining-lookups-with-expressions">Combining lookups with expressions</a></li>
+</ul>
+</li>
+</ul>
+
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section id="calculated-attributes">
+<h1>Calculated attributes<a class="headerlink" href="#calculated-attributes" title="Link to this heading">#</a></h1>
+<p>Calculated attributes are schema-defined values derived from other block-model
+attributes. In <code class="docutils literal notranslate"><span class="pre">parq-blockmodel</span></code> they are expressed as calculated columns in
+Pandera metadata and evaluated with <code class="docutils literal notranslate"><span class="pre">df-eval</span></code> when you ask for a materialized
+read.</p>
+<p>For regular models, <code class="docutils literal notranslate"><span class="pre">volume</span></code> is also available as a built-in calculated column
+derived from geometry (<code class="docutils literal notranslate"><span class="pre">pbm.geometry.block_volume</span></code>), even when it is not
+persisted in parquet.</p>
+<p>Install the optional schema dependencies first:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>uv<span class="w"> </span>add<span class="w"> </span>parq-blockmodel<span class="o">[</span>schema<span class="o">]</span>
+</pre></div>
+</div>
+<p>The example below derives <code class="docutils literal notranslate"><span class="pre">tonnes</span></code> from <code class="docutils literal notranslate"><span class="pre">density</span> <span class="pre">*</span> <span class="pre">volume</span></code> and then derives
+<code class="docutils literal notranslate"><span class="pre">contained_metal</span></code> from <code class="docutils literal notranslate"><span class="pre">tonnes</span> <span class="pre">*</span> <span class="pre">grade</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pandera</span><span class="w"> </span><span class="kn">import</span> <span class="n">Column</span><span class="p">,</span> <span class="n">DataFrameSchema</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">parq_blockmodel</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParquetBlockModel</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">parq_blockmodel.utils.demo_block_model</span><span class="w"> </span><span class="kn">import</span> <span class="n">create_demo_blockmodel</span>
+
+<span class="n">df</span> <span class="o">=</span> <span class="n">create_demo_blockmodel</span><span class="p">(</span>
+    <span class="n">shape</span><span class="o">=</span><span class="p">(</span><span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">2</span><span class="p">),</span>
+    <span class="n">block_size</span><span class="o">=</span><span class="p">(</span><span class="mf">10.0</span><span class="p">,</span> <span class="mf">10.0</span><span class="p">,</span> <span class="mf">5.0</span><span class="p">),</span>
+    <span class="n">corner</span><span class="o">=</span><span class="p">(</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.0</span><span class="p">),</span>
+    <span class="n">index_type</span><span class="o">=</span><span class="s2">&quot;world_centroids&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">df</span><span class="p">[</span><span class="s2">&quot;density&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">2.4</span> <span class="o">+</span> <span class="mf">0.05</span> <span class="o">*</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;depth&quot;</span><span class="p">]</span>
+<span class="n">df</span><span class="p">[</span><span class="s2">&quot;grade&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="mf">0.1</span> <span class="o">+</span> <span class="mf">0.01</span> <span class="o">*</span> <span class="n">df</span><span class="p">[</span><span class="s2">&quot;depth&quot;</span><span class="p">]</span>
+
+<span class="n">schema</span> <span class="o">=</span> <span class="n">DataFrameSchema</span><span class="p">(</span>
+    <span class="n">columns</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;density&quot;</span><span class="p">:</span> <span class="n">Column</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">coerce</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="s2">&quot;grade&quot;</span><span class="p">:</span> <span class="n">Column</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">coerce</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+        <span class="s2">&quot;tonnes&quot;</span><span class="p">:</span> <span class="n">Column</span><span class="p">(</span>
+            <span class="nb">float</span><span class="p">,</span>
+            <span class="n">coerce</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;df-eval&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;expr&quot;</span><span class="p">:</span> <span class="s2">&quot;density * volume&quot;</span><span class="p">}},</span>
+        <span class="p">),</span>
+        <span class="s2">&quot;contained_metal&quot;</span><span class="p">:</span> <span class="n">Column</span><span class="p">(</span>
+            <span class="nb">float</span><span class="p">,</span>
+            <span class="n">coerce</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">nullable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;df-eval&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;expr&quot;</span><span class="p">:</span> <span class="s2">&quot;tonnes * grade&quot;</span><span class="p">}},</span>
+        <span class="p">),</span>
+    <span class="p">},</span>
+    <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">pbm</span> <span class="o">=</span> <span class="n">ParquetBlockModel</span><span class="o">.</span><span class="n">from_dataframe</span><span class="p">(</span>
+    <span class="n">df</span><span class="p">[[</span><span class="s2">&quot;density&quot;</span><span class="p">,</span> <span class="s2">&quot;grade&quot;</span><span class="p">]],</span>
+    <span class="n">filename</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;orebody.parquet&quot;</span><span class="p">),</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">pbm</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="s2">&quot;ijk&quot;</span><span class="p">,</span> <span class="n">dense</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">include_calculated</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">ParquetBlockModel.read()</span></code> stays raw by default. Pass
+<code class="docutils literal notranslate"><span class="pre">include_calculated=True</span></code> when you want the schema-derived columns included in
+the returned DataFrame.</p>
+<p>Schema-calculated columns can also be consumed by reblocking. See
+<a class="reference internal" href="06_reblocking.html"><span class="doc">Reblocking (Up/Down Sampling)</span></a> for weighted downsampling examples where <code class="docutils literal notranslate"><span class="pre">basis</span></code> and/or
+aggregated targets are materialized from schema metadata before aggregation.</p>
+</section>
+<section id="custom-lookups-and-functions">
+<h1>Custom lookups and functions<a class="headerlink" href="#custom-lookups-and-functions" title="Link to this heading">#</a></h1>
+<p>When your schema uses df-eval <strong>functions</strong> that require registered resolvers
+(e.g., lookup functions with DictResolver), you need to register them with the
+Engine before evaluating. Two APIs are provided:</p>
+<dl class="simple">
+<dt><strong>Option 1: Constructor-time registration</strong> (eager)</dt><dd><p>Register resolvers when creating the PBM.</p>
+</dd>
+<dt><strong>Option 2: Post-load registration</strong> (lazy)</dt><dd><p>Register resolvers after loading the PBM, via <code class="docutils literal notranslate"><span class="pre">configure_engine()</span></code>.</p>
+</dd>
+</dl>
+<section id="example-dictresolver-based-lookup-in-calculated-column">
+<h2>Example: DictResolver-based lookup in calculated column<a class="headerlink" href="#example-dictresolver-based-lookup-in-calculated-column" title="Link to this heading">#</a></h2>
+<p>Suppose you have a block model with rock codes (1, 2, 3) and want to look up
+the rock type names using a DictResolver:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">pandera</span><span class="w"> </span><span class="kn">import</span> <span class="n">Column</span><span class="p">,</span> <span class="n">DataFrameSchema</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">df_eval</span><span class="w"> </span><span class="kn">import</span> <span class="n">DictResolver</span>
+
+<span class="kn">from</span><span class="w"> </span><span class="nn">parq_blockmodel</span><span class="w"> </span><span class="kn">import</span> <span class="n">ParquetBlockModel</span>
+
+<span class="c1"># Create a DictResolver for rock type lookup</span>
+<span class="n">rock_type_resolver</span> <span class="o">=</span> <span class="n">DictResolver</span><span class="p">({</span>
+    <span class="mi">1</span><span class="p">:</span> <span class="s2">&quot;Granite&quot;</span><span class="p">,</span>
+    <span class="mi">2</span><span class="p">:</span> <span class="s2">&quot;Diorite&quot;</span><span class="p">,</span>
+    <span class="mi">3</span><span class="p">:</span> <span class="s2">&quot;Gabbro&quot;</span><span class="p">,</span>
+<span class="p">},</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;Unknown&quot;</span><span class="p">)</span>
+
+<span class="c1"># Define schema with lookup operation using the resolver</span>
+<span class="n">schema</span> <span class="o">=</span> <span class="n">DataFrameSchema</span><span class="p">(</span>
+    <span class="n">columns</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;rock_code&quot;</span><span class="p">:</span> <span class="n">Column</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+        <span class="s2">&quot;rock_name&quot;</span><span class="p">:</span> <span class="n">Column</span><span class="p">(</span>
+            <span class="nb">str</span><span class="p">,</span>
+            <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;df-eval&quot;</span><span class="p">:</span> <span class="p">{</span>
+                <span class="s2">&quot;lookup&quot;</span><span class="p">:</span> <span class="p">{</span>
+                    <span class="s2">&quot;resolver&quot;</span><span class="p">:</span> <span class="s2">&quot;rock_type&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;rock_code&quot;</span><span class="p">,</span>
+                    <span class="s2">&quot;on_missing&quot;</span><span class="p">:</span> <span class="s2">&quot;default&quot;</span>
+                <span class="p">}</span>
+            <span class="p">}},</span>
+        <span class="p">),</span>
+    <span class="p">},</span>
+    <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Approach 1: Register at construction</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">def</span><span class="w"> </span><span class="nf">setup_engine</span><span class="p">(</span><span class="n">engine</span><span class="p">):</span>
+    <span class="n">engine</span><span class="o">.</span><span class="n">register_resolver</span><span class="p">(</span><span class="s2">&quot;rock_type&quot;</span><span class="p">,</span> <span class="n">rock_type_resolver</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">engine</span>
+
+<span class="n">pbm</span> <span class="o">=</span> <span class="n">ParquetBlockModel</span><span class="o">.</span><span class="n">from_parquet</span><span class="p">(</span>
+    <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;model.pbm&quot;</span><span class="p">),</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">engine_initializer</span><span class="o">=</span><span class="n">setup_engine</span><span class="p">,</span>  <span class="c1"># ← Register here</span>
+<span class="p">)</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">pbm</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;rock_code&quot;</span><span class="p">,</span> <span class="s2">&quot;rock_name&quot;</span><span class="p">],</span> <span class="n">dense</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>Approach 2: Register after loading</strong></p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">pbm</span> <span class="o">=</span> <span class="n">ParquetBlockModel</span><span class="o">.</span><span class="n">from_parquet</span><span class="p">(</span>
+    <span class="n">Path</span><span class="p">(</span><span class="s2">&quot;model.pbm&quot;</span><span class="p">),</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Configure engine before reading calculated columns</span>
+<span class="n">pbm</span><span class="o">.</span><span class="n">configure_engine</span><span class="p">(</span><span class="n">setup_engine</span><span class="p">)</span>
+
+<span class="n">result</span> <span class="o">=</span> <span class="n">pbm</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;rock_code&quot;</span><span class="p">,</span> <span class="s2">&quot;rock_name&quot;</span><span class="p">],</span> <span class="n">dense</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="combining-lookups-with-expressions">
+<h2>Combining lookups with expressions<a class="headerlink" href="#combining-lookups-with-expressions" title="Link to this heading">#</a></h2>
+<p>You can combine lookup functions with other calculated columns. For example:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">density_class_resolver</span> <span class="o">=</span> <span class="n">DictResolver</span><span class="p">({</span>
+    <span class="mf">2.0</span><span class="p">:</span> <span class="s2">&quot;Low&quot;</span><span class="p">,</span>
+    <span class="mf">2.5</span><span class="p">:</span> <span class="s2">&quot;Medium&quot;</span><span class="p">,</span>
+    <span class="mf">3.0</span><span class="p">:</span> <span class="s2">&quot;High&quot;</span><span class="p">,</span>
+<span class="p">},</span> <span class="n">default</span><span class="o">=</span><span class="s2">&quot;Unknown&quot;</span><span class="p">)</span>
+
+<span class="n">schema</span> <span class="o">=</span> <span class="n">DataFrameSchema</span><span class="p">(</span>
+    <span class="n">columns</span><span class="o">=</span><span class="p">{</span>
+        <span class="s2">&quot;density&quot;</span><span class="p">:</span> <span class="n">Column</span><span class="p">(</span><span class="nb">float</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+        <span class="s2">&quot;rock_code&quot;</span><span class="p">:</span> <span class="n">Column</span><span class="p">(</span><span class="nb">int</span><span class="p">,</span> <span class="n">nullable</span><span class="o">=</span><span class="kc">False</span><span class="p">),</span>
+        <span class="c1"># Calculated column 1: simple expression</span>
+        <span class="s2">&quot;tonnes&quot;</span><span class="p">:</span> <span class="n">Column</span><span class="p">(</span>
+            <span class="nb">float</span><span class="p">,</span>
+            <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+            <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;df-eval&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;expr&quot;</span><span class="p">:</span> <span class="s2">&quot;density * volume&quot;</span><span class="p">}},</span>
+        <span class="p">),</span>
+ <span class="c1"># Calculated column 2: lookup using rock_code</span>
+        <span class="s2">&quot;rock_name&quot;</span><span class="p">:</span> <span class="n">Column</span><span class="p">(</span>
+           <span class="nb">str</span><span class="p">,</span>
+           <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+           <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;df-eval&quot;</span><span class="p">:</span> <span class="p">{</span>
+               <span class="s2">&quot;lookup&quot;</span><span class="p">:</span> <span class="p">{</span>
+                   <span class="s2">&quot;resolver&quot;</span><span class="p">:</span> <span class="s2">&quot;rock_type&quot;</span><span class="p">,</span>
+                   <span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;rock_code&quot;</span><span class="p">,</span>
+                   <span class="s2">&quot;on_missing&quot;</span><span class="p">:</span> <span class="s2">&quot;default&quot;</span>
+               <span class="p">}</span>
+           <span class="p">}},</span>
+        <span class="p">),</span>
+        <span class="c1"># Calculated column 3: lookup using density</span>
+        <span class="s2">&quot;density_class&quot;</span><span class="p">:</span> <span class="n">Column</span><span class="p">(</span>
+           <span class="nb">str</span><span class="p">,</span>
+           <span class="n">required</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+           <span class="n">metadata</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;df-eval&quot;</span><span class="p">:</span> <span class="p">{</span>
+               <span class="s2">&quot;lookup&quot;</span><span class="p">:</span> <span class="p">{</span>
+                   <span class="s2">&quot;resolver&quot;</span><span class="p">:</span> <span class="s2">&quot;density_class&quot;</span><span class="p">,</span>
+                   <span class="s2">&quot;key&quot;</span><span class="p">:</span> <span class="s2">&quot;density&quot;</span><span class="p">,</span>
+                   <span class="s2">&quot;on_missing&quot;</span><span class="p">:</span> <span class="s2">&quot;default&quot;</span>
+               <span class="p">}</span>
+           <span class="p">}},</span>
+        <span class="p">),</span>
+    <span class="p">},</span>
+    <span class="n">strict</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">setup_engine</span><span class="p">(</span><span class="n">engine</span><span class="p">):</span>
+    <span class="n">engine</span><span class="o">.</span><span class="n">register_resolver</span><span class="p">(</span><span class="s2">&quot;rock_type&quot;</span><span class="p">,</span> <span class="n">rock_type_resolver</span><span class="p">)</span>
+    <span class="n">engine</span><span class="o">.</span><span class="n">register_resolver</span><span class="p">(</span><span class="s2">&quot;density_class&quot;</span><span class="p">,</span> <span class="n">density_class_resolver</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">engine</span>
+
+<span class="n">pbm</span> <span class="o">=</span> <span class="n">ParquetBlockModel</span><span class="o">.</span><span class="n">from_dataframe</span><span class="p">(</span>
+    <span class="n">df</span><span class="p">[[</span><span class="s2">&quot;density&quot;</span><span class="p">,</span> <span class="s2">&quot;rock_code&quot;</span><span class="p">]],</span>
+    <span class="n">filename</span><span class="o">=</span><span class="n">Path</span><span class="p">(</span><span class="s2">&quot;model.parquet&quot;</span><span class="p">),</span>
+    <span class="n">schema</span><span class="o">=</span><span class="n">schema</span><span class="p">,</span>
+    <span class="n">engine_initializer</span><span class="o">=</span><span class="n">setup_engine</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="c1"># Read multiple calculated columns at once</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">pbm</span><span class="o">.</span><span class="n">read</span><span class="p">(</span>
+    <span class="n">columns</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;tonnes&quot;</span><span class="p">,</span> <span class="s2">&quot;rock_name&quot;</span><span class="p">,</span> <span class="s2">&quot;density_class&quot;</span><span class="p">],</span>
+    <span class="n">index</span><span class="o">=</span><span class="s2">&quot;ijk&quot;</span><span class="p">,</span>
+    <span class="n">dense</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>See <a class="reference external" href="../auto_examples/12_calculated_with_custom_lookups.html">the custom lookup example</a> for a complete working demonstration.</p>
+<p>For further details on custom resolvers and functions, refer to the <a class="reference external" href="https://elphick.github.io/df-eval/index.html">df-eval documentation</a>.</p>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="06_reblocking.html"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Reblocking (Up/Down Sampling)</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="08_polygon_flagging.html"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Polygon Flagging (2D XY)</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#">Calculated attributes</a></li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#custom-lookups-and-functions">Custom lookups and functions</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#example-dictresolver-based-lookup-in-calculated-column">Example: DictResolver-based lookup in calculated column</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#combining-lookups-with-expressions">Combining lookups with expressions</a></li>
+</ul>
+</li>
+</ul>
+
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By Greg Elphick
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  <p class="copyright">
+    
+      © Copyright 2025-2026, Greg Elphick.
+      <br/>
+    
+  </p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
