@@ -51,7 +51,7 @@ def _required_downsample_inputs(aggregation_config: dict[str, dict]) -> set[str]
 
 def _prepare_arrays_and_index(
     blockmodel,
-    additional_columns: set[str] | None = None,
+    requested_columns: set[str] | None = None,
 ) -> tuple[dict[str, np.ndarray], dict[str, pd.Index]]:
     """Prepare dense attribute arrays and category indices for reblocking.
 
@@ -68,8 +68,10 @@ def _prepare_arrays_and_index(
     # Only load true attributes; drop geometry/identity columns which
     # will be regenerated for the reblocked grid.
     cols = _persisted_attribute_columns(blockmodel)
-    extras = sorted(c for c in (additional_columns or set()) if c not in cols)
-    cols.extend(extras)
+    if requested_columns is not None:
+        cols = [c for c in cols if c in requested_columns]
+        extras = sorted(c for c in requested_columns if c not in cols)
+        cols.extend(extras)
     df: pd.DataFrame = blockmodel.read(columns=cols, index="ijk", dense=True)
     arrays, categories = tabular_to_3d_dict(df)
     return arrays, categories
@@ -151,11 +153,10 @@ def downsample_blockmodel(blockmodel, new_block_size, aggregation_config) -> "Pa
         # Downsampling: expect dict of dicts
         if not all(isinstance(v, dict) for v in (aggregation_config or {}).values()):
             raise ValueError("Downsampling config must be a dict of dicts per attribute.")
-        persisted_attributes = set(_persisted_attribute_columns(blockmodel))
         required_inputs = _required_downsample_inputs(aggregation_config or {})
-        arrays, categories = _prepare_arrays_and_index(blockmodel, additional_columns=required_inputs)
+        arrays, categories = _prepare_arrays_and_index(blockmodel, requested_columns=required_inputs)
         arrays = downsample_attributes(arrays, fx, fy, fz, aggregation_config or {})
-        transient_inputs = required_inputs - persisted_attributes - set(aggregation_config or {})
+        transient_inputs = required_inputs - set(_persisted_attribute_columns(blockmodel)) - set(aggregation_config or {})
         for column in transient_inputs:
             arrays.pop(column, None)
     elif fx < 1 or fy < 1 or fz < 1:

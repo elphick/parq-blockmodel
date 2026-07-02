@@ -121,3 +121,23 @@ def test_downsample_unsupported_method():
         downsample_attributes({"val": arr}, 2, 2, 2, config)
 
 
+def test_downsample_only_returns_specified_attributes():
+    attrs = {
+        "grade": np.ones((2, 2, 2), dtype=float) * 3.0,
+        "density": np.ones((2, 2, 2), dtype=float) * 2.0,
+    }
+    config = {"grade": {"method": "mean"}}
+
+    result = downsample_attributes(attrs, 2, 2, 2, config)
+
+    assert set(result) == {"grade"}
+    assert np.isclose(result["grade"][0, 0, 0], 3.0)
+
+
+def test_downsample_rejects_configured_attribute_missing_from_inputs():
+    attrs = {"grade": np.ones((2, 2, 2), dtype=float)}
+    config = {"grade": {"method": "mean"}, "density": {"method": "mean"}}
+
+    with pytest.raises(ValueError, match="unknown attributes"):
+        downsample_attributes(attrs, 2, 2, 2, config)
+
