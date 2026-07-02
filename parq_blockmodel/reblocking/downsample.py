@@ -54,6 +54,8 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
     # Validate downsampling factors
     if not all(isinstance(f, int) and f > 0 for f in (fx, fy, fz)):
         raise ValueError("Downsampling factors fx, fy, fz must be positive integers.")
+    if not isinstance(aggregation_config, dict):
+        raise ValueError("aggregation_config must be a dictionary.")
 
     # Get original shape from one of the attributes
     shape = next(iter(attributes.values())).shape
@@ -65,6 +67,9 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
 
     # Prepare output dictionary
     result = {}
+    missing_attrs = sorted(set(aggregation_config) - set(attributes))
+    if missing_attrs:
+        raise ValueError(f"Downsampling config contains unknown attributes: {missing_attrs}")
 
     # Precompute reshaping and transposing axes
     new_shape = (sx // fx, fx, sy // fy, fy, sz // fz, fz)
@@ -93,8 +98,8 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
         if basis_name is not None:
             basis_arrays[attr] = attributes[basis_name]
 
-    for attr, data in attributes.items():
-        config = aggregation_config.get(attr, {'method': 'mean'})
+    for attr, config in aggregation_config.items():
+        data = attributes[attr]
         method = config['method']
         fill = config.get('fill_ratio')
         replacement = config.get('replace', {})
@@ -176,4 +181,3 @@ def normalise_missing_value(val):
     if val is None or str(val).lower() in {'nan', 'none', 'na', 'n/a', 'null'}:
         return np.nan
     return val
-

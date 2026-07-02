@@ -62,6 +62,23 @@ def test_downsample_blockmodel_builds_expected_geometry_and_block_ids(tmp_path):
 
 
 @pytest.mark.integration
+def test_downsample_blockmodel_only_emits_specified_attributes(tmp_path):
+    pbm = ParquetBlockModel.create_demo_block_model(
+        tmp_path / "downsample_spec_only.parquet",
+        shape=(4, 4, 4),
+    )
+
+    downsampled = pbm.downsample((2.0, 2.0, 2.0), {"depth": {"method": "mean"}})
+
+    assert "depth" in downsampled.attributes
+    assert "depth_category" not in downsampled.attributes
+
+    out = downsampled.read(index="ijk", dense=True)
+    assert "depth" in out.columns
+    assert "depth_category" not in out.columns
+
+
+@pytest.mark.integration
 def test_upsample_blockmodel_builds_expected_geometry_and_block_ids(tmp_path):
     pbm = ParquetBlockModel.create_demo_block_model(
         tmp_path / "upsample_success.parquet",
