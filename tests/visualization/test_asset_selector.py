@@ -166,10 +166,38 @@ def test_trame_app_from_source_path_selects_mode(tmp_path):
     file_pbm = _create_demo_pbm(tmp_path, "single\\single_model.parquet")
     _create_demo_pbm(hive_root, "site=alpha\\period=base\\orebody_a.parquet")
 
-    app_from_file = BlockModelTrameApp.from_source_path(file_pbm.blockmodel_path)
+    with pytest.warns(DeprecationWarning, match="from_source_path"):
+        app_from_file = BlockModelTrameApp.from_source_path(file_pbm.blockmodel_path)
     assert app_from_file.asset_catalog is None
     assert app_from_file._source_mode == "file"
 
-    app_from_dir = BlockModelTrameApp.from_source_path(hive_root)
+    with pytest.warns(DeprecationWarning, match="from_source_path"):
+        app_from_dir = BlockModelTrameApp.from_source_path(hive_root)
     assert app_from_dir.asset_catalog is not None
     assert app_from_dir._source_mode == "hive"
+
+
+def test_trame_app_explicit_entrypoints_select_mode(tmp_path):
+    hive_root = tmp_path / "assets"
+    file_pbm = _create_demo_pbm(tmp_path, "single\\single_model.parquet")
+    _create_demo_pbm(hive_root, "site=alpha\\period=base\\orebody_a.parquet")
+
+    app_from_file = BlockModelTrameApp.from_pbm_file(file_pbm.blockmodel_path)
+    assert app_from_file.asset_catalog is None
+    assert app_from_file._source_mode == "file"
+
+    app_from_dir = BlockModelTrameApp.from_hive_directory(hive_root)
+    assert app_from_dir.asset_catalog is not None
+    assert app_from_dir._source_mode == "hive"
+
+
+def test_trame_app_duckdb_query_entrypoint_is_scaffold(tmp_path):
+    app = BlockModelTrameApp.from_duckdb_query(
+        "SELECT 1 AS value",
+        duckdb_path=tmp_path / "catalog.duckdb",
+    )
+
+    assert app._source_mode == "duckdb_query"
+    assert app._skip_initial_blockmodel_load is True
+    assert app._duckdb_query == "SELECT 1 AS value"
+    assert app._duckdb_path.endswith("catalog.duckdb")

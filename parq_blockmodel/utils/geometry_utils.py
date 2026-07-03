@@ -61,7 +61,7 @@ def validate_geometry(filepath: Path) -> None:
         raise ValueError(
             "The geometry is not regular. The index columns must be evenly spaced (regular grid) in x, y, and z.")
 
-    logging.info(f"Geometry validation completed successfully for {filepath}.")
+    logging.debug(f"Geometry validation completed successfully for {filepath}.")
 
 
 def validate_axes_orthonormal(u, v, w, tol=1e-8):

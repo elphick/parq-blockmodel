@@ -369,7 +369,7 @@ class IngestWriter:
                 except Exception:
                     pass
 
-        logger.info(
+        logger.debug(
             f"Successfully wrote canonical .pbm file to {self.output_path} "
             f"from source {self.input_path}"
         )
@@ -569,4 +569,4 @@ class IngestWriter:
             **schema_utils.build_parquet_compression_kwargs(ordered, compression_policy),
         )
 
-        logger.info(f"Successfully wrote canonical .pbm file to {self.output_path} from DataFrame.")
+        logger.debug(f"Successfully wrote canonical .pbm file to {self.output_path} from DataFrame.")
