@@ -129,6 +129,31 @@ class TestValidateChunk:
         with pytest.raises(Exception):  # pandera.errors.SchemaError
             validate_chunk(df, schema)
 
+    def test_validate_chunk_strict_filter_keeps_positional_columns(self):
+        """strict='filter' should filter attributes but preserve positional columns."""
+        pandera = pytest_importorskip("pandera")
+        from parq_blockmodel.schema.utils import validate_chunk
+
+        schema = pandera.DataFrameSchema(
+            {"density": pandera.Column(float)},
+            strict="filter",
+        )
+        df = pd.DataFrame(
+            {
+                "block_id": [0, 1],
+                "x": [0.5, 1.5],
+                "y": [0.5, 0.5],
+                "z": [0.5, 0.5],
+                "density": [2.1, 2.2],
+                "waste": [10.0, 11.0],
+            }
+        )
+
+        result = validate_chunk(df, schema)
+        assert "density" in result.columns
+        assert "waste" not in result.columns
+        assert {"block_id", "x", "y", "z"}.issubset(result.columns)
+
 
 class TestCompressionMetadata:
     """Test compression metadata helpers."""

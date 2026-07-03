@@ -17,6 +17,7 @@ if typing.TYPE_CHECKING:
 
 
 PBM_METADATA_KEY = b"parq-blockmodel"
+POSITION_COLUMNS = {"block_id", "world_id", "i", "j", "k", "x", "y", "z"}
 
 
 def load_schema(schema: Union[Path, "DataFrameSchema"]) -> "DataFrameSchema":
@@ -310,6 +311,14 @@ def extract_required_columns_from_schema(schema: "DataFrameSchema") -> set[str]:
     return required
 
 
+def schema_uses_strict_filter(schema: Optional["DataFrameSchema"]) -> bool:
+    """Return True when schema root-level strict mode is set to ``"filter"``."""
+    if schema is None:
+        return False
+    strict_mode = getattr(schema, "strict", None)
+    return isinstance(strict_mode, str) and strict_mode.lower() == "filter"
+
+
 def extract_column_aliases_from_schema(schema: "DataFrameSchema") -> dict[str, str]:
     """Extract alias mappings from schema df-eval metadata.
 
@@ -374,6 +383,13 @@ def validate_chunk(dataframe: pd.DataFrame, schema: "DataFrameSchema") -> pd.Dat
     pandera.errors.SchemaErrors
         If the chunk fails validation (when pandera raises in lazy mode).
     """
+    if schema_uses_strict_filter(schema):
+        positional_cols = [c for c in dataframe.columns if c in POSITION_COLUMNS]
+        attribute_cols = [c for c in dataframe.columns if c not in POSITION_COLUMNS]
+        validated_attributes = schema.validate(dataframe[attribute_cols], lazy=True)
+        merged = pd.concat([dataframe[positional_cols], validated_attributes], axis=1)
+        merged_cols = [c for c in dataframe.columns if c in merged.columns]
+        return merged[merged_cols]
     return schema.validate(dataframe, lazy=True)
 
 
