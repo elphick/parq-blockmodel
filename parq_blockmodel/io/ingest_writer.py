@@ -198,7 +198,11 @@ class IngestWriter:
             schema_ops = dict(ParquetBlockModel._df_eval_operations_from_schema(self.schema))
             schema_columns = getattr(self.schema, "columns", {})
             schema_column_names = list(schema_columns.keys()) if isinstance(schema_columns, dict) else []
-            persist_targets = [name for name in required_cols if name in schema_ops]
+            strict_filter = schema_utils.schema_uses_strict_filter(self.schema)
+            if strict_filter:
+                persist_targets = [name for name in schema_column_names if name in schema_ops]
+            else:
+                persist_targets = [name for name in required_cols if name in schema_ops]
             if persist_targets:
                 all_operations = dict(schema_ops)
                 all_operations.setdefault(
@@ -210,10 +214,25 @@ class IngestWriter:
                     persist_targets,
                 )
 
-            if required_cols:
+            if strict_filter:
+                schema_column_set = set(schema_column_names)
+                output_cols = [
+                    c
+                    for c in output_cols
+                    if c in ParquetBlockModel.POSITION_COLUMNS or c in schema_column_set
+                ]
+                for col_name in schema_column_names:
+                    if col_name not in output_cols:
+                        output_cols.append(col_name)
+                special_cols = [c for c in ParquetBlockModel.SPECIAL_COLUMN_ORDER if c in output_cols]
+                schema_cols = [
+                    c for c in schema_column_names
+                    if c in output_cols and c not in ParquetBlockModel.SPECIAL_COLUMN_ORDER
+                ]
+                output_cols = special_cols + schema_cols
+            elif required_cols:
                 aliases = ParquetBlockModel._extract_column_aliases_from_schema(self.schema)
                 inverse_aliases = {v: k for k, v in aliases.items()}
-
                 output_cols = [
                     c
                     for c in output_cols
@@ -506,7 +525,13 @@ class IngestWriter:
         if self.schema is not None:
             required_cols = ParquetBlockModel._extract_required_columns_from_schema(self.schema)
             schema_ops = dict(ParquetBlockModel._df_eval_operations_from_schema(self.schema))
-            persist_targets = [name for name in required_cols if name in schema_ops]
+            schema_columns = getattr(self.schema, "columns", {})
+            schema_column_names = list(schema_columns.keys()) if isinstance(schema_columns, dict) else []
+            strict_filter = schema_utils.schema_uses_strict_filter(self.schema)
+            if strict_filter:
+                persist_targets = [name for name in schema_column_names if name in schema_ops]
+            else:
+                persist_targets = [name for name in required_cols if name in schema_ops]
 
             if persist_targets:
                 all_operations = dict(schema_ops)
@@ -530,7 +555,16 @@ class IngestWriter:
 
             # Validate/coerce after required calculated columns are materialized
             df_work = ParquetBlockModel._validate_chunk(df_work, self.schema)
-            if required_cols:
+            if strict_filter:
+                schema_column_set = set(schema_column_names)
+                df_work = df_work[
+                    [
+                        c
+                        for c in df_work.columns
+                        if c in ParquetBlockModel.POSITION_COLUMNS or c in schema_column_set
+                    ]
+                ]
+            elif required_cols:
                 # required=False is used for non-persisted calculated columns.
                 # Keep regular source columns even if schema marks them optional.
                 df_work = df_work[

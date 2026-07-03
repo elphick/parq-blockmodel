@@ -827,6 +827,77 @@ def test_from_parquet_excludes_non_required_columns_from_persisted(tmp_path):
     assert "tonnes" not in raw.columns
 
 
+def test_from_parquet_strict_filter_persists_only_schema_columns(tmp_path):
+    """strict='filter' should drop non-schema source attributes during ingest."""
+    df = create_demo_blockmodel(shape=(2, 2, 2))
+    df["density"] = np.linspace(2.0, 3.0, len(df))
+    df["waste"] = np.linspace(10.0, 20.0, len(df))
+    source_parquet = tmp_path / "strict_filter_source.parquet"
+    df.to_parquet(source_parquet)
+
+    schema = DataFrameSchema(
+        columns={"density": Column(float, required=True)},
+        strict="filter",
+    )
+
+    pbm = ParquetBlockModel.from_parquet(source_parquet, schema=schema)
+
+    assert "density" in pbm.persisted_columns
+    assert "waste" not in pbm.persisted_columns
+    assert {"block_id", "world_id", "i", "j", "k", "x", "y", "z"}.issubset(set(pbm.persisted_columns))
+
+    raw = pbm.read(index="ijk", dense=True)
+    assert "density" in raw.columns
+    assert "waste" not in raw.columns
+
+
+def test_from_dataframe_strict_filter_persists_only_schema_columns(tmp_path):
+    """strict='filter' should drop non-schema dataframe attributes during ingest."""
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = np.linspace(2.0, 3.0, len(df))
+    df["waste"] = np.linspace(10.0, 20.0, len(df))
+
+    schema = DataFrameSchema(
+        columns={"density": Column(float, required=True)},
+        strict="filter",
+    )
+
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["density", "waste"]],
+        filename=tmp_path / "strict_filter_dataframe.parquet",
+        schema=schema,
+    )
+
+    assert "density" in pbm.persisted_columns
+    assert "waste" not in pbm.persisted_columns
+    assert {"block_id", "world_id", "i", "j", "k", "x", "y", "z"}.issubset(set(pbm.persisted_columns))
+
+    raw = pbm.read(index="ijk", dense=True)
+    assert "density" in raw.columns
+    assert "waste" not in raw.columns
+
+
+def test_from_parquet_strict_filter_persists_optional_schema_columns(tmp_path):
+    """strict='filter' should persist schema-defined optional columns from source."""
+    df = create_demo_blockmodel(shape=(2, 2, 2))
+    df["density"] = np.linspace(2.0, 3.0, len(df))
+    df["waste"] = np.linspace(10.0, 20.0, len(df))
+    source_parquet = tmp_path / "strict_filter_optional_source.parquet"
+    df.to_parquet(source_parquet)
+
+    schema = DataFrameSchema(
+        columns={
+            "density": Column(float, required=True),
+            "waste": Column(float, required=False),
+        },
+        strict="filter",
+    )
+
+    pbm = ParquetBlockModel.from_parquet(source_parquet, schema=schema)
+    assert "density" in pbm.persisted_columns
+    assert "waste" in pbm.persisted_columns
+
+
 def test_from_dataframe_persists_calculated_columns_with_required_true(tmp_path):
     """Calculated columns with required=True should be persisted to disk."""
     pytest.importorskip("df_eval", reason="df-eval not installed")
