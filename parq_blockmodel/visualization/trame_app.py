@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import warnings
 from importlib import resources
 from dataclasses import dataclass
 from pathlib import Path
@@ -72,10 +73,7 @@ class BlockModelTrameApp:
         blockmodel: Optional["ParquetBlockModel"] = None,
         *,
         scalar: Optional[str] = None,
-        # Backward-compatible alias for first data filter preset
-        filter_attribute: Optional[str] = None,
-        filter_min: Optional[float] = None,
-        filter_max: Optional[float] = None,
+        threshold_value: Optional[float] = None,
         data_filter_1_attribute: Optional[str] = None,
         data_filter_1_min: Optional[float] = None,
         data_filter_1_max: Optional[float] = None,
@@ -104,6 +102,9 @@ class BlockModelTrameApp:
         self.z_up_hotkey = _normalize_z_up_hotkey(z_up_hotkey)
         self.app_name = str(app_name)
         self._initial_scalar = scalar or (self._default_scalar() if blockmodel is not None else "")
+        self._initial_threshold_value = (
+            float(threshold_value) if threshold_value is not None else None
+        )
         self.asset_catalog = asset_catalog
         self.asset_catalog_root = (
             Path(asset_catalog_root).resolve() if asset_catalog_root is not None else None
@@ -116,6 +117,8 @@ class BlockModelTrameApp:
         self._asset_selectors_autofilled = False
         self._source_mode = "hive" if asset_catalog is not None else "file"
         self._source_path = str(self.asset_catalog_root or (self.blockmodel.blockmodel_path if blockmodel else ""))
+        self._duckdb_query: Optional[str] = None
+        self._duckdb_path: Optional[str] = None
         self._skip_initial_blockmodel_load = False
         self.state: Optional[BlockModelPlotState] = None
         self.threshold: Optional[ThresholdRange] = None
@@ -136,17 +139,9 @@ class BlockModelTrameApp:
         self._filter_category_code_to_label: dict[str, dict[float, str]] = {}
         self._data_filters = [
             DataFilterSlot(
-                attribute=str(data_filter_1_attribute or filter_attribute or ""),
-                preset_min=(
-                    float(data_filter_1_min)
-                    if data_filter_1_min is not None
-                    else (float(filter_min) if filter_min is not None else None)
-                ),
-                preset_max=(
-                    float(data_filter_1_max)
-                    if data_filter_1_max is not None
-                    else (float(filter_max) if filter_max is not None else None)
-                ),
+                attribute=str(data_filter_1_attribute or ""),
+                preset_min=(float(data_filter_1_min) if data_filter_1_min is not None else None),
+                preset_max=(float(data_filter_1_max) if data_filter_1_max is not None else None),
                 preset_categories=(
                     list(data_filter_1_categories)
                     if data_filter_1_categories is not None
@@ -167,14 +162,12 @@ class BlockModelTrameApp:
         self._view_initialized = False
 
     @classmethod
-    def from_path(
+    def from_pbm_file(
         cls,
         blockmodel_path: str | Path,
         *,
         scalar: Optional[str] = None,
-        filter_attribute: Optional[str] = None,
-        filter_min: Optional[float] = None,
-        filter_max: Optional[float] = None,
+        threshold_value: Optional[float] = None,
         data_filter_1_attribute: Optional[str] = None,
         data_filter_1_min: Optional[float] = None,
         data_filter_1_max: Optional[float] = None,
@@ -193,12 +186,62 @@ class BlockModelTrameApp:
     ) -> "BlockModelTrameApp":
         from parq_blockmodel.blockmodel import ParquetBlockModel
 
+        path = Path(blockmodel_path).expanduser()
+        if not path.is_absolute():
+            path = path.resolve()
+        if not path.exists():
+            raise FileNotFoundError(f"Path does not exist: {path}")
+        if not path.is_file() or path.suffix.lower() != ".pbm":
+            raise ValueError(f"Selected file must be a .pbm file: {path}")
+
         return cls(
-            ParquetBlockModel(blockmodel_path=Path(blockmodel_path)),
+            ParquetBlockModel(blockmodel_path=path),
             scalar=scalar,
-            filter_attribute=filter_attribute,
-            filter_min=filter_min,
-            filter_max=filter_max,
+            threshold_value=threshold_value,
+            data_filter_1_attribute=data_filter_1_attribute,
+            data_filter_1_min=data_filter_1_min,
+            data_filter_1_max=data_filter_1_max,
+            data_filter_1_categories=data_filter_1_categories,
+            data_filter_2_attribute=data_filter_2_attribute,
+            data_filter_2_min=data_filter_2_min,
+            data_filter_2_max=data_filter_2_max,
+            data_filter_2_categories=data_filter_2_categories,
+            grid_type=grid_type,
+            frame=frame,
+            title=title,
+            show_edges=show_edges,
+            z_up_lock=z_up_lock,
+            z_up_hotkey=z_up_hotkey,
+            app_name=app_name,
+        )
+
+    @classmethod
+    def from_path(
+        cls,
+        blockmodel_path: str | Path,
+        *,
+        scalar: Optional[str] = None,
+        threshold_value: Optional[float] = None,
+        data_filter_1_attribute: Optional[str] = None,
+        data_filter_1_min: Optional[float] = None,
+        data_filter_1_max: Optional[float] = None,
+        data_filter_1_categories: Optional[list[str]] = None,
+        data_filter_2_attribute: Optional[str] = None,
+        data_filter_2_min: Optional[float] = None,
+        data_filter_2_max: Optional[float] = None,
+        data_filter_2_categories: Optional[list[str]] = None,
+        grid_type: str = "image",
+        frame: str = "world",
+        title: Optional[str] = None,
+        show_edges: bool = True,
+        z_up_lock: bool = False,
+        z_up_hotkey: str = "z",
+        app_name: str = "ParquetBlockModel Viewer",
+    ) -> "BlockModelTrameApp":
+        return cls.from_pbm_file(
+            blockmodel_path,
+            scalar=scalar,
+            threshold_value=threshold_value,
             data_filter_1_attribute=data_filter_1_attribute,
             data_filter_1_min=data_filter_1_min,
             data_filter_1_max=data_filter_1_max,
@@ -222,9 +265,7 @@ class BlockModelTrameApp:
         root_path: str | Path,
         *,
         scalar: Optional[str] = None,
-        filter_attribute: Optional[str] = None,
-        filter_min: Optional[float] = None,
-        filter_max: Optional[float] = None,
+        threshold_value: Optional[float] = None,
         data_filter_1_attribute: Optional[str] = None,
         data_filter_1_min: Optional[float] = None,
         data_filter_1_max: Optional[float] = None,
@@ -241,15 +282,20 @@ class BlockModelTrameApp:
         z_up_hotkey: str = "z",
         app_name: str = "ParquetBlockModel Viewer",
     ) -> "BlockModelTrameApp":
-        catalog = HivePbmCatalog.discover(root_path)
+        root = Path(root_path).expanduser()
+        if not root.is_absolute():
+            root = root.resolve()
+        if not root.exists():
+            raise FileNotFoundError(f"Path does not exist: {root}")
+        if not root.is_dir():
+            raise ValueError(f"Selected path is not a directory: {root}")
+        catalog = HivePbmCatalog.discover(root)
         # For hive mode, don't load any blockmodel initially - user selects via UI
         # Start with blockmodel=None to avoid unnecessary loading of first asset
         app = cls(
             blockmodel=None,
             scalar=scalar,
-            filter_attribute=filter_attribute,
-            filter_min=filter_min,
-            filter_max=filter_max,
+            threshold_value=threshold_value,
             data_filter_1_attribute=data_filter_1_attribute,
             data_filter_1_min=data_filter_1_min,
             data_filter_1_max=data_filter_1_max,
@@ -266,21 +312,20 @@ class BlockModelTrameApp:
             z_up_hotkey=z_up_hotkey,
             app_name=app_name,
             asset_catalog=catalog,
-            asset_catalog_root=Path(root_path),
+            asset_catalog_root=root,
         )
         # Mark that we should skip loading placeholder blockmodel on launch
         app._skip_initial_blockmodel_load = True
         return app
 
     @classmethod
-    def from_source_path(
+    def from_duckdb_query(
         cls,
-        source_path: str | Path,
+        duckdb_query: str,
         *,
+        duckdb_path: Optional[str | Path] = None,
         scalar: Optional[str] = None,
-        filter_attribute: Optional[str] = None,
-        filter_min: Optional[float] = None,
-        filter_max: Optional[float] = None,
+        threshold_value: Optional[float] = None,
         data_filter_1_attribute: Optional[str] = None,
         data_filter_1_min: Optional[float] = None,
         data_filter_1_max: Optional[float] = None,
@@ -297,20 +342,83 @@ class BlockModelTrameApp:
         z_up_hotkey: str = "z",
         app_name: str = "ParquetBlockModel Viewer",
     ) -> "BlockModelTrameApp":
+        query_text = str(duckdb_query).strip()
+        if not query_text:
+            raise ValueError("duckdb_query must be a non-empty SQL string.")
+
+        resolved_duckdb_path: Optional[str] = None
+        if duckdb_path is not None:
+            resolved_path = Path(duckdb_path).expanduser()
+            if not resolved_path.is_absolute():
+                resolved_path = resolved_path.resolve()
+            resolved_duckdb_path = str(resolved_path)
+
+        app = cls(
+            blockmodel=None,
+            scalar=scalar,
+            threshold_value=threshold_value,
+            data_filter_1_attribute=data_filter_1_attribute,
+            data_filter_1_min=data_filter_1_min,
+            data_filter_1_max=data_filter_1_max,
+            data_filter_1_categories=data_filter_1_categories,
+            data_filter_2_attribute=data_filter_2_attribute,
+            data_filter_2_min=data_filter_2_min,
+            data_filter_2_max=data_filter_2_max,
+            data_filter_2_categories=data_filter_2_categories,
+            grid_type=grid_type,
+            frame=frame,
+            title=title,
+            show_edges=show_edges,
+            z_up_lock=z_up_lock,
+            z_up_hotkey=z_up_hotkey,
+            app_name=app_name,
+        )
+        app._source_mode = "duckdb_query"
+        app._source_path = resolved_duckdb_path or "<duckdb in-memory>"
+        app._duckdb_query = query_text
+        app._duckdb_path = resolved_duckdb_path
+        app._skip_initial_blockmodel_load = True
+        return app
+
+    @classmethod
+    def from_source_path(
+        cls,
+        source_path: str | Path,
+        *,
+        scalar: Optional[str] = None,
+        threshold_value: Optional[float] = None,
+        data_filter_1_attribute: Optional[str] = None,
+        data_filter_1_min: Optional[float] = None,
+        data_filter_1_max: Optional[float] = None,
+        data_filter_1_categories: Optional[list[str]] = None,
+        data_filter_2_attribute: Optional[str] = None,
+        data_filter_2_min: Optional[float] = None,
+        data_filter_2_max: Optional[float] = None,
+        data_filter_2_categories: Optional[list[str]] = None,
+        grid_type: str = "image",
+        frame: str = "world",
+        title: Optional[str] = None,
+        show_edges: bool = True,
+        z_up_lock: bool = False,
+        z_up_hotkey: str = "z",
+        app_name: str = "ParquetBlockModel Viewer",
+    ) -> "BlockModelTrameApp":
+        warnings.warn(
+            "BlockModelTrameApp.from_source_path(...) is deprecated; "
+            "use from_pbm_file(...) or from_hive_directory(...) for explicit startup modes.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
         path = Path(source_path).expanduser()
         if not path.is_absolute():
             path = path.resolve()
         if not path.exists():
             raise FileNotFoundError(f"Path does not exist: {path}")
         if path.is_file():
-            if path.suffix.lower() != ".pbm":
-                raise ValueError(f"Selected file must be a .pbm file: {path}")
-            return cls.from_path(
+            return cls.from_pbm_file(
                 path,
                 scalar=scalar,
-                filter_attribute=filter_attribute,
-                filter_min=filter_min,
-                filter_max=filter_max,
+                threshold_value=threshold_value,
                 data_filter_1_attribute=data_filter_1_attribute,
                 data_filter_1_min=data_filter_1_min,
                 data_filter_1_max=data_filter_1_max,
@@ -331,9 +439,7 @@ class BlockModelTrameApp:
             return cls.from_hive_directory(
                 path,
                 scalar=scalar,
-                filter_attribute=filter_attribute,
-                filter_min=filter_min,
-                filter_max=filter_max,
+                threshold_value=threshold_value,
                 data_filter_1_attribute=data_filter_1_attribute,
                 data_filter_1_min=data_filter_1_min,
                 data_filter_1_max=data_filter_1_max,
@@ -385,9 +491,40 @@ class BlockModelTrameApp:
             step=span / 200.0,
         )
 
+    def _apply_initial_threshold_value(self) -> None:
+        if self.threshold is None or self._initial_threshold_value is None:
+            return
+        clamped = max(self.threshold.minimum, min(self.threshold.maximum, self._initial_threshold_value))
+        self.threshold.value = float(clamped)
+
+    def _ensure_startup_threshold_range(self) -> None:
+        if self.threshold is not None:
+            return
+        if self._initial_threshold_value is None:
+            self.threshold = ThresholdRange(minimum=0.0, maximum=1.0, value=0.0, step=0.005)
+            return
+        minimum = min(0.0, float(self._initial_threshold_value))
+        maximum = max(1.0, float(self._initial_threshold_value))
+        span = max(maximum - minimum, 1.0)
+        self.threshold = ThresholdRange(
+            minimum=minimum,
+            maximum=maximum,
+            value=float(self._initial_threshold_value),
+            step=span / 200.0,
+        )
+
     def _clear_filter_cache(self) -> None:
         self._filter_attribute_cache = {}
         self._filter_category_code_to_label = {}
+
+    def _startup_filter_attribute_options(self) -> list[str]:
+        options: list[str] = []
+        if self._initial_scalar:
+            options.append(self._initial_scalar)
+        for slot in self._data_filters:
+            if slot.attribute and slot.attribute not in options:
+                options.append(slot.attribute)
+        return options
 
     def _is_categorical_attribute(self, attribute: str) -> bool:
         if self.blockmodel is None:
@@ -412,7 +549,7 @@ class BlockModelTrameApp:
 
     def _all_filter_attribute_options(self) -> list[str]:
         if self.blockmodel is None:
-            return []
+            return self._startup_filter_attribute_options()
         return list(self.blockmodel.available_attributes)
 
     def _load_filter_category_mapping(self, mesh: pv.DataSet, attribute: str) -> dict[float, str]:
@@ -551,6 +688,28 @@ class BlockModelTrameApp:
                     selected_categories=slot.preset_categories,
                 )
 
+    def _apply_startup_filter_presets_without_data(self) -> None:
+        for slot in self._data_filters:
+            if not slot.attribute:
+                continue
+            low = slot.preset_min
+            high = slot.preset_max
+            if low is None and high is None:
+                continue
+            if low is None:
+                low = float(high)
+            if high is None:
+                high = float(low)
+            low_value = float(low)
+            high_value = float(high)
+            if low_value > high_value:
+                low_value, high_value = high_value, low_value
+            slot.minimum = min(0.0, low_value)
+            slot.maximum = max(1.0, high_value)
+            span = max(slot.maximum - slot.minimum, 1.0)
+            slot.step = span / 200.0
+            slot.range_values = [low_value, high_value]
+
     def _data_filter_slot_summary(self, slot: DataFilterSlot) -> str:
         if not slot.attribute:
             return "None"
@@ -583,6 +742,36 @@ class BlockModelTrameApp:
             setattr(state, f"{prefix}_summary", self._data_filter_slot_summary(slot))
 
     def set_data_filter_attribute(self, slot_index: int, attribute: str) -> None:
+        if self.blockmodel is None:
+            slot = self._get_filter_slot(slot_index)
+            normalized = str(attribute or "")
+            if normalized == "":
+                self._reset_filter_slot(slot_index)
+            else:
+                if normalized not in self._filter_attribute_options:
+                    raise ValueError(f"Filter attribute '{normalized}' is not available.")
+                slot.attribute = normalized
+                slot.is_categorical = False
+                low = slot.preset_min if slot.preset_min is not None else slot.range_values[0]
+                high = slot.preset_max if slot.preset_max is not None else slot.range_values[1]
+                low_value = float(low)
+                high_value = float(high)
+                if low_value > high_value:
+                    low_value, high_value = high_value, low_value
+                slot.minimum = min(0.0, low_value)
+                slot.maximum = max(1.0, high_value)
+                span = max(slot.maximum - slot.minimum, 1.0)
+                slot.step = span / 200.0
+                slot.range_values = [low_value, high_value]
+                slot.category_options = []
+                slot.selected_categories = []
+            if self._server is not None:
+                self._syncing_state = True
+                try:
+                    self._sync_data_filter_state()
+                finally:
+                    self._syncing_state = False
+            return
         self._set_filter_slot_attribute(slot_index, attribute)
         if self.state is not None:
             self._refresh_plot(preserve_camera=self._view_initialized)
@@ -654,6 +843,8 @@ class BlockModelTrameApp:
 
     def _refresh_filter_options(self) -> None:
         self._filter_attribute_options = self._all_filter_attribute_options()
+        if self.blockmodel is None:
+            return
         for idx, slot in enumerate(self._data_filters):
             if slot.attribute and slot.attribute not in self._filter_attribute_options:
                 self._reset_filter_slot(idx)
@@ -758,42 +949,49 @@ class BlockModelTrameApp:
         if self._remote_view is not None:
             self._remote_view.update()
 
-    def _reset_model_view(self) -> None:
+    def _reset_model_view(self, *, preserve_presets: bool = False) -> None:
         self.blockmodel = None
         self.state = None
-        self.threshold = ThresholdRange(minimum=0.0, maximum=1.0, value=0.0, step=0.005)
+        self.threshold = None
+        self._ensure_startup_threshold_range()
         self.filter_enabled = False
-        self._reset_filter_slot(0)
-        self._reset_filter_slot(1)
+        if not preserve_presets:
+            self._reset_filter_slot(0)
+            self._reset_filter_slot(1)
+        else:
+            self._apply_startup_filter_presets_without_data()
         self._filter_attribute_options = []
         self._clear_filter_cache()
-        self._initial_scalar = ""
         self._view_initialized = False
         self.plotter.clear()
         if self._remote_view is not None:
             self._remote_view.update()
         if self._server is not None:
             state = self._server.state
-            state.attribute_options = []
-            state.active_attribute = ""
+            state.attribute_options = self._startup_filter_attribute_options() if preserve_presets else []
+            state.active_attribute = self._initial_scalar if preserve_presets else ""
             state.threshold_min = self.threshold.minimum
             state.threshold_max = self.threshold.maximum
             state.threshold = self.threshold.value
             state.threshold_display = self._format_threshold(self.threshold.value)
             state.threshold_step = self.threshold.step
             state.filter_active = False
-            state.data_filter_attribute_options = []
-            for idx in range(2):
-                prefix = self._filter_slot_name(idx)
-                setattr(state, f"{prefix}_attribute", "")
-                setattr(state, f"{prefix}_is_categorical", False)
-                setattr(state, f"{prefix}_range_min", 0.0)
-                setattr(state, f"{prefix}_range_max", 1.0)
-                setattr(state, f"{prefix}_range_step", 0.005)
-                setattr(state, f"{prefix}_range", [0.0, 1.0])
-                setattr(state, f"{prefix}_category_options", [])
-                setattr(state, f"{prefix}_selected_categories", [])
-                setattr(state, f"{prefix}_summary", "None")
+            if preserve_presets:
+                self._refresh_filter_options()
+                self._sync_data_filter_state()
+            else:
+                state.data_filter_attribute_options = []
+                for idx in range(2):
+                    prefix = self._filter_slot_name(idx)
+                    setattr(state, f"{prefix}_attribute", "")
+                    setattr(state, f"{prefix}_is_categorical", False)
+                    setattr(state, f"{prefix}_range_min", 0.0)
+                    setattr(state, f"{prefix}_range_max", 1.0)
+                    setattr(state, f"{prefix}_range_step", 0.005)
+                    setattr(state, f"{prefix}_range", [0.0, 1.0])
+                    setattr(state, f"{prefix}_category_options", [])
+                    setattr(state, f"{prefix}_selected_categories", [])
+                    setattr(state, f"{prefix}_summary", "None")
             state.model_name = ""
             state.model_path = ""
 
@@ -826,11 +1024,12 @@ class BlockModelTrameApp:
                 scalar = self._resolve_initial_scalar(preferred_scalar)
                 self._initial_scalar = scalar
                 self._load_plot_state(scalar)
+                self._apply_initial_threshold_value()
+                self._apply_initial_data_filters()
                 self._refresh_plot(preserve_camera=False)
             else:
-                # Hive mode: just prepare attributes, don't load a plot yet
-                self._initial_scalar = ""
-            self._apply_initial_data_filters()
+                # Hive mode: preserve any preset selections until a concrete asset is loaded.
+                self._apply_initial_data_filters()
             
             if self._server is not None:
                 self._server.state.attribute_options = self.blockmodel.available_attributes
@@ -847,15 +1046,14 @@ class BlockModelTrameApp:
                     self._server.state.threshold_display = self._format_threshold(self.threshold.value)
                     self._server.state.filter_active = self.filter_enabled
                 else:
-                    # Hive mode: leave attribute empty for user selection
-                    self._server.state.active_attribute = ""
-                    self._server.state.threshold_min = 0.0
-                    self._server.state.threshold_max = 1.0
-                    self._server.state.threshold = 0.0
-                    if self.threshold is None:
-                        self.threshold = ThresholdRange(minimum=0.0, maximum=1.0, value=0.0, step=0.005)
+                    # Hive mode: preserve the preset scalar label until an asset is loaded.
+                    self._server.state.active_attribute = self._initial_scalar
+                    self._ensure_startup_threshold_range()
+                    self._server.state.threshold_min = self.threshold.minimum
+                    self._server.state.threshold_max = self.threshold.maximum
+                    self._server.state.threshold = self.threshold.value
                     self._server.state.threshold_step = self.threshold.step
-                    self._server.state.threshold_display = "0"
+                    self._server.state.threshold_display = self._format_threshold(self.threshold.value)
                     self._server.state.filter_active = False
                 self._sync_data_filter_state()
         finally:
@@ -966,7 +1164,7 @@ class BlockModelTrameApp:
                     self._selected_asset_name = ""
 
                     # Clear model view immediately when selection changes
-                    self._reset_model_view()
+                    self._reset_model_view(preserve_presets=True)
 
                     self._asset_selectors_autofilled = True
                     # Let _sync_asset_selector_state manage _syncing_state
@@ -999,13 +1197,13 @@ class BlockModelTrameApp:
 
                 # Only load when asset name is explicitly selected (not empty)
                 if new_name:
-                    self._reset_model_view()
+                    self._reset_model_view(preserve_presets=True)
                     self._load_selected_asset()
                     # Sync state AFTER loading asset so attribute_options are available
                     self._sync_asset_selector_state()
                 else:
                     # Clear canvas if asset name is deselected
-                    self._reset_model_view()
+                    self._reset_model_view(preserve_presets=True)
                     self._sync_asset_selector_state()
 
             ctrl.update_asset_name = _asset_name_changed
@@ -1037,7 +1235,10 @@ class BlockModelTrameApp:
         
         from parq_blockmodel.blockmodel import ParquetBlockModel
 
-        self.load_blockmodel(ParquetBlockModel(blockmodel_path=selected.path), auto_select_scalar=False)
+        self.load_blockmodel(
+            ParquetBlockModel(blockmodel_path=selected.path),
+            preferred_scalar=self._initial_scalar,
+        )
         self._set_asset_selection_from_current_model()
         self._sync_asset_selector_state()
 
@@ -1061,10 +1262,11 @@ class BlockModelTrameApp:
             self._asset_selectors_autofilled = False
             self._source_mode = "file"
             self._source_path = str(path)
-            self.load_blockmodel(ParquetBlockModel(blockmodel_path=path))
             if self._server is not None:
                 self._server.state.source_mode = self._source_mode
                 self._server.state.source_path_input = self._source_path
+            self.load_blockmodel(ParquetBlockModel(blockmodel_path=path))
+            if self._server is not None:
                 self._server.state.source_status = f"Loaded PBM: {path.name}"
                 self._sync_asset_selector_state()
             return
@@ -1090,6 +1292,22 @@ class BlockModelTrameApp:
             self._sync_asset_selector_state()
 
     def set_attribute(self, attribute: str) -> None:
+        if self.blockmodel is None:
+            self._initial_scalar = str(attribute or "")
+            self._ensure_startup_threshold_range()
+            if self._server is not None and self.threshold is not None:
+                self._syncing_state = True
+                try:
+                    self._server.state.active_attribute = self._initial_scalar
+                    self._server.state.threshold_min = self.threshold.minimum
+                    self._server.state.threshold_max = self.threshold.maximum
+                    self._server.state.threshold = self.threshold.value
+                    self._server.state.threshold_display = self._format_threshold(self.threshold.value)
+                    self._server.state.threshold_step = self.threshold.step
+                    self._sync_data_filter_state()
+                finally:
+                    self._syncing_state = False
+            return
         self._syncing_state = True
         try:
             self._load_plot_state(attribute)
@@ -1235,6 +1453,8 @@ class BlockModelTrameApp:
         
         self._syncing_state = True
         try:
+            state.source_mode = self._source_mode
+            state.source_path_input = self._source_path
             # For hive mode, skip initial blockmodel load - user will select via dropdowns
             if not self._skip_initial_blockmodel_load:
                 self.load_blockmodel(self.blockmodel, preferred_scalar=self._initial_scalar)
@@ -1242,7 +1462,6 @@ class BlockModelTrameApp:
             # Initialize available colormaps
             self.available_colormaps = self._get_available_colormaps()
             self._refresh_filter_options()
-            self._apply_initial_data_filters()
             
             # Set state only if blockmodel was loaded
             if self.state is not None:
@@ -1255,11 +1474,11 @@ class BlockModelTrameApp:
                 state.threshold_step = self.threshold.step
                 state.filter_active = self.filter_enabled
             else:
-                # Empty state for hive mode before user selection
-                if self.threshold is None:
-                    self.threshold = ThresholdRange(minimum=0.0, maximum=1.0, value=0.0, step=0.005)
-                state.attribute_options = []
-                state.active_attribute = ""
+                # Hive mode before user selection: show presets, but keep the canvas empty.
+                self._ensure_startup_threshold_range()
+                self._apply_startup_filter_presets_without_data()
+                state.attribute_options = self._startup_filter_attribute_options()
+                state.active_attribute = self._initial_scalar
                 state.threshold_min = self.threshold.minimum
                 state.threshold_max = self.threshold.maximum
                 state.threshold = self.threshold.value
@@ -1280,7 +1499,14 @@ class BlockModelTrameApp:
                 state.model_path = ""
             state.source_mode = self._source_mode
             state.source_path_input = self._source_path
-            state.source_status = ""
+            if self._source_mode == "duckdb_query":
+                state.source_status = "DuckDB query mode is scaffolded; execution is not implemented yet."
+            elif self._source_mode == "file" and self.blockmodel is not None:
+                state.source_status = f"Loaded PBM: {self.blockmodel.blockmodel_path.name}"
+            elif self._source_mode == "hive" and self._source_path:
+                state.source_status = f"Loaded hive directory: {self._source_path}"
+            else:
+                state.source_status = ""
             state.asset_selector_enabled = self.asset_catalog is not None
             if self.asset_catalog is not None:
                 self._asset_level_keys = list(self.asset_catalog.level_keys)
@@ -1292,11 +1518,18 @@ class BlockModelTrameApp:
         def _attribute_changed(active_attribute=None, **_):
             if self._syncing_state or active_attribute is None or not active_attribute:
                 return
+            if self.state is not None and str(active_attribute) == self.state.scalar:
+                return
+            if self.blockmodel is None:
+                self._initial_scalar = str(active_attribute)
+                return
             self.set_attribute(active_attribute)
 
         @state.change("threshold")
         def _threshold_changed(threshold=None, **_):
             if self._syncing_state or threshold is None:
+                return
+            if self.threshold is not None and float(threshold) == float(self.threshold.value):
                 return
             self.set_threshold(threshold)
 
@@ -1311,11 +1544,15 @@ class BlockModelTrameApp:
         def _data_filter_1_attribute_changed(data_filter_1_attribute=None, **_):
             if self._syncing_state or data_filter_1_attribute is None:
                 return
+            if str(data_filter_1_attribute) == self._data_filters[0].attribute:
+                return
             self.set_data_filter_attribute(0, str(data_filter_1_attribute))
 
         @state.change("data_filter_2_attribute")
         def _data_filter_2_attribute_changed(data_filter_2_attribute=None, **_):
             if self._syncing_state or data_filter_2_attribute is None:
+                return
+            if str(data_filter_2_attribute) == self._data_filters[1].attribute:
                 return
             self.set_data_filter_attribute(1, str(data_filter_2_attribute))
 
@@ -1436,6 +1673,9 @@ class BlockModelTrameApp:
 
         def _load_data_source(**_):
             if self._syncing_state:
+                return
+            if self._source_mode == "duckdb_query":
+                state.source_status = "DuckDB query mode is scaffolded; execution is not implemented yet."
                 return
             try:
                 self.load_source_path(state.source_path_input)

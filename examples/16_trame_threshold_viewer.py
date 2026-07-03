@@ -8,8 +8,8 @@ This example shows both ways to start the same Trame app:
 
 Use ``DEMO_SOURCE_KIND`` to switch between these patterns in one place.
 
-This example is gallery-safe: it stays in Sphinx-Gallery, but skips launching
-the live server while docs are being built.
+This example is gallery-safe: it stays in Sphinx-Gallery, but skips runtime
+app setup/launch while docs are being built.
 """
 
 import logging
@@ -42,33 +42,38 @@ def _seed_temporary_hive_demo() -> Path:
 
 
 def _resolve_source_path() -> Path:
-    local_file = Path.cwd() / "example_blocks_constructor.pbm"
-    local_hive = Path.cwd() / "example_hive_assets"
+    example_dir = Path(__file__).resolve().parent
+    local_file = example_dir / "example_blocks_constructor.pbm"
     if DEMO_SOURCE_KIND == "hive":
-        if local_hive.exists():
-            return local_hive
         return _seed_temporary_hive_demo()
 
-    if local_file.exists():
-        return local_file
-    hive_root = _seed_temporary_hive_demo()
-    return hive_root / "site=alpha" / "scenario=base" / "alpha_base_orebody.pbm"
-
+    return local_file
 
 def main() -> None:
     source_path = _resolve_source_path()
     logger.warning("Launching Trame demo from %s", source_path)
-    app = BlockModelTrameApp.from_source_path(source_path, app_name='Demo App',
-                                              data_filter_1_attribute='density',
-                                              data_filter_1_min=2.4,
-                                              )
+    app_kwargs = {
+        "app_name": "Demo App",
+    }
+    if source_path.is_dir():
+        app_kwargs["data_filter_1_attribute"] = "depth"
+        app_kwargs["data_filter_1_min"] = 1.25
+        app_kwargs["scalar"] = "depth"
+        app_kwargs["threshold_value"] = 2.1
+        app = BlockModelTrameApp.from_hive_directory(source_path, **app_kwargs)
+    else:
+        app_kwargs["data_filter_1_attribute"] = "density"
+        app_kwargs["data_filter_1_min"] = 2.4
+        app_kwargs["scalar"] = "density"
+        app_kwargs["threshold_value"] = 2.6
+        app = BlockModelTrameApp.from_pbm_file(source_path, **app_kwargs)
 
     if getattr(pv, "BUILDING_GALLERY", False):
-        logger.info("Skipping live Trame launch while building the gallery.")
+        logger.debug("Skipping live Trame launch while building the gallery.")
         return
 
     app.launch(port=8080, host="0.0.0.0")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not getattr(pv, "BUILDING_GALLERY", False):
     main()

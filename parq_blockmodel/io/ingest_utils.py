@@ -178,7 +178,7 @@ def validate_geometry(
         if len(seen) - seen_before != len(block_ids):
             raise ValueError("Duplicate block positions detected in dataset.")
 
-    logger.info(f"Geometry validation completed successfully for {filepath}.")
+    logger.debug(f"Geometry validation completed successfully for {filepath}.")
 
 
 def validate_xyz_parquet(

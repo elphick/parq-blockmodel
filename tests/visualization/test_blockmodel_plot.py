@@ -503,6 +503,255 @@ def test_trame_app_accepts_initial_data_filter_bounds(tmp_path, monkeypatch):
     assert slot.range_values[1] == slot.maximum
 
 
+def test_trame_app_initial_preset_filter_keeps_initial_mesh_non_empty(monkeypatch, tmp_path):
+    pbm_path = tmp_path / "initial_filter_mesh.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=pbm_path, shape=(4, 4, 4))
+
+    class FakePlotter:
+        def __init__(self, *args, **kwargs):
+            self.actors = {}
+            self.last_mesh_n_cells = None
+
+        def clear(self):
+            self.actors.clear()
+
+        def add_mesh(self, mesh, **kwargs):
+            self.last_mesh_n_cells = mesh.n_cells
+            self.actors["blockmodel"] = mesh
+
+        def view_isometric(self):
+            return None
+
+        def reset_camera_clipping_range(self):
+            return None
+
+        def add_axes(self):
+            return None
+
+        def render(self):
+            return None
+
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+
+    app = BlockModelTrameApp(
+        pbm,
+        scalar="density",
+        data_filter_1_attribute="density",
+        data_filter_1_min=2.4,
+        show_edges=False,
+    )
+    app.load_blockmodel(pbm, preferred_scalar="density")
+
+    assert app.plotter.last_mesh_n_cells is not None
+    assert app.plotter.last_mesh_n_cells > 0
+
+
+def test_trame_app_respects_initial_threshold_value(monkeypatch, tmp_path):
+    pbm_path = tmp_path / "initial_threshold_value.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=pbm_path, shape=(4, 4, 4))
+
+    class FakePlotter:
+        def __init__(self, *args, **kwargs):
+            self.actors = {}
+
+        def clear(self):
+            self.actors.clear()
+
+        def add_mesh(self, mesh, **kwargs):
+            self.actors["blockmodel"] = mesh
+
+        def view_isometric(self):
+            return None
+
+        def reset_camera_clipping_range(self):
+            return None
+
+        def add_axes(self):
+            return None
+
+        def render(self):
+            return None
+
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+
+    app = BlockModelTrameApp(
+        pbm,
+        scalar="density",
+        threshold_value=2.6,
+        data_filter_1_attribute="density",
+        data_filter_1_min=2.4,
+        show_edges=False,
+    )
+    app.load_blockmodel(pbm, preferred_scalar="density")
+
+    assert app.threshold is not None
+    assert app.threshold.value == 2.6
+
+
+def test_trame_file_startup_presets_survive_watcher_replay(monkeypatch, tmp_path):
+    parquet_path = tmp_path / "watcher_replay_startup.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(4, 4, 4))
+    pbm_path = pbm.blockmodel_path
+    scalar_attr = pbm.available_attributes[0]
+    scalar_values = pbm.data[scalar_attr].to_numpy(dtype=float, copy=False)
+    threshold_value = float(np.nanmedian(scalar_values))
+    filter_min = float(np.nanquantile(scalar_values, 0.25))
+
+    class FakePlotter:
+        def __init__(self, *args, **kwargs):
+            self.ren_win = object()
+            self.actors = {}
+
+        def clear(self):
+            self.actors.clear()
+
+        def add_mesh(self, mesh, **kwargs):
+            self.actors["blockmodel"] = mesh
+
+        def view_isometric(self):
+            return None
+
+        def reset_camera_clipping_range(self):
+            return None
+
+        def add_axes(self):
+            return None
+
+        def render(self):
+            return None
+
+        def show(self, *args, **kwargs):
+            return None
+
+    class DummyContext:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class DummyToolbar(DummyContext):
+        def __init__(self):
+            self.color = None
+            self.dense = None
+            self.dark = None
+
+    class FakeLayout:
+        def __init__(self, *args, **kwargs):
+            self.toolbar = DummyToolbar()
+            self.title = SimpleNamespace(set_text=lambda *_: None)
+            self.drawer = DummyContext()
+            self.content = DummyContext()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class FakeState:
+        def __init__(self):
+            self._callbacks = {}
+
+        def change(self, key):
+            def register(callback):
+                self._callbacks.setdefault(key, []).append(callback)
+                return callback
+
+            return register
+
+        def __setattr__(self, key, value):
+            object.__setattr__(self, key, value)
+
+        def ready(self):
+            self._ready_called = True
+
+    fake_state = FakeState()
+    fake_trame = ModuleType("trame")
+    fake_trame_app = ModuleType("trame.app")
+    fake_trame_ui = ModuleType("trame.ui")
+    fake_trame_ui_vuetify = ModuleType("trame.ui.vuetify")
+    fake_trame_widgets = ModuleType("trame.widgets")
+
+    fake_trame_app.get_server = lambda name, client_type=None: SimpleNamespace(
+        state=fake_state,
+        controller=SimpleNamespace(),
+        start=lambda **kwargs: None,
+    )
+    fake_trame_ui_vuetify.SinglePageWithDrawerLayout = FakeLayout
+    fake_trame_widgets.vtk = SimpleNamespace(
+        VtkRemoteView=lambda ren_win, **kwargs: SimpleNamespace(update=lambda: None)
+    )
+    fake_trame_widgets.vuetify = SimpleNamespace(
+        VSelect=lambda *args, **kwargs: DummyContext(),
+        VSlider=lambda *args, **kwargs: DummyContext(),
+        VRangeSlider=lambda *args, **kwargs: DummyContext(),
+        VBtn=lambda *args, **kwargs: DummyContext(),
+        VAppBar=lambda *args, **kwargs: DummyContext(),
+        VAppBarNavIcon=lambda *args, **kwargs: DummyContext(),
+        VToolbarTitle=lambda *args, **kwargs: DummyContext(),
+        VSpacer=lambda *args, **kwargs: DummyContext(),
+        VChip=lambda *args, **kwargs: DummyContext(),
+        VNavigationDrawer=lambda *args, **kwargs: DummyContext(),
+        VSheet=lambda *args, **kwargs: DummyContext(),
+        VImg=lambda *args, **kwargs: DummyContext(),
+        VCard=lambda *args, **kwargs: DummyContext(),
+        VCardText=lambda *args, **kwargs: DummyContext(),
+        VCardTitle=lambda *args, **kwargs: DummyContext(),
+        VExpansionPanels=lambda *args, **kwargs: DummyContext(),
+        VExpansionPanel=lambda *args, **kwargs: DummyContext(),
+        VExpansionPanelHeader=lambda *args, **kwargs: DummyContext(),
+        VExpansionPanelContent=lambda *args, **kwargs: DummyContext(),
+        VMain=lambda *args, **kwargs: DummyContext(),
+        VContainer=lambda *args, **kwargs: DummyContext(),
+        VIcon=lambda *args, **kwargs: DummyContext(),
+        VTextField=lambda *args, **kwargs: DummyContext(),
+        VCheckbox=lambda *args, **kwargs: DummyContext(),
+    )
+    fake_trame_widgets.trame = SimpleNamespace(MouseTrap=lambda **kwargs: SimpleNamespace(bind=lambda *a, **k: None))
+    fake_trame.app = fake_trame_app
+    fake_trame.ui = fake_trame_ui
+    fake_trame.widgets = fake_trame_widgets
+    fake_trame_ui.vuetify = fake_trame_ui_vuetify
+
+    monkeypatch.setitem(sys.modules, "trame", fake_trame)
+    monkeypatch.setitem(sys.modules, "trame.app", fake_trame_app)
+    monkeypatch.setitem(sys.modules, "trame.ui", fake_trame_ui)
+    monkeypatch.setitem(sys.modules, "trame.ui.vuetify", fake_trame_ui_vuetify)
+    monkeypatch.setitem(sys.modules, "trame.widgets", fake_trame_widgets)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+
+    app = BlockModelTrameApp.from_pbm_file(
+        pbm_path,
+        scalar=scalar_attr,
+        threshold_value=threshold_value,
+        data_filter_1_attribute=scalar_attr,
+        data_filter_1_min=filter_min,
+        app_name="File Preset Test",
+    )
+    app.launch(port=3080, host="0.0.0.0")
+
+    assert app.threshold is not None
+    assert np.isclose(float(app.threshold.value), threshold_value)
+    assert app._data_filters[0].attribute == scalar_attr
+    assert np.isclose(float(app._data_filters[0].range_values[0]), filter_min)
+
+    active_callbacks = fake_state._callbacks.get("active_attribute", [])
+    threshold_callbacks = fake_state._callbacks.get("threshold", [])
+    filter_callbacks = fake_state._callbacks.get("data_filter_1_attribute", [])
+    assert len(active_callbacks) == 1
+    assert len(threshold_callbacks) == 1
+    assert len(filter_callbacks) == 1
+
+    active_callbacks[0](active_attribute=scalar_attr)
+    threshold_callbacks[0](threshold=threshold_value)
+    filter_callbacks[0](data_filter_1_attribute=scalar_attr)
+
+    assert np.isclose(float(app.threshold.value), threshold_value)
+    assert app._data_filters[0].attribute == scalar_attr
+    assert np.isclose(float(app._data_filters[0].range_values[0]), filter_min)
+
+
 def test_trame_app_supports_categorical_data_filter(tmp_path, monkeypatch):
     parquet_path = tmp_path / "trame_categorical_filter_source.parquet"
     ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(3, 3, 3))
@@ -715,23 +964,37 @@ def test_trame_example_seeds_temp_demo_when_sample_missing(tmp_path, monkeypatch
             launched["kwargs"] = kwargs
             launched["launched"] = True
 
-    def fake_from_source_path(source_path, **_):
+    def fake_from_pbm_file(source_path, **_):
+        launched["source_kind"] = "file"
         launched["source_path"] = Path(source_path)
+        launched["entrypoint_kwargs"] = _
         return FakeApp()
 
-    monkeypatch.setattr(module.Path, "cwd", lambda: tmp_path)
-    monkeypatch.setattr(module.tempfile, "gettempdir", lambda: str(tmp_path))
+    def fake_from_hive_directory(source_path, **_):
+        launched["source_kind"] = "hive"
+        launched["source_path"] = Path(source_path)
+        launched["entrypoint_kwargs"] = _
+        return FakeApp()
+
     monkeypatch.setattr(module.ParquetBlockModel, "create_toy_blockmodel", staticmethod(fake_create_toy_blockmodel))
-    monkeypatch.setattr(module.BlockModelTrameApp, "from_source_path", staticmethod(fake_from_source_path))
+    monkeypatch.setattr(module.BlockModelTrameApp, "from_pbm_file", staticmethod(fake_from_pbm_file))
+    monkeypatch.setattr(module.BlockModelTrameApp, "from_hive_directory", staticmethod(fake_from_hive_directory))
 
     module.main()
 
     assert launched["launched"] is True
     assert launched["kwargs"]["port"] == 8080
     assert launched["kwargs"]["host"] == "0.0.0.0"
-    assert launched["shape"] == (4, 4, 4)
-    assert launched["source_path"].is_dir() or launched["source_path"].suffix == ".pbm"
-    assert len(created) == 2
+    assert launched["source_kind"] == "file"
+    assert launched["source_path"].name == "example_blocks_constructor.pbm"
+    assert launched["entrypoint_kwargs"] == {
+        "app_name": "Demo App",
+        "scalar": "density",
+        "threshold_value": 2.6,
+        "data_filter_1_attribute": "density",
+        "data_filter_1_min": 2.4,
+    }
+    assert len(created) == 0
 
 
 def test_trame_example_skips_launch_during_gallery_build(tmp_path, monkeypatch):
@@ -753,20 +1016,35 @@ def test_trame_example_skips_launch_during_gallery_build(tmp_path, monkeypatch):
             launched["kwargs"] = kwargs
             launched["launched"] = True
 
-    def fake_from_source_path(source_path, **_):
+    def fake_from_pbm_file(source_path, **_):
+        launched["source_kind"] = "file"
         launched["source_path"] = Path(source_path)
+        launched["entrypoint_kwargs"] = _
         return FakeApp()
 
-    monkeypatch.setattr(module.Path, "cwd", lambda: tmp_path)
-    monkeypatch.setattr(module.tempfile, "gettempdir", lambda: str(tmp_path))
+    def fake_from_hive_directory(source_path, **_):
+        launched["source_kind"] = "hive"
+        launched["source_path"] = Path(source_path)
+        launched["entrypoint_kwargs"] = _
+        return FakeApp()
+
+    monkeypatch.setattr(module.BlockModelTrameApp, "from_pbm_file", staticmethod(fake_from_pbm_file))
+    monkeypatch.setattr(module.BlockModelTrameApp, "from_hive_directory", staticmethod(fake_from_hive_directory))
     monkeypatch.setattr(module.ParquetBlockModel, "create_toy_blockmodel", staticmethod(fake_create_toy_blockmodel))
-    monkeypatch.setattr(module.BlockModelTrameApp, "from_source_path", staticmethod(fake_from_source_path))
+    monkeypatch.setattr(module, "DEMO_SOURCE_KIND", "file")
     monkeypatch.setattr(module.pv, "BUILDING_GALLERY", True, raising=False)
 
     module.main()
 
     assert "launched" not in launched
-    assert len(created) == 2
+    assert launched["entrypoint_kwargs"] == {
+        "app_name": "Demo App",
+        "scalar": "density",
+        "threshold_value": 2.6,
+        "data_filter_1_attribute": "density",
+        "data_filter_1_min": 2.4,
+    }
+    assert len(created) == 0
 
 
 def test_trame_example_hive_toggle_uses_directory_source(tmp_path, monkeypatch):
@@ -789,14 +1067,23 @@ def test_trame_example_hive_toggle_uses_directory_source(tmp_path, monkeypatch):
             launched["kwargs"] = kwargs
             launched["launched"] = True
 
-    def fake_from_source_path(source_path, **_):
+    def fake_from_pbm_file(source_path, **_):
+        launched["source_kind"] = "file"
         launched["source_path"] = Path(source_path)
+        launched["entrypoint_kwargs"] = _
+        return FakeApp()
+
+    def fake_from_hive_directory(source_path, **_):
+        launched["source_kind"] = "hive"
+        launched["source_path"] = Path(source_path)
+        launched["entrypoint_kwargs"] = _
         return FakeApp()
 
     monkeypatch.setattr(module, "DEMO_SOURCE_KIND", "hive")
     monkeypatch.setattr(module.tempfile, "gettempdir", lambda: str(tmp_path))
     monkeypatch.setattr(module.ParquetBlockModel, "create_toy_blockmodel", staticmethod(fake_create_toy_blockmodel))
-    monkeypatch.setattr(module.BlockModelTrameApp, "from_source_path", staticmethod(fake_from_source_path))
+    monkeypatch.setattr(module.BlockModelTrameApp, "from_pbm_file", staticmethod(fake_from_pbm_file))
+    monkeypatch.setattr(module.BlockModelTrameApp, "from_hive_directory", staticmethod(fake_from_hive_directory))
 
     module.main()
 
@@ -804,8 +1091,60 @@ def test_trame_example_hive_toggle_uses_directory_source(tmp_path, monkeypatch):
     assert launched["kwargs"]["port"] == 8080
     assert launched["kwargs"]["host"] == "0.0.0.0"
     assert launched["shape"] == (4, 4, 4)
+    assert launched["source_kind"] == "hive"
     assert launched["source_path"] == tmp_path / "parq_blockmodel_trame_hive_demo"
+    assert launched["entrypoint_kwargs"] == {
+        "app_name": "Demo App",
+        "scalar": "depth",
+        "threshold_value": 2.1,
+        "data_filter_1_attribute": "depth",
+        "data_filter_1_min": 1.25,
+    }
     assert len(created) == 2
+
+
+def test_trame_example_uses_hive_file_for_file_mode(monkeypatch, tmp_path):
+    example_path = Path(__file__).resolve().parents[2] / "examples" / "16_trame_threshold_viewer.py"
+    spec = util.spec_from_file_location("trame_threshold_viewer_repo_root", example_path)
+    module = util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(module)
+
+    launched: dict[str, object] = {}
+
+    class FakeApp:
+        def launch(self, **kwargs):
+            launched["kwargs"] = kwargs
+            launched["launched"] = True
+
+    def fake_from_pbm_file(source_path, **_):
+        launched["source_kind"] = "file"
+        launched["source_path"] = Path(source_path)
+        launched["entrypoint_kwargs"] = _
+        return FakeApp()
+
+    def fake_from_hive_directory(source_path, **_):
+        launched["source_kind"] = "hive"
+        launched["source_path"] = Path(source_path)
+        launched["entrypoint_kwargs"] = _
+        return FakeApp()
+
+    monkeypatch.setattr(module.Path, "cwd", lambda: tmp_path)
+    monkeypatch.setattr(module, "DEMO_SOURCE_KIND", "file")
+    monkeypatch.setattr(module.BlockModelTrameApp, "from_pbm_file", staticmethod(fake_from_pbm_file))
+    monkeypatch.setattr(module.BlockModelTrameApp, "from_hive_directory", staticmethod(fake_from_hive_directory))
+
+    module.main()
+
+    assert launched["source_kind"] == "file"
+    assert launched["source_path"].name == "example_blocks_constructor.pbm"
+    assert launched["entrypoint_kwargs"] == {
+        "app_name": "Demo App",
+        "scalar": "density",
+        "threshold_value": 2.6,
+        "data_filter_1_min": 2.4,
+        "data_filter_1_attribute": "density",
+    }
 
 
 def test_trame_hive_directory_starts_without_blockmodel(tmp_path, monkeypatch):
@@ -890,6 +1229,55 @@ def test_trame_reset_model_view_clears_loaded_state(tmp_path, monkeypatch):
     assert app.plotter.cleared is True
     assert app._server.state.active_attribute == ""
     assert app._server.state.model_name == ""
+
+
+def test_trame_reset_model_view_preserves_filter_presets_for_hive_transition(tmp_path, monkeypatch):
+    parquet_path = tmp_path / "hive_transition_source.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
+    attr = pbm.available_attributes[0]
+
+    class FakePlotter:
+        def __init__(self, *args, **kwargs):
+            self.cleared = False
+
+        def clear(self):
+            self.cleared = True
+
+        def add_mesh(self, *args, **kwargs):
+            return None
+
+        def view_isometric(self):
+            return None
+
+        def reset_camera_clipping_range(self):
+            return None
+
+        def add_axes(self):
+            return None
+
+        def render(self):
+            return None
+
+        def show(self, *args, **kwargs):
+            return None
+
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+
+    app = BlockModelTrameApp(
+        blockmodel=None,
+        scalar=attr,
+        data_filter_1_attribute=attr,
+        data_filter_1_min=0.0,
+        show_edges=False,
+    )
+    app._server = SimpleNamespace(state=SimpleNamespace())
+    app._refresh_filter_options()
+    app._apply_startup_filter_presets_without_data()
+
+    app._reset_model_view(preserve_presets=True)
+    app.load_blockmodel(pbm, preferred_scalar=attr)
+
+    assert app._data_filters[0].attribute == attr
 
 
 def test_trame_refresh_plot_uses_default_camera_on_first_render(tmp_path, monkeypatch):
@@ -1105,6 +1493,17 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "trame.ui.vuetify", fake_trame_ui_vuetify)
     monkeypatch.setitem(sys.modules, "trame.widgets", fake_trame_widgets)
     monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr(
+        "parq_blockmodel.visualization.trame_app.HivePbmCatalog.discover",
+        staticmethod(
+            lambda root_path: SimpleNamespace(
+                level_keys=(),
+                level_options=lambda key, selections=None: [],
+                pbm_name_options=lambda selections=None: [],
+                select_asset=lambda selections, name: (_ for _ in ()).throw(LookupError("no assets")),
+            )
+        ),
+    )
 
     from parq_blockmodel.visualization.trame_app import BlockModelTrameApp
 
@@ -1133,6 +1532,11 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
     assert calls["remote_view_kwargs"]["interactor_events"][1] == ["KeyDown", "KeyPress", "KeyUp"]
     assert callable(calls["remote_view_kwargs"]["KeyDown"])
     assert callable(calls["remote_view_kwargs"]["KeyUp"])
+    assert fake_state.source_mode == "file"
+    assert fake_state.source_path_input == str(pbm.blockmodel_path)
+    assert fake_state.model_path == str(pbm.blockmodel_path)
+    assert fake_state.active_attribute == pbm.available_attributes[0]
+    assert fake_state.attribute_options == list(pbm.available_attributes)
 
 
 def test_trame_plot_engine_forwards_launch_host(tmp_path, monkeypatch):
@@ -1153,3 +1557,184 @@ def test_trame_plot_engine_forwards_launch_host(tmp_path, monkeypatch):
     assert result == "launched"
     assert calls["kwargs"]["port"] == 3080
     assert calls["kwargs"]["host"] == "0.0.0.0"
+
+
+def test_trame_hive_launch_keeps_preset_controls_without_loading_asset(tmp_path, monkeypatch):
+    class FakePlotter:
+        def __init__(self, *args, **kwargs):
+            self.add_mesh_calls = 0
+            self.ren_win = object()
+
+        def clear(self):
+            return None
+
+        def add_mesh(self, *args, **kwargs):
+            self.add_mesh_calls += 1
+
+        def view_isometric(self):
+            return None
+
+        def reset_camera_clipping_range(self):
+            return None
+
+        def add_axes(self):
+            return None
+
+        def render(self):
+            return None
+
+        def show(self, *args, **kwargs):
+            return None
+
+    class FakeState:
+        def __init__(self):
+            self._callbacks = {}
+
+        def change(self, key):
+            def register(callback):
+                self._callbacks.setdefault(key, []).append(callback)
+                return callback
+
+            return register
+
+        def __setattr__(self, key, value):
+            object.__setattr__(self, key, value)
+
+        def ready(self):
+            self._ready_called = True
+
+    fake_state = FakeState()
+    calls = {}
+
+    class DummyContext:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    class DummyToolbar(DummyContext):
+        def __init__(self):
+            self.color = None
+            self.dense = None
+            self.dark = None
+
+    class FakeLayout:
+        def __init__(self, *args, **kwargs):
+            self.toolbar = DummyToolbar()
+            self.title = SimpleNamespace(set_text=lambda *_: None)
+            self.drawer = DummyContext()
+            self.content = DummyContext()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+    fake_trame = ModuleType("trame")
+    fake_trame_app = ModuleType("trame.app")
+    fake_trame_ui = ModuleType("trame.ui")
+    fake_trame_ui_vuetify = ModuleType("trame.ui.vuetify")
+    fake_trame_widgets = ModuleType("trame.widgets")
+
+    def fake_get_server(name, client_type=None):
+        calls["name"] = name
+        calls["client_type"] = client_type
+        return SimpleNamespace(
+            state=fake_state,
+            controller=SimpleNamespace(),
+            start=lambda **kwargs: calls.update({"start_kwargs": kwargs}),
+        )
+
+    fake_trame_app.get_server = fake_get_server
+    fake_trame_ui_vuetify.SinglePageWithDrawerLayout = FakeLayout
+    fake_trame_widgets.vtk = SimpleNamespace(
+        VtkRemoteView=lambda ren_win, **kwargs: SimpleNamespace(update=lambda: None)
+    )
+    fake_trame_widgets.vuetify = SimpleNamespace(
+        VSelect=lambda *args, **kwargs: DummyContext(),
+        VSlider=lambda *args, **kwargs: DummyContext(),
+        VRangeSlider=lambda *args, **kwargs: DummyContext(),
+        VBtn=lambda *args, **kwargs: DummyContext(),
+        VAppBar=lambda *args, **kwargs: DummyContext(),
+        VAppBarNavIcon=lambda *args, **kwargs: DummyContext(),
+        VToolbarTitle=lambda *args, **kwargs: DummyContext(),
+        VSpacer=lambda *args, **kwargs: DummyContext(),
+        VChip=lambda *args, **kwargs: DummyContext(),
+        VNavigationDrawer=lambda *args, **kwargs: DummyContext(),
+        VSheet=lambda *args, **kwargs: DummyContext(),
+        VImg=lambda *args, **kwargs: DummyContext(),
+        VCard=lambda *args, **kwargs: DummyContext(),
+        VCardText=lambda *args, **kwargs: DummyContext(),
+        VCardTitle=lambda *args, **kwargs: DummyContext(),
+        VExpansionPanels=lambda *args, **kwargs: DummyContext(),
+        VExpansionPanel=lambda *args, **kwargs: DummyContext(),
+        VExpansionPanelHeader=lambda *args, **kwargs: DummyContext(),
+        VExpansionPanelContent=lambda *args, **kwargs: DummyContext(),
+        VMain=lambda *args, **kwargs: DummyContext(),
+        VContainer=lambda *args, **kwargs: DummyContext(),
+        VIcon=lambda *args, **kwargs: DummyContext(),
+        VTextField=lambda *args, **kwargs: DummyContext(),
+        VCheckbox=lambda *args, **kwargs: DummyContext(),
+    )
+    fake_trame_widgets.trame = SimpleNamespace(MouseTrap=lambda **kwargs: SimpleNamespace(bind=lambda *a, **k: None))
+    fake_trame.app = fake_trame_app
+    fake_trame.ui = fake_trame_ui
+    fake_trame.widgets = fake_trame_widgets
+    fake_trame_ui.vuetify = fake_trame_ui_vuetify
+
+    monkeypatch.setitem(sys.modules, "trame", fake_trame)
+    monkeypatch.setitem(sys.modules, "trame.app", fake_trame_app)
+    monkeypatch.setitem(sys.modules, "trame.ui", fake_trame_ui)
+    monkeypatch.setitem(sys.modules, "trame.ui.vuetify", fake_trame_ui_vuetify)
+    monkeypatch.setitem(sys.modules, "trame.widgets", fake_trame_widgets)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr(
+        "parq_blockmodel.visualization.trame_app.HivePbmCatalog.discover",
+        staticmethod(
+            lambda root_path: SimpleNamespace(
+                level_keys=(),
+                level_options=lambda key, selections=None: [],
+                pbm_name_options=lambda selections=None: [],
+                select_asset=lambda selections, name: (_ for _ in ()).throw(LookupError("no assets")),
+            )
+        ),
+    )
+
+    from parq_blockmodel.visualization.trame_app import BlockModelTrameApp
+
+    hive_root = tmp_path / "hive"
+    hive_root.mkdir()
+    app = BlockModelTrameApp.from_hive_directory(
+        hive_root,
+        scalar="grade",
+        threshold_value=2.1,
+        data_filter_1_attribute="grade",
+        data_filter_1_min=1.25,
+        app_name="Custom Viewer",
+    )
+    app.launch(port=3080, host="0.0.0.0")
+
+    assert fake_state.source_mode == "hive"
+    assert fake_state.source_path_input == str(hive_root.resolve())
+    assert fake_state.model_path == ""
+    assert fake_state.active_attribute == "grade"
+    assert fake_state.attribute_options == ["grade"]
+    assert fake_state.threshold == 2.1
+    assert fake_state.threshold_display == "2.1"
+    assert fake_state.data_filter_1_attribute == "grade"
+    assert fake_state.data_filter_attribute_options == ["grade"]
+    assert fake_state.data_filter_1_range[0] == 1.25
+    assert fake_state.data_filter_1_range[1] == 1.25
+    assert fake_state.data_filter_1_summary.startswith("grade:")
+    active_attribute_callbacks = fake_state._callbacks.get("active_attribute", [])
+    assert len(active_attribute_callbacks) == 1
+    active_attribute_callbacks[0](active_attribute="grade")
+    assert app.blockmodel is None
+    assert fake_state.active_attribute == "grade"
+    filter_attribute_callbacks = fake_state._callbacks.get("data_filter_1_attribute", [])
+    assert len(filter_attribute_callbacks) == 1
+    filter_attribute_callbacks[0](data_filter_1_attribute="grade")
+    assert app.blockmodel is None
+    assert fake_state.data_filter_1_attribute == "grade"

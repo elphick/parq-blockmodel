@@ -63,22 +63,28 @@ Notes:
 API
 ---
 
-Use :meth:`parq_blockmodel.visualization.trame_app.BlockModelTrameApp.from_source_path`
-to launch from either a PBM file or a hive directory:
+Use explicit startup entry points:
 
 .. code-block:: python
 
    from parq_blockmodel.visualization import BlockModelTrameApp
 
-   app = BlockModelTrameApp.from_source_path("path/to/source")
-   app.launch()
+   file_app = BlockModelTrameApp.from_pbm_file("path/to/model.pbm")
+   hive_app = BlockModelTrameApp.from_hive_directory("path/to/hive_root")
+
+   # Scaffold-only API for a future query-backed startup workflow.
+   query_app = BlockModelTrameApp.from_duckdb_query(
+       "SELECT * FROM read_parquet('path/to/hive/**/*.parquet')"
+   )
+
+   file_app.launch()
 
 Examples
 --------
 
 One combined example is provided:
 
-* ``examples/15_trame_threshold_viewer.py``: combined file/hive demo. The
+* ``examples/16_trame_threshold_viewer.py``: combined file/hive demo. The
   ``DEMO_SOURCE_KIND`` constant in the script switches between:
   * file startup from a single ``.pbm`` path,
   * hive startup from a directory path with selector drill-down.
