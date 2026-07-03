@@ -592,6 +592,10 @@ def test_trame_file_startup_presets_survive_watcher_replay(monkeypatch, tmp_path
     parquet_path = tmp_path / "watcher_replay_startup.parquet"
     pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(4, 4, 4))
     pbm_path = pbm.blockmodel_path
+    scalar_attr = pbm.available_attributes[0]
+    scalar_values = pbm.data[scalar_attr].to_numpy(dtype=float, copy=False)
+    threshold_value = float(np.nanmedian(scalar_values))
+    filter_min = float(np.nanquantile(scalar_values, 0.25))
 
     class FakePlotter:
         def __init__(self, *args, **kwargs):
@@ -719,18 +723,18 @@ def test_trame_file_startup_presets_survive_watcher_replay(monkeypatch, tmp_path
 
     app = BlockModelTrameApp.from_pbm_file(
         pbm_path,
-        scalar="density",
-        threshold_value=2.6,
-        data_filter_1_attribute="density",
-        data_filter_1_min=2.4,
+        scalar=scalar_attr,
+        threshold_value=threshold_value,
+        data_filter_1_attribute=scalar_attr,
+        data_filter_1_min=filter_min,
         app_name="File Preset Test",
     )
     app.launch(port=3080, host="0.0.0.0")
 
     assert app.threshold is not None
-    assert app.threshold.value == 2.6
-    assert app._data_filters[0].attribute == "density"
-    assert app._data_filters[0].range_values[0] == 2.4
+    assert np.isclose(float(app.threshold.value), threshold_value)
+    assert app._data_filters[0].attribute == scalar_attr
+    assert np.isclose(float(app._data_filters[0].range_values[0]), filter_min)
 
     active_callbacks = fake_state._callbacks.get("active_attribute", [])
     threshold_callbacks = fake_state._callbacks.get("threshold", [])
@@ -739,13 +743,13 @@ def test_trame_file_startup_presets_survive_watcher_replay(monkeypatch, tmp_path
     assert len(threshold_callbacks) == 1
     assert len(filter_callbacks) == 1
 
-    active_callbacks[0](active_attribute="density")
-    threshold_callbacks[0](threshold=2.6)
-    filter_callbacks[0](data_filter_1_attribute="density")
+    active_callbacks[0](active_attribute=scalar_attr)
+    threshold_callbacks[0](threshold=threshold_value)
+    filter_callbacks[0](data_filter_1_attribute=scalar_attr)
 
-    assert app.threshold.value == 2.6
-    assert app._data_filters[0].attribute == "density"
-    assert app._data_filters[0].range_values[0] == 2.4
+    assert np.isclose(float(app.threshold.value), threshold_value)
+    assert app._data_filters[0].attribute == scalar_attr
+    assert np.isclose(float(app._data_filters[0].range_values[0]), filter_min)
 
 
 def test_trame_app_supports_categorical_data_filter(tmp_path, monkeypatch):
