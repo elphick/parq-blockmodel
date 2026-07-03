@@ -8,8 +8,8 @@ This example shows both ways to start the same Trame app:
 
 Use ``DEMO_SOURCE_KIND`` to switch between these patterns in one place.
 
-This example is gallery-safe: it stays in Sphinx-Gallery, but skips launching
-the live server while docs are being built.
+This example is gallery-safe: it stays in Sphinx-Gallery, but skips runtime
+app setup/launch while docs are being built.
 """
 
 import logging
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 # sphinx_gallery_thumbnail_path = "../docs/_static/branding/parq-blockmodel-gallery-thumbnail.svg"
-DEMO_SOURCE_KIND = "hive"  # "file" or "hive"
+DEMO_SOURCE_KIND = "file"  # "file" or "hive"
 
 
 def _seed_temporary_hive_demo() -> Path:
@@ -75,5 +75,5 @@ def main() -> None:
     app.launch(port=8080, host="0.0.0.0")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and not getattr(pv, "BUILDING_GALLERY", False):
     main()

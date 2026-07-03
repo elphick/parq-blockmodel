@@ -503,9 +503,9 @@ def test_trame_app_accepts_initial_data_filter_bounds(tmp_path, monkeypatch):
     assert slot.range_values[1] == slot.maximum
 
 
-def test_trame_app_initial_preset_filter_keeps_initial_mesh_non_empty(monkeypatch):
-    pbm_path = Path(__file__).resolve().parents[2] / "examples" / "example_blocks_constructor.pbm"
-    pbm = ParquetBlockModel(pbm_path)
+def test_trame_app_initial_preset_filter_keeps_initial_mesh_non_empty(monkeypatch, tmp_path):
+    pbm_path = tmp_path / "initial_filter_mesh.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=pbm_path, shape=(4, 4, 4))
 
     class FakePlotter:
         def __init__(self, *args, **kwargs):
@@ -546,9 +546,9 @@ def test_trame_app_initial_preset_filter_keeps_initial_mesh_non_empty(monkeypatc
     assert app.plotter.last_mesh_n_cells > 0
 
 
-def test_trame_app_respects_initial_threshold_value(monkeypatch):
-    pbm_path = Path(__file__).resolve().parents[2] / "examples" / "example_blocks_constructor.pbm"
-    pbm = ParquetBlockModel(pbm_path)
+def test_trame_app_respects_initial_threshold_value(monkeypatch, tmp_path):
+    pbm_path = tmp_path / "initial_threshold_value.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=pbm_path, shape=(4, 4, 4))
 
     class FakePlotter:
         def __init__(self, *args, **kwargs):
@@ -588,9 +588,10 @@ def test_trame_app_respects_initial_threshold_value(monkeypatch):
     assert app.threshold.value == 2.6
 
 
-def test_trame_file_startup_presets_survive_watcher_replay(monkeypatch):
-    pbm_path = Path(__file__).resolve().parents[2] / "examples" / "example_blocks_constructor.pbm"
-    pbm = ParquetBlockModel(pbm_path)
+def test_trame_file_startup_presets_survive_watcher_replay(monkeypatch, tmp_path):
+    parquet_path = tmp_path / "watcher_replay_startup.parquet"
+    pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(4, 4, 4))
+    pbm_path = pbm.blockmodel_path
 
     class FakePlotter:
         def __init__(self, *args, **kwargs):
@@ -1025,6 +1026,8 @@ def test_trame_example_skips_launch_during_gallery_build(tmp_path, monkeypatch):
 
     monkeypatch.setattr(module.BlockModelTrameApp, "from_pbm_file", staticmethod(fake_from_pbm_file))
     monkeypatch.setattr(module.BlockModelTrameApp, "from_hive_directory", staticmethod(fake_from_hive_directory))
+    monkeypatch.setattr(module.ParquetBlockModel, "create_toy_blockmodel", staticmethod(fake_create_toy_blockmodel))
+    monkeypatch.setattr(module, "DEMO_SOURCE_KIND", "file")
     monkeypatch.setattr(module.pv, "BUILDING_GALLERY", True, raising=False)
 
     module.main()
