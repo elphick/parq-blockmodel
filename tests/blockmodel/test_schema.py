@@ -1101,6 +1101,31 @@ def test_from_parquet_alias_only_is_applied_before_validation_and_persisted(tmp_
     np.testing.assert_allclose(out["deposit_code"].to_numpy(), expected, rtol=0, atol=1e-12)
 
 
+def test_from_parquet_alias_refreshes_attributes(tmp_path):
+    """Alias-only metadata should refresh the instance attribute cache."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+
+    df = create_demo_blockmodel(shape=(2, 2, 2))
+    df["deposit"] = np.linspace(0.12345, 0.82345, len(df))
+    source_parquet = tmp_path / "alias_attributes_source.parquet"
+    df.to_parquet(source_parquet)
+
+    schema = DataFrameSchema(
+        columns={
+            "deposit_code": Column(
+                float,
+                required=True,
+                metadata={"df-eval": {"alias": "deposit", "decimals": 3}},
+            ),
+        },
+        strict=False,
+    )
+
+    pbm = ParquetBlockModel.from_parquet(source_parquet, schema=schema)
+    assert "deposit_code" in pbm.attributes
+    assert "deposit" not in pbm.attributes
+
+
 def test_from_parquet_persists_schema_columns_in_schema_order(tmp_path):
     """Schema-defined persisted columns should follow schema definition order."""
     pytest.importorskip("df_eval", reason="df-eval not installed")

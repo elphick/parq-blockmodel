@@ -161,12 +161,13 @@ class ParquetBlockModel:
             or schema_utils.extract_schema_compression_policy(self.schema)
         )
         self._engine_initializer = engine_initializer
-        self.pf: ParquetFile = ParquetFile(blockmodel_path)
+        self.pf: ParquetFile
         # Lazy view over the backing Parquet file for large models.
-        self.data: LazyParquetDF = LazyParquetDF(self.blockmodel_path)
-        self.columns: list[str] = pq.read_schema(self.blockmodel_path).names
+        self.data: LazyParquetDF
+        self.columns: list[str]
         self._centroid_index: Optional[pd.MultiIndex] = None
-        self.attributes: list[str] = [col for col in self.columns if col not in self.POSITION_COLUMNS]
+        self.attributes: list[str]
+        self._refresh_path_bound_state()
         self._extract_column_dtypes()
         self._logger = logging.getLogger(__name__)
         self._assert_canonical_block_id_invariant()
@@ -255,6 +256,14 @@ class ParquetBlockModel:
                 self._column_categorical_ordered[col] = field_type.ordered
             else:
                 self.column_dtypes[col] = field_type.to_pandas_dtype()
+
+    def _refresh_path_bound_state(self) -> None:
+        """Refresh cached state that depends on the backing Parquet file."""
+        self.pf = ParquetFile(self.blockmodel_path)
+        self.data = LazyParquetDF(self.blockmodel_path)
+        self.columns = pq.read_schema(self.blockmodel_path).names
+        self.attributes = [col for col in self.columns if col not in self.POSITION_COLUMNS]
+        self._centroid_index = None
 
     @property
     def column_categorical_ordered(self) -> dict[str, bool]:
@@ -622,11 +631,7 @@ class ParquetBlockModel:
             **schema_utils.build_parquet_compression_kwargs(table.column_names, active_policy),
         )
 
-        self.pf = ParquetFile(self.blockmodel_path)
-        self.data = LazyParquetDF(self.blockmodel_path)
-        self.columns = pq.read_schema(self.blockmodel_path).names
-        self.attributes = [col for col in self.columns if col not in self.POSITION_COLUMNS]
-        self._centroid_index = None
+        self._refresh_path_bound_state()
         self._extract_column_dtypes()
         self.compression = active_policy
 
@@ -953,12 +958,14 @@ class ParquetBlockModel:
         )
         writer.write(columns=columns, chunk_size=chunk_size)
         
-        return cls(
+        pbm = cls(
             blockmodel_path=new_filepath,
             geometry=geometry,
             schema=loaded_schema,
             engine_initializer=engine_initializer,
         )
+        pbm._refresh_path_bound_state()
+        return pbm
 
     @classmethod
     def from_dataframe(
@@ -1329,11 +1336,7 @@ class ParquetBlockModel:
 
         # Refresh path-dependent state.
         self.blockmodel_path = new_pbm_filepath
-        self.pf = ParquetFile(self.blockmodel_path)
-        self.data = LazyParquetDF(self.blockmodel_path)
-        self.columns = pq.read_schema(self.blockmodel_path).names
-        self.attributes = [col for col in self.columns if col not in self.POSITION_COLUMNS]
-        self._centroid_index = None
+        self._refresh_path_bound_state()
         self._extract_column_dtypes()
 
         if rename_to_new_pbm_stem:
