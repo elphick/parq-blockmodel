@@ -226,6 +226,48 @@ def test_downsample_blockmodel_weighted_mean_all_nan_values_remain_nan(tmp_path)
 
 
 @pytest.mark.integration
+def test_downsample_blockmodel_sum_all_nan_values_remain_nan(tmp_path):
+    df = create_demo_blockmodel(shape=(4, 4, 4), index_type="world_centroids")
+    df["tonnes"] = np.nan
+
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["tonnes"]],
+        tmp_path / "downsample_sum_all_nan.parquet",
+    )
+
+    downsampled = pbm.downsample(
+        (2.0, 2.0, 2.0),
+        {
+            "tonnes": {"method": "sum"},
+        },
+    )
+    out = downsampled.read(columns=["tonnes"], index="ijk", dense=True)
+    assert out["tonnes"].isna().all()
+
+
+@pytest.mark.integration
+def test_downsample_blockmodel_sum_with_fill_ratio_all_nan_values_remain_nan(tmp_path):
+    df = create_demo_blockmodel(shape=(4, 4, 4), index_type="world_centroids")
+    df["tonnes"] = np.nan
+    df["fill"] = 1.0
+
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["tonnes", "fill"]],
+        tmp_path / "downsample_sum_fill_all_nan.parquet",
+    )
+
+    downsampled = pbm.downsample(
+        (2.0, 2.0, 2.0),
+        {
+            "tonnes": {"method": "sum", "fill_ratio": "fill"},
+            "fill": {"method": "mean"},
+        },
+    )
+    out = downsampled.read(columns=["tonnes"], index="ijk", dense=True)
+    assert out["tonnes"].isna().all()
+
+
+@pytest.mark.integration
 def test_downsample_blockmodel_accepts_calculated_basis_and_target(tmp_path):
     pytest.importorskip("df_eval", reason="df-eval not installed")
     pandera = pytest.importorskip("pandera", reason="pandera not installed")
