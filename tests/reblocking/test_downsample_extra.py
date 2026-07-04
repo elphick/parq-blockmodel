@@ -54,6 +54,15 @@ def test_downsample_mode_all_nan_block():
     assert result["cat"][0, 0, 0] is None
 
 
+def test_downsample_mode_ignores_missing_integer_codes():
+    arr = np.array([[[0, -1], [-1, -1]],
+                    [[-1, -1], [-1, -1]]], dtype=np.int32)
+    attrs = {"cat": arr}
+    config = {"cat": {"method": "mode"}}
+    result = downsample_attributes(attrs, 2, 2, 2, config)
+    assert result["cat"][0, 0, 0] == 0
+
+
 # ---------------------------------------------------------------------------
 # replacement map applied
 # ---------------------------------------------------------------------------
@@ -114,6 +123,20 @@ def test_downsample_weighted_mean_without_fill_ratio():
     assert np.isclose(result["grade"][0, 0, 0], expected)
 
 
+def test_downsample_weighted_mean_all_nan_values_returns_nan():
+    grade = np.full((2, 2, 2), np.nan, dtype=float)
+    mass = np.ones((2, 2, 2), dtype=float)
+
+    attrs = {"grade": grade, "mass": mass}
+    config = {
+        "grade": {"method": "weighted_mean", "basis": "mass"},
+        "mass": {"method": "sum"},
+    }
+    result = downsample_attributes(attrs, 2, 2, 2, config)
+
+    assert np.isnan(result["grade"][0, 0, 0])
+
+
 def test_downsample_unsupported_method():
     arr = np.ones((2, 2, 2))
     config = {"val": {"method": "unknown_method"}}
@@ -140,4 +163,3 @@ def test_downsample_rejects_configured_attribute_missing_from_inputs():
 
     with pytest.raises(ValueError, match="unknown attributes"):
         downsample_attributes(attrs, 2, 2, 2, config)
-
