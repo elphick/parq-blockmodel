@@ -132,13 +132,16 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
             basis_name = config.get('basis', config.get('weight'))
             basis_numeric, _ = to_numeric(basis, operation="downsampling", attribute=basis_name)
             basis_reshaped = basis_numeric.reshape(new_shape).transpose(transpose_axes)
+            valid_pairs = np.isfinite(reshaped) & np.isfinite(basis_reshaped)
+            valid_weighted = np.where(valid_pairs, reshaped * basis_reshaped, np.nan)
+            valid_basis = np.where(valid_pairs, basis_reshaped, np.nan)
             if fill:
                 if fill_ratio is None:
                     raise ValueError(f"fill_ratio '{fill}' was requested but is not configured")
-                weighted_sum = np.nansum(reshaped * basis_reshaped, axis=(3, 4, 5), dtype=np.float64) / fill_ratio
+                weighted_sum = np.nansum(valid_weighted, axis=(3, 4, 5), dtype=np.float64) / fill_ratio
             else:
-                weighted_sum = np.nansum(reshaped * basis_reshaped, axis=(3, 4, 5), dtype=np.float64)
-            total_basis = np.nansum(basis_reshaped, axis=(3, 4, 5), dtype=np.float64)
+                weighted_sum = np.nansum(valid_weighted, axis=(3, 4, 5), dtype=np.float64)
+            total_basis = np.nansum(valid_basis, axis=(3, 4, 5), dtype=np.float64)
             aggregated = np.divide(
                 weighted_sum,
                 total_basis,
@@ -152,13 +155,19 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
             reshaped = data.reshape(new_shape).transpose(transpose_axes)
             nx, ny, nz = reshaped.shape[:3]
             mode_array = np.empty((nx, ny, nz), dtype=object)
+            categorical_codes = np.issubdtype(reshaped.dtype, np.integer)
             for i in range(nx):
                 for j in range(ny):
                     for k in range(nz):
                         block = reshaped[i, j, k].ravel()
-                        block = block[~pd.isnull(block)]
+                        if categorical_codes:
+                            # Dense categorical arrays are stored as integer codes,
+                            # with -1 reserved for missing values.
+                            block = block[block != -1]
+                        else:
+                            block = block[~pd.isnull(block)]
                         if len(block) == 0:
-                            mode_array[i, j, k] = None
+                            mode_array[i, j, k] = -1 if categorical_codes else None
                         else:
                             counts = Counter(block)
                             mode_array[i, j, k] = counts.most_common(1)[0][0]

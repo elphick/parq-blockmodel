@@ -168,6 +168,64 @@ def test_downsample_blockmodel_preserves_float32_attribute_dtype(tmp_path):
 
 
 @pytest.mark.integration
+def test_downsample_blockmodel_mode_ignores_missing_categorical_codes(tmp_path):
+    dense = create_demo_blockmodel(shape=(4, 4, 4), index_type="block_index").reset_index()
+    dense["fe"] = np.linspace(1.0, 2.0, len(dense))
+    dense["rock"] = np.where((dense["i"] + dense["j"] + dense["k"]) % 2 == 0, "shale", "sandstone")
+
+    keep = (dense["i"] % 2 == 0) & (dense["j"] % 2 == 0) & (dense["k"] % 2 == 0)
+    sparse = dense.loc[keep, ["x", "y", "z", "fe", "rock"]].set_index(["x", "y", "z"])
+
+    reference = ParquetBlockModel.create_demo_block_model(
+        tmp_path / "downsample_sparse_mode_reference.parquet",
+        shape=(4, 4, 4),
+    )
+    pbm = ParquetBlockModel.from_dataframe(
+        sparse,
+        tmp_path / "downsample_sparse_mode_source.parquet",
+        geometry=reference.geometry,
+        overwrite=True,
+    )
+
+    downsampled = pbm.downsample(
+        (2.0, 2.0, 2.0),
+        {
+            "fe": {"method": "mean"},
+            "rock": {"method": "mode"},
+        },
+    )
+    out = downsampled.read(columns=["fe", "rock"], index="ijk", dense=True)
+
+    fe_nans = out["fe"].isna().sum()
+    rock_nans = out["rock"].isna().sum()
+
+    assert fe_nans == 0
+    assert rock_nans == 0
+    assert fe_nans == rock_nans
+
+
+@pytest.mark.integration
+def test_downsample_blockmodel_weighted_mean_all_nan_values_remain_nan(tmp_path):
+    df = create_demo_blockmodel(shape=(4, 4, 4), index_type="world_centroids")
+    df["grade"] = np.nan
+    df["tonnes"] = 1.0
+
+    pbm = ParquetBlockModel.from_dataframe(
+        df[["grade", "tonnes"]],
+        tmp_path / "downsample_weighted_mean_all_nan.parquet",
+    )
+
+    downsampled = pbm.downsample(
+        (2.0, 2.0, 2.0),
+        {
+            "grade": {"method": "weighted_mean", "basis": "tonnes"},
+        },
+    )
+    out = downsampled.read(columns=["grade"], index="ijk", dense=True)
+    assert out["grade"].isna().all()
+
+
+@pytest.mark.integration
 def test_downsample_blockmodel_accepts_calculated_basis_and_target(tmp_path):
     pytest.importorskip("df_eval", reason="df-eval not installed")
     pandera = pytest.importorskip("pandera", reason="pandera not installed")
