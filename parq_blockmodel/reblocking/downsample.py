@@ -18,8 +18,8 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
     The `fill_ratio` key in aggregation_config indicates that the aggregation should be normalized
     by the fill ratio attribute specified.  This is useful when some blocks may be partially filled after reblocking.
 
-    The `replace` key is used in cased where the reblocking return 0 for missing data, but the user wants to convert
-    these back to NaN or another missing value indicator.
+    The `replace` key is used where users want to map specific aggregated
+    values (for example 0) to another missing value indicator such as NaN.
 
     Example:
         attributes = {
@@ -109,12 +109,14 @@ def downsample_attributes(attributes, fx, fy, fz, aggregation_config):
         if method == 'sum':
             data_numeric, restore_fn = to_numeric(data, operation="downsampling", attribute=attr)
             reshaped = data_numeric.reshape(new_shape).transpose(transpose_axes)
+            has_valid = np.isfinite(reshaped).any(axis=(3, 4, 5))
             if fill:
                 if fill_ratio is None:
                     raise ValueError(f"fill_ratio '{fill}' was requested but is not configured")
                 aggregated = np.nansum(reshaped, axis=(3, 4, 5), dtype=np.float64) / fill_ratio
             else:
                 aggregated = np.nansum(reshaped, axis=(3, 4, 5), dtype=np.float64)
+            aggregated = np.where(has_valid, aggregated, np.nan)
             result[attr] = restore_fn(aggregated)
 
         elif method == 'mean':

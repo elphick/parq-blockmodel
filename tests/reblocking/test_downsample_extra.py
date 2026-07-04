@@ -22,6 +22,28 @@ def test_downsample_sum_with_fill_ratio():
     assert np.isclose(result["data"][0, 0, 0], 8.0)
 
 
+def test_downsample_sum_all_nan_values_returns_nan():
+    data = np.full((2, 2, 2), np.nan, dtype=float)
+    attrs = {"data": data}
+    config = {"data": {"method": "sum"}}
+
+    result = downsample_attributes(attrs, 2, 2, 2, config)
+    assert np.isnan(result["data"][0, 0, 0])
+
+
+def test_downsample_sum_with_fill_ratio_all_nan_values_returns_nan():
+    data = np.full((2, 2, 2), np.nan, dtype=float)
+    fill = np.ones((2, 2, 2), dtype=float)
+    attrs = {"data": data, "fill": fill}
+    config = {
+        "data": {"method": "sum", "fill_ratio": "fill"},
+        "fill": {"method": "mean"},
+    }
+
+    result = downsample_attributes(attrs, 2, 2, 2, config)
+    assert np.isnan(result["data"][0, 0, 0])
+
+
 # ---------------------------------------------------------------------------
 # weighted_mean with fill_ratio
 # ---------------------------------------------------------------------------
