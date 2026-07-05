@@ -601,9 +601,19 @@ def test_plot_passes_frame_to_image_pyvista(tmp_path, monkeypatch):
 
         def add_mesh(self, *args, **kwargs):
             captured["mesh_call"] = "mesh"
+            return None
 
         def show_axes(self):
             captured["show_axes"] = True
+
+        def add_axes(self):
+            captured["show_axes"] = True
+
+        def set_directional_view(self, direction=None, **kwargs):
+            captured["view"] = direction
+
+        def enable_general_picking(self, *args, **kwargs):
+            captured["picking_enabled"] = True
 
         def add_text(self, text, position=None, font_size=None, name=None):
             if name is not None:
@@ -616,7 +626,7 @@ def test_plot_passes_frame_to_image_pyvista(tmp_path, monkeypatch):
             captured["picking_enabled"] = True
 
     monkeypatch.setattr(ParquetBlockModel, "to_pyvista", fake_to_pyvista)
-    monkeypatch.setattr(pv, "Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.blockmodel_plot.CustomPlotter", FakePlotter)
 
     plotter = pbm.plot(scalar=scalar, grid_type="image", frame="local", threshold=False)
 
@@ -654,8 +664,18 @@ def test_plot_categorical_passes_pyvista_category_args(tmp_path, monkeypatch):
 
         def add_mesh(self, *args, **kwargs):
             captured["kwargs"] = kwargs
+            return None
 
         def show_axes(self):
+            pass
+
+        def add_axes(self):
+            pass
+
+        def set_directional_view(self, direction=None, **kwargs):
+            pass
+
+        def enable_general_picking(self, *args, **kwargs):
             pass
 
         def add_text(self, text, position=None, font_size=None, name=None):
@@ -669,7 +689,7 @@ def test_plot_categorical_passes_pyvista_category_args(tmp_path, monkeypatch):
             pass
 
     monkeypatch.setattr(ParquetBlockModel, "to_pyvista", fake_to_pyvista)
-    monkeypatch.setattr(pv, "Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.blockmodel_plot.CustomPlotter", FakePlotter)
 
     pbm.plot(scalar=scalar, grid_type="image", threshold=False)
 
@@ -708,8 +728,18 @@ def test_plot_categorical_without_nan_keeps_scalarbar_clean(tmp_path, monkeypatc
 
         def add_mesh(self, *args, **kwargs):
             captured["kwargs"] = kwargs
+            return None
 
         def show_axes(self):
+            pass
+
+        def add_axes(self):
+            pass
+
+        def set_directional_view(self, direction=None, **kwargs):
+            pass
+
+        def enable_general_picking(self, *args, **kwargs):
             pass
 
         def add_text(self, text, position=None, font_size=None, name=None):
@@ -723,7 +753,7 @@ def test_plot_categorical_without_nan_keeps_scalarbar_clean(tmp_path, monkeypatc
             pass
 
     monkeypatch.setattr(ParquetBlockModel, "to_pyvista", fake_to_pyvista)
-    monkeypatch.setattr(pv, "Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.blockmodel_plot.CustomPlotter", FakePlotter)
 
     pbm.plot(scalar=scalar, grid_type="image", threshold=False)
 
@@ -756,14 +786,26 @@ def test_plot_picking_shows_categorical_labels(tmp_path, monkeypatch):
         def __init__(self):
             self.actors = {}
             self.title = None
+            self.meshes = []
 
-        def add_mesh_threshold(self, *args, **kwargs):
-            pass
+        def add_mesh_threshold(self, mesh, *args, **kwargs):
+            self.meshes.append(mesh)
+            return None
 
-        def add_mesh(self, *args, **kwargs):
-            pass
+        def add_mesh(self, mesh, *args, **kwargs):
+            self.meshes.append(mesh)
+            return None
 
         def show_axes(self):
+            pass
+
+        def add_axes(self):
+            pass
+
+        def set_directional_view(self, direction=None, **kwargs):
+            pass
+
+        def disable_picking(self):
             pass
 
         def add_text(self, text, position=None, font_size=None, name=None):
@@ -782,7 +824,7 @@ def test_plot_picking_shows_categorical_labels(tmp_path, monkeypatch):
         cell_data = {"vtkOriginalCellIds": np.array([0], dtype=np.int64)}
 
     monkeypatch.setattr(ParquetBlockModel, "to_pyvista", fake_to_pyvista)
-    monkeypatch.setattr(pv, "Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.blockmodel_plot.CustomPlotter", FakePlotter)
 
     pbm.plot(scalar=scalar, grid_type="image", threshold=False, enable_picking=True, picked_attributes=[scalar])
 

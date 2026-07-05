@@ -10,8 +10,6 @@ from parq_blockmodel import ParquetBlockModel
 from parq_blockmodel.visualization import BlockModelTrameApp, TrameBlockModelPlotEngine
 from parq_blockmodel.visualization.blockmodel_plot import (
     _add_elevation_overlay,
-    _register_z_up_rotation_lock,
-    _set_z_up_hotkey_state,
 )
 
 
@@ -22,6 +20,51 @@ class FakeEngine:
     def plot(self, blockmodel, **kwargs):
         self.calls.append((blockmodel, kwargs))
         return "engine-result"
+
+
+class BaseFakePlotter:
+    """Base fake plotter with all required CustomPlotter methods for testing."""
+    def __init__(self, *args, **kwargs):
+        self.actors = {}
+        self.title = None
+        self.picking_enabled = False
+        self.hotkey_pressed = {'z': False}
+
+    def clear(self):
+        self.actors.clear()
+
+    def add_mesh(self, mesh, **kwargs):
+        self.actors["blockmodel"] = mesh
+
+    def set_directional_view(self, direction=None, **kwargs):
+        return None
+
+    def view_isometric(self):
+        return None
+
+    def reset_camera_clipping_range(self):
+        return None
+
+    def add_axes(self):
+        return None
+
+    def render(self):
+        return None
+
+    def show(self, *args, **kwargs):
+        return None
+
+    def enforce_z_up(self):
+        return None
+
+    def setup_picking_with_callback(self, callback_func):
+        return None
+
+    def disable_picking(self):
+        return None
+
+    def remove_actor(self, name):
+        self.actors.pop(name, None)
 
 
 def test_blockmodel_plot_delegates_to_custom_engine(tmp_path):
@@ -94,10 +137,9 @@ def test_add_elevation_overlay_adds_textured_surface_and_toggle(monkeypatch):
         def texture_map_to_plane(self, inplace=True, use_bounds=True):
             self.mapped = bool(inplace and use_bounds)
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self):
             self.render_calls = 0
-
         def add_mesh(self, mesh, **kwargs):
             calls["add_mesh"].append((mesh, kwargs))
             return FakeActor()
@@ -110,6 +152,9 @@ def test_add_elevation_overlay_adds_textured_surface_and_toggle(monkeypatch):
 
         def render(self):
             self.render_calls += 1
+
+        def set_directional_view(self, direction=None, **kwargs):
+            return None
 
     fake_surface = FakeSurface()
     fake_plotter = FakePlotter()
@@ -138,103 +183,6 @@ def test_add_elevation_overlay_adds_textured_surface_and_toggle(monkeypatch):
     assert fake_plotter.render_calls == 1
 
 
-def test_register_z_up_rotation_lock_uses_turntable_style_while_held(monkeypatch):
-    callbacks = {}
-    style_changes = []
-
-    class FakeStyle:
-        def __init__(self, name):
-            self.name = name
-
-    class FakeInteractor:
-        def __init__(self):
-            self.current_style = FakeStyle("trackball")
-
-        def add_observer(self, event_name, callback):
-            callbacks[event_name] = callback
-
-        def GetInteractorStyle(self):
-            return self.current_style
-
-        def SetInteractorStyle(self, style):
-            style_changes.append(style)
-            self.current_style = style
-
-    class FakeCamera:
-        def __init__(self):
-            self.view_up = None
-            self.orthogonalized = 0
-
-        def SetViewUp(self, x, y, z):
-            self.view_up = (x, y, z)
-
-        def OrthogonalizeViewUp(self):
-            self.orthogonalized += 1
-
-    class FakePlotter:
-        def __init__(self):
-            self.iren = FakeInteractor()
-            self.camera = FakeCamera()
-            self.render_calls = 0
-            self.renderer = object()
-
-        def render(self):
-            self.render_calls += 1
-
-    class FakeEventSource:
-        def __init__(self, key):
-            self._key = key
-
-        def GetKeySym(self):
-            return self._key
-
-    class FakeTerrainStyle:
-        def __init__(self):
-            self.default_renderer = None
-
-        def SetDefaultRenderer(self, renderer):
-            self.default_renderer = renderer
-
-    monkeypatch.setattr(
-        "parq_blockmodel.visualization.blockmodel_plot.pv._vtk.vtkInteractorStyleTerrain",
-        FakeTerrainStyle,
-    )
-
-    plotter = FakePlotter()
-    original_style = plotter.iren.GetInteractorStyle()
-    _register_z_up_rotation_lock(plotter, hotkey="z")
-
-    callbacks["KeyPressEvent"](FakeEventSource("z"), None)
-    callbacks["InteractionEvent"](None, None)
-    callbacks["KeyReleaseEvent"](FakeEventSource("z"), None)
-
-    assert plotter.camera.view_up == (0, 0, 1)
-    assert plotter.camera.orthogonalized >= 1
-    assert plotter.render_calls >= 2
-    assert plotter._pbm_z_up_hotkey_down is False
-    assert plotter._pbm_z_up_turntable_active is False
-    assert isinstance(style_changes[0], FakeTerrainStyle)
-    assert style_changes[-1] is original_style
-
-
-def test_set_z_up_hotkey_state_toggles_registered_callbacks():
-    calls = []
-
-    class FakePlotter:
-        pass
-
-    plotter = FakePlotter()
-    plotter._pbm_z_up_callbacks_registered = True
-    plotter._pbm_z_up_enable_turntable_mode = lambda: calls.append("enable")
-    plotter._pbm_z_up_disable_turntable_mode = lambda: calls.append("disable")
-
-    _set_z_up_hotkey_state(plotter, True)
-    _set_z_up_hotkey_state(plotter, False)
-
-    assert plotter._pbm_z_up_hotkey_down is False
-    assert calls == ["enable", "disable"]
-
-
 def test_trame_plot_engine_returns_trame_app_with_z_up(tmp_path, monkeypatch):
     parquet_path = tmp_path / "engine_trame_source.parquet"
     pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
@@ -250,12 +198,14 @@ def test_trame_plot_engine_returns_trame_app_with_z_up(tmp_path, monkeypatch):
         def SetViewUp(self, *_):
             return None
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.iren = FakeInteractor()
+            super().__init__(*args, **kwargs)
             self.camera = FakeCamera()
             self.ren_win = object()
             self.actors = {}
+            self.hotkey_pressed = {'z': False}
 
         def clear(self):
             return None
@@ -278,7 +228,7 @@ def test_trame_plot_engine_returns_trame_app_with_z_up(tmp_path, monkeypatch):
         def show(self, *args, **kwargs):
             return None
 
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
     engine = TrameBlockModelPlotEngine()
     app = pbm.plot(
         scalar=pbm.available_attributes[0],
@@ -297,9 +247,10 @@ def test_trame_app_thresholding_updates_filtered_scene_without_mutating_pbm(tmp_
     pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(3, 3, 3))
     original_columns = list(pbm.columns)
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.actors = {}
+            super().__init__(*args, **kwargs)
             self.title = None
             self.last_mesh_n_cells = None
 
@@ -325,7 +276,7 @@ def test_trame_app_thresholding_updates_filtered_scene_without_mutating_pbm(tmp_
         def show(self, *args, **kwargs):
             return None
 
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
 
     app = BlockModelTrameApp(pbm, scalar=pbm.available_attributes[0], show_edges=False)
     app._load_plot_state(app._initial_scalar)
@@ -350,9 +301,10 @@ def test_trame_app_data_filter_uses_cached_column_values(tmp_path, monkeypatch):
     pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(3, 3, 3))
     filter_attribute = pbm.available_attributes[0]
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.actors = {}
+            super().__init__(*args, **kwargs)
 
         def clear(self):
             self.actors.clear()
@@ -375,7 +327,7 @@ def test_trame_app_data_filter_uses_cached_column_values(tmp_path, monkeypatch):
         def show(self, *args, **kwargs):
             return None
 
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
 
     app = BlockModelTrameApp(pbm, scalar=filter_attribute, show_edges=False)
     app._load_plot_state(app._initial_scalar)
@@ -406,9 +358,10 @@ def test_trame_app_reuses_cached_values_when_switching_attributes(tmp_path, monk
     attr1 = pbm.available_attributes[0]
     attr2 = pbm.available_attributes[1]
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.actors = {}
+            super().__init__(*args, **kwargs)
 
         def clear(self):
             self.actors.clear()
@@ -431,7 +384,7 @@ def test_trame_app_reuses_cached_values_when_switching_attributes(tmp_path, monk
         def show(self, *args, **kwargs):
             return None
 
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
 
     app = BlockModelTrameApp(pbm, scalar=attr1, show_edges=False)
     app._load_plot_state(app._initial_scalar)
@@ -458,9 +411,10 @@ def test_trame_app_accepts_initial_data_filter_bounds(tmp_path, monkeypatch):
     pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(3, 3, 3))
     filter_attribute = pbm.available_attributes[0]
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.actors = {}
+            super().__init__(*args, **kwargs)
 
         def clear(self):
             self.actors.clear()
@@ -483,7 +437,7 @@ def test_trame_app_accepts_initial_data_filter_bounds(tmp_path, monkeypatch):
         def show(self, *args, **kwargs):
             return None
 
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
 
     app = BlockModelTrameApp(
         pbm,
@@ -507,9 +461,10 @@ def test_trame_app_initial_preset_filter_keeps_initial_mesh_non_empty(monkeypatc
     pbm_path = tmp_path / "initial_filter_mesh.parquet"
     pbm = ParquetBlockModel.create_demo_block_model(filename=pbm_path, shape=(4, 4, 4))
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.actors = {}
+            super().__init__(*args, **kwargs)
             self.last_mesh_n_cells = None
 
         def clear(self):
@@ -531,7 +486,7 @@ def test_trame_app_initial_preset_filter_keeps_initial_mesh_non_empty(monkeypatc
         def render(self):
             return None
 
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
 
     app = BlockModelTrameApp(
         pbm,
@@ -550,9 +505,10 @@ def test_trame_app_respects_initial_threshold_value(monkeypatch, tmp_path):
     pbm_path = tmp_path / "initial_threshold_value.parquet"
     pbm = ParquetBlockModel.create_demo_block_model(filename=pbm_path, shape=(4, 4, 4))
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.actors = {}
+            super().__init__(*args, **kwargs)
 
         def clear(self):
             self.actors.clear()
@@ -572,7 +528,7 @@ def test_trame_app_respects_initial_threshold_value(monkeypatch, tmp_path):
         def render(self):
             return None
 
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
 
     app = BlockModelTrameApp(
         pbm,
@@ -597,9 +553,10 @@ def test_trame_file_startup_presets_survive_watcher_replay(monkeypatch, tmp_path
     threshold_value = float(np.nanmedian(scalar_values))
     filter_min = float(np.nanquantile(scalar_values, 0.25))
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.ren_win = object()
+            super().__init__(*args, **kwargs)
             self.actors = {}
 
         def clear(self):
@@ -686,6 +643,7 @@ def test_trame_file_startup_presets_survive_watcher_replay(monkeypatch, tmp_path
         VSelect=lambda *args, **kwargs: DummyContext(),
         VSlider=lambda *args, **kwargs: DummyContext(),
         VRangeSlider=lambda *args, **kwargs: DummyContext(),
+        VDialog=lambda *args, **kwargs: DummyContext(),
         VBtn=lambda *args, **kwargs: DummyContext(),
         VAppBar=lambda *args, **kwargs: DummyContext(),
         VAppBarNavIcon=lambda *args, **kwargs: DummyContext(),
@@ -719,7 +677,7 @@ def test_trame_file_startup_presets_survive_watcher_replay(monkeypatch, tmp_path
     monkeypatch.setitem(sys.modules, "trame.ui", fake_trame_ui)
     monkeypatch.setitem(sys.modules, "trame.ui.vuetify", fake_trame_ui_vuetify)
     monkeypatch.setitem(sys.modules, "trame.widgets", fake_trame_widgets)
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
 
     app = BlockModelTrameApp.from_pbm_file(
         pbm_path,
@@ -761,9 +719,10 @@ def test_trame_app_supports_categorical_data_filter(tmp_path, monkeypatch):
     df.to_parquet(parquet_path, index=False)
     pbm = ParquetBlockModel.from_parquet(parquet_path)
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.actors = {}
+            super().__init__(*args, **kwargs)
             self.last_mesh_n_cells = None
 
         def clear(self):
@@ -788,7 +747,7 @@ def test_trame_app_supports_categorical_data_filter(tmp_path, monkeypatch):
         def show(self, *args, **kwargs):
             return None
 
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
 
     app = BlockModelTrameApp(pbm, scalar=pbm.available_attributes[0], show_edges=False)
     app._load_plot_state(app._initial_scalar)
@@ -808,9 +767,10 @@ def test_trame_app_data_filter_summary_tracks_selected_values(tmp_path, monkeypa
     pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(3, 3, 3))
     attr = pbm.available_attributes[0]
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.actors = {}
+            super().__init__(*args, **kwargs)
 
         def clear(self):
             self.actors.clear()
@@ -833,7 +793,7 @@ def test_trame_app_data_filter_summary_tracks_selected_values(tmp_path, monkeypa
         def show(self, *args, **kwargs):
             return None
 
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
 
     app = BlockModelTrameApp(pbm, scalar=attr, show_edges=False)
     app._load_plot_state(app._initial_scalar)
@@ -854,9 +814,10 @@ def test_trame_app_renders_categorical_attributes(tmp_path, monkeypatch):
     df.to_parquet(parquet_path, index=False)
     pbm = ParquetBlockModel.from_parquet(parquet_path)
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.actors = {}
+            super().__init__(*args, **kwargs)
             self.title = None
             self.last_mesh_n_cells = None
 
@@ -882,7 +843,7 @@ def test_trame_app_renders_categorical_attributes(tmp_path, monkeypatch):
         def show(self, *args, **kwargs):
             return None
 
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
 
     app = BlockModelTrameApp(pbm, scalar="rock_type", show_edges=False)
     app._load_plot_state("rock_type")
@@ -897,9 +858,10 @@ def test_trame_app_discretises_continuous_values_to_deciles(tmp_path, monkeypatc
     parquet_path = tmp_path / "decile_source.parquet"
     pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(3, 3, 3))
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.actors = {}
+            super().__init__(*args, **kwargs)
             self.last_kwargs = {}
             self.last_mesh = None
 
@@ -926,7 +888,7 @@ def test_trame_app_discretises_continuous_values_to_deciles(tmp_path, monkeypatc
         def show(self, *args, **kwargs):
             return None
 
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
 
     app = BlockModelTrameApp(pbm, scalar=pbm.available_attributes[0], show_edges=False)
     app._load_plot_state(app._initial_scalar)
@@ -1148,9 +1110,10 @@ def test_trame_example_uses_hive_file_for_file_mode(monkeypatch, tmp_path):
 
 
 def test_trame_hive_directory_starts_without_blockmodel(tmp_path, monkeypatch):
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             pass
+            super().__init__(*args, **kwargs)
 
         def clear(self):
             return None
@@ -1173,7 +1136,7 @@ def test_trame_hive_directory_starts_without_blockmodel(tmp_path, monkeypatch):
         def show(self, *args, **kwargs):
             return None
 
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
     monkeypatch.setattr(
         "parq_blockmodel.visualization.trame_app.HivePbmCatalog.discover",
         staticmethod(lambda root_path: SimpleNamespace(assets=[])),
@@ -1189,9 +1152,10 @@ def test_trame_reset_model_view_clears_loaded_state(tmp_path, monkeypatch):
     parquet_path = tmp_path / "reset_source.parquet"
     pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.cleared = False
+            super().__init__(*args, **kwargs)
 
         def clear(self):
             self.cleared = True
@@ -1214,7 +1178,7 @@ def test_trame_reset_model_view_clears_loaded_state(tmp_path, monkeypatch):
         def show(self, *args, **kwargs):
             return None
 
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
 
     app = BlockModelTrameApp(pbm, scalar=pbm.available_attributes[0], show_edges=False)
     app._load_plot_state(app._initial_scalar)
@@ -1236,9 +1200,10 @@ def test_trame_reset_model_view_preserves_filter_presets_for_hive_transition(tmp
     pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
     attr = pbm.available_attributes[0]
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.cleared = False
+            super().__init__(*args, **kwargs)
 
         def clear(self):
             self.cleared = True
@@ -1261,7 +1226,7 @@ def test_trame_reset_model_view_preserves_filter_presets_for_hive_transition(tmp
         def show(self, *args, **kwargs):
             return None
 
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
 
     app = BlockModelTrameApp(
         blockmodel=None,
@@ -1284,9 +1249,10 @@ def test_trame_refresh_plot_uses_default_camera_on_first_render(tmp_path, monkey
     parquet_path = tmp_path / "camera_source.parquet"
     pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
-            self.view_isometric_calls = 0
+            self.set_directional_view_calls = 0
+            super().__init__(*args, **kwargs)
             self.camera_position = ("preset",)
 
         def clear(self):
@@ -1295,9 +1261,9 @@ def test_trame_refresh_plot_uses_default_camera_on_first_render(tmp_path, monkey
         def add_mesh(self, *args, **kwargs):
             return None
 
-        def view_isometric(self):
-            self.view_isometric_calls += 1
-            self.camera_position = ("isometric", self.view_isometric_calls)
+        def set_directional_view(self, direction=None, **kwargs):
+            self.set_directional_view_calls += 1
+            self.camera_position = ("directional_view", self.set_directional_view_calls)
 
         def reset_camera_clipping_range(self):
             return None
@@ -1311,17 +1277,17 @@ def test_trame_refresh_plot_uses_default_camera_on_first_render(tmp_path, monkey
         def show(self, *args, **kwargs):
             return None
 
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
 
     app = BlockModelTrameApp(pbm, scalar=pbm.available_attributes[0], show_edges=False)
     app._load_plot_state(app._initial_scalar)
     app._refresh_plot(preserve_camera=True)
-    assert app.plotter.view_isometric_calls == 1
-    assert app.plotter.camera_position == ("isometric", 1)
+    assert app.plotter.set_directional_view_calls == 1
+    assert app.plotter.camera_position == ("directional_view", 1)
 
     app.plotter.camera_position = ("custom", 42)
     app._refresh_plot(preserve_camera=True)
-    assert app.plotter.view_isometric_calls == 1
+    assert app.plotter.set_directional_view_calls == 1
     assert app.plotter.camera_position == ("custom", 42)
 
 
@@ -1329,9 +1295,10 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
     parquet_path = tmp_path / "trame_source.parquet"
     pbm = ParquetBlockModel.create_demo_block_model(filename=parquet_path, shape=(2, 2, 2))
 
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.ren_win = object()
+            super().__init__(*args, **kwargs)
 
         def clear(self):
             return None
@@ -1457,6 +1424,7 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
         VSelect=make_widget,
         VSlider=make_widget,
         VRangeSlider=make_widget,
+        VDialog=make_widget,
         VBtn=make_widget,
         VAppLayout=FakeLayout,
         VAppBar=make_widget,
@@ -1492,7 +1460,7 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "trame.ui", fake_trame_ui)
     monkeypatch.setitem(sys.modules, "trame.ui.vuetify", fake_trame_ui_vuetify)
     monkeypatch.setitem(sys.modules, "trame.widgets", fake_trame_widgets)
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
     monkeypatch.setattr(
         "parq_blockmodel.visualization.trame_app.HivePbmCatalog.discover",
         staticmethod(
@@ -1529,7 +1497,6 @@ def test_trame_launch_requests_vue2_client_type(tmp_path, monkeypatch):
     assert calls["toolbar_dark"] is False
     assert ("z", "ZUpKeyDown", False, "keydown") in mouse_bindings
     assert ("z", "ZUpKeyUp", False, "keyup") in mouse_bindings
-    assert calls["remote_view_kwargs"]["interactor_events"][1] == ["KeyDown", "KeyPress", "KeyUp"]
     assert callable(calls["remote_view_kwargs"]["KeyDown"])
     assert callable(calls["remote_view_kwargs"]["KeyUp"])
     assert fake_state.source_mode == "file"
@@ -1560,9 +1527,10 @@ def test_trame_plot_engine_forwards_launch_host(tmp_path, monkeypatch):
 
 
 def test_trame_hive_launch_keeps_preset_controls_without_loading_asset(tmp_path, monkeypatch):
-    class FakePlotter:
+    class FakePlotter(BaseFakePlotter):
         def __init__(self, *args, **kwargs):
             self.add_mesh_calls = 0
+            super().__init__(*args, **kwargs)
             self.ren_win = object()
 
         def clear(self):
@@ -1656,6 +1624,7 @@ def test_trame_hive_launch_keeps_preset_controls_without_loading_asset(tmp_path,
         VSelect=lambda *args, **kwargs: DummyContext(),
         VSlider=lambda *args, **kwargs: DummyContext(),
         VRangeSlider=lambda *args, **kwargs: DummyContext(),
+        VDialog=lambda *args, **kwargs: DummyContext(),
         VBtn=lambda *args, **kwargs: DummyContext(),
         VAppBar=lambda *args, **kwargs: DummyContext(),
         VAppBarNavIcon=lambda *args, **kwargs: DummyContext(),
@@ -1689,7 +1658,7 @@ def test_trame_hive_launch_keeps_preset_controls_without_loading_asset(tmp_path,
     monkeypatch.setitem(sys.modules, "trame.ui", fake_trame_ui)
     monkeypatch.setitem(sys.modules, "trame.ui.vuetify", fake_trame_ui_vuetify)
     monkeypatch.setitem(sys.modules, "trame.widgets", fake_trame_widgets)
-    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.pv.Plotter", FakePlotter)
+    monkeypatch.setattr("parq_blockmodel.visualization.trame_app.CustomPlotter", FakePlotter)
     monkeypatch.setattr(
         "parq_blockmodel.visualization.trame_app.HivePbmCatalog.discover",
         staticmethod(

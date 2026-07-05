@@ -13,14 +13,12 @@ import pandas as pd
 import pyvista as pv
 
 from parq_blockmodel.utils.pyvista.categorical_utils import load_mapping_dict
+from parq_blockmodel.utils.pyvista.custom_plotter import CustomPlotter
 from parq_blockmodel.visualization.blockmodel_plot import (
     BlockModelPlotState,
     _bin_to_deciles,
     _calculate_deciles,
-    _normalize_z_up_hotkey,
     _plotter_add_mesh_kwargs,
-    _register_z_up_rotation_lock,
-    _set_z_up_hotkey_state,
     prepare_plot_state,
 )
 from parq_blockmodel.visualization.asset_selector import HivePbmCatalog
@@ -99,7 +97,7 @@ class BlockModelTrameApp:
         self.title = title or (blockmodel.name if blockmodel else "")
         self.show_edges = show_edges
         self.z_up_lock = bool(z_up_lock)
-        self.z_up_hotkey = _normalize_z_up_hotkey(z_up_hotkey)
+        self.z_up_hotkey = str(z_up_hotkey).strip().lower()
         self.app_name = str(app_name)
         self._initial_scalar = scalar or (self._default_scalar() if blockmodel is not None else "")
         self._initial_threshold_value = (
@@ -123,12 +121,11 @@ class BlockModelTrameApp:
         self.state: Optional[BlockModelPlotState] = None
         self.threshold: Optional[ThresholdRange] = None
         self.filter_enabled = False
+        self.show_model_bounds = False
         self.colormap = "jet"
         self.discretize_deciles = False
         self.available_colormaps: list[str] = []
-        self.plotter = pv.Plotter(off_screen=True)
-        if self.z_up_lock:
-            _register_z_up_rotation_lock(self.plotter, self.z_up_hotkey)
+        self.plotter = CustomPlotter(off_screen=True)
         self._remote_view = None
         self._server = None
         self._syncing_state = False
@@ -137,6 +134,9 @@ class BlockModelTrameApp:
         self._filter_attribute_options: list[str] = []
         self._filter_attribute_cache: dict[str, np.ndarray] = {}
         self._filter_category_code_to_label: dict[str, dict[float, str]] = {}
+        self._active_display_mesh: Optional[pv.DataSet] = None
+        self._pick_debug_count = 0
+        self._pick_debug_last = ""
         self._data_filters = [
             DataFilterSlot(
                 attribute=str(data_filter_1_attribute or ""),
@@ -860,6 +860,144 @@ class BlockModelTrameApp:
             svg_text = Path(brand_logo_path).read_text(encoding="utf-8")
         return "data:image/svg+xml;charset=utf-8," + quote(svg_text)
 
+    def _setup_picking_callback(self):
+        """Create and setup cell picking callback with categorical support."""
+        if self.state is None:
+            return
+
+        def _push_pick_state(
+            *,
+            dialog_open: Optional[bool] = None,
+            dialog_text: Optional[str] = None,
+            debug_text: Optional[str] = None,
+        ) -> None:
+            if self._server is None:
+                return
+            state = self._server.state
+            changed_keys: list[str] = []
+            if dialog_open is not None:
+                state.picking_dialog_open = bool(dialog_open)
+                changed_keys.append("picking_dialog_open")
+            if dialog_text is not None:
+                state.picking_dialog_text = str(dialog_text)
+                changed_keys.append("picking_dialog_text")
+            if debug_text is not None:
+                state.picking_debug_last = str(debug_text)
+                changed_keys.append("picking_debug_last")
+            state.picking_debug_count = int(self._pick_debug_count)
+            changed_keys.append("picking_debug_count")
+
+            if hasattr(state, "dirty"):
+                for key in changed_keys:
+                    try:
+                        state.dirty(key)
+                    except Exception:
+                        break
+            if hasattr(state, "flush"):
+                try:
+                    state.flush()
+                except Exception:
+                    pass
+
+        def _extract_cell_id_from_pick(picked_cell) -> Optional[int]:
+            def _to_int(value: object) -> Optional[int]:
+                try:
+                    arr = np.asarray(value).ravel()
+                    if arr.size == 0:
+                        return None
+                    cell_id = int(np.rint(float(arr[0])))
+                except (TypeError, ValueError):
+                    return None
+                return cell_id if cell_id >= 0 else None
+
+            data_sources = []
+            if isinstance(picked_cell, dict):
+                data_sources.append(picked_cell)
+            for attr_name in ("cell_data", "point_data", "field_data"):
+                data = getattr(picked_cell, attr_name, None)
+                if data is not None:
+                    data_sources.append(data)
+
+            id_keys = (
+                "vtkOriginalCellIds",
+                "vtkOriginalCellId",
+                "vtkCellIds",
+                "cell_ids",
+                "cellIds",
+                "cell_id",
+                "cellId",
+                "id",
+            )
+            for source in data_sources:
+                for key in id_keys:
+                    try:
+                        if key in source:
+                            maybe_id = _to_int(source[key])
+                            if maybe_id is not None:
+                                return maybe_id
+                    except Exception:
+                        continue
+
+            for attr_name in ("cell_id", "cellId", "id"):
+                maybe_id = _to_int(getattr(picked_cell, attr_name, None))
+                if maybe_id is not None:
+                    return maybe_id
+
+            return None
+
+        def cell_callback(picked_cell):
+            if self.state is None:
+                return
+            self._pick_debug_count += 1
+            picked_cells = int(getattr(picked_cell, "n_cells", 0) or 0)
+            cell_id = _extract_cell_id_from_pick(picked_cell)
+            payload_keys: list[str] = []
+            for source_name in ("cell_data", "point_data", "field_data"):
+                source = getattr(picked_cell, source_name, None)
+                try:
+                    if source is not None and hasattr(source, "keys"):
+                        payload_keys.extend([f"{source_name}.{k}" for k in list(source.keys())[:4]])
+                except Exception:
+                    continue
+            self._pick_debug_last = (
+                f"count={self._pick_debug_count}, n_cells={picked_cells}, cell_id={cell_id}, "
+                f"keys={payload_keys[:6]}"
+            )
+
+            if picked_cells != 1 or cell_id is None or cell_id >= self.state.mesh.n_cells:
+                _push_pick_state(
+                    dialog_open=False,
+                    dialog_text="",
+                    debug_text=self._pick_debug_last,
+                )
+                return
+
+            cell_centers = self.state.mesh.cell_centers().points
+            centroid = cell_centers[cell_id]
+            centroid_str = f"({centroid[0]:.1f}, {centroid[1]:.1f}, {centroid[2]:.1f})"
+            values: dict[str, object] = {}
+            for attr in self.state.attributes:
+                raw_value = self.state.mesh.cell_data[attr][cell_id]
+                if attr in self.state.categorical_mappings:
+                    if pd.isna(raw_value):
+                        values[attr] = "<NA>"
+                    else:
+                        code = int(np.rint(float(raw_value)))
+                        values[attr] = self.state.categorical_mappings[attr].get(code, f"<unknown:{code}>")
+                else:
+                    values[attr] = raw_value
+            msg = f"Cell ID: {cell_id}, {centroid_str}, " + ", ".join(
+                f"{k}: {v}" for k, v in values.items()
+            )
+
+            _push_pick_state(
+                dialog_open=True,
+                dialog_text=msg,
+                debug_text=self._pick_debug_last,
+            )
+
+        self.plotter.setup_picking_with_callback(cell_callback)
+
     def _filtered_mesh(self) -> pv.DataSet:
         if self.state is None:
             raise RuntimeError("Plot state has not been loaded yet.")
@@ -915,6 +1053,7 @@ class BlockModelTrameApp:
             camera_position = getattr(self.plotter, "camera_position", None)
         self.plotter.clear()
         mesh = self._filtered_mesh()
+        self._active_display_mesh = mesh
         is_decile_mode = self.discretize_deciles and not self.state.scalar_is_categorical
         decile_edges: Optional[np.ndarray] = None
         scalar_for_coloring = self.state.scalar
@@ -937,13 +1076,25 @@ class BlockModelTrameApp:
                 mesh_kwargs["clim"] = (float(np.min(finite_values)), float(np.max(finite_values)))
 
         self.plotter.add_mesh(mesh, name="blockmodel", **mesh_kwargs)
+        if self.show_model_bounds:
+            outline = mesh.outline()
+            self.plotter.add_mesh(
+                outline,
+                color="dodgerblue",
+                line_width=2,
+                name="model_bounds",
+            )
         self.plotter.title = self.title
         self.plotter.add_axes()
         if preserve_camera and camera_position not in (None, []):
             self.plotter.camera_position = camera_position
         else:
-            self.plotter.view_isometric()
+            self.plotter.set_directional_view(direction='WSW', elevation_deg=30)
         self.plotter.reset_camera_clipping_range()
+        if bool(getattr(self.plotter, "hotkey_pressed", {}).get("z")):
+            self.plotter.enforce_z_up()
+        if bool(getattr(self.plotter, "picking_enabled", False)):
+            self._setup_picking_callback()
         self.plotter.render()
         self._view_initialized = True
         if self._remote_view is not None:
@@ -963,6 +1114,8 @@ class BlockModelTrameApp:
         self._filter_attribute_options = []
         self._clear_filter_cache()
         self._view_initialized = False
+        self.set_picking_active(False)
+        self._active_display_mesh = None
         self.plotter.clear()
         if self._remote_view is not None:
             self._remote_view.update()
@@ -976,6 +1129,12 @@ class BlockModelTrameApp:
             state.threshold_display = self._format_threshold(self.threshold.value)
             state.threshold_step = self.threshold.step
             state.filter_active = False
+            state.picking_active = False
+            state.picking_dialog_open = False
+            state.picking_dialog_text = ""
+            state.picking_debug_count = int(self._pick_debug_count)
+            state.picking_debug_last = self._pick_debug_last
+            state.show_model_bounds = self.show_model_bounds
             if preserve_presets:
                 self._refresh_filter_options()
                 self._sync_data_filter_state()
@@ -1374,6 +1533,35 @@ class BlockModelTrameApp:
         if self._server is not None:
             self._server.state.discretize_deciles = self.discretize_deciles
 
+    def set_picking_active(self, enabled: bool) -> None:
+        enabled = bool(enabled)
+        if not hasattr(self.plotter, "picking_enabled"):
+            return
+        if enabled and not self.plotter.picking_enabled:
+            self._setup_picking_callback()
+            self.plotter.picking_enabled = True
+            self._pick_debug_last = "Picking enabled"
+        elif not enabled and self.plotter.picking_enabled:
+            self.plotter.disable_picking()
+            self.plotter.picking_enabled = False
+            if self._server is not None:
+                self._server.state.picking_dialog_open = False
+                self._server.state.picking_dialog_text = ""
+            self._pick_debug_last = "Picking disabled"
+        if self._server is not None:
+            self._server.state.picking_active = self.plotter.picking_enabled
+            self._server.state.picking_debug_count = int(self._pick_debug_count)
+            self._server.state.picking_debug_last = self._pick_debug_last
+        self.plotter.render()
+        if self._remote_view is not None:
+            self._remote_view.update()
+
+    def set_show_model_bounds(self, enabled: bool) -> None:
+        self.show_model_bounds = bool(enabled)
+        self._refresh_plot(preserve_camera=self._view_initialized)
+        if self._server is not None:
+            self._server.state.show_model_bounds = self.show_model_bounds
+
     def _get_available_colormaps(self) -> list[str]:
         try:
             import matplotlib.pyplot as plt
@@ -1455,6 +1643,12 @@ class BlockModelTrameApp:
         try:
             state.source_mode = self._source_mode
             state.source_path_input = self._source_path
+            state.picking_dialog_open = False
+            state.picking_dialog_text = ""
+            state.picking_debug_count = int(self._pick_debug_count)
+            state.picking_debug_last = self._pick_debug_last
+            state.picking_active = bool(getattr(self.plotter, "picking_enabled", False))
+            state.show_model_bounds = self.show_model_bounds
             # For hive mode, skip initial blockmodel load - user will select via dropdowns
             if not self._skip_initial_blockmodel_load:
                 self.load_blockmodel(self.blockmodel, preferred_scalar=self._initial_scalar)
@@ -1592,6 +1786,22 @@ class BlockModelTrameApp:
                 return
             self.set_discretize_deciles(bool(discretize_deciles))
 
+        @state.change("picking_active")
+        def _picking_active_changed(picking_active=None, **_):
+            if self._syncing_state or picking_active is None:
+                return
+            if bool(picking_active) == bool(getattr(self.plotter, "picking_enabled", False)):
+                return
+            self.set_picking_active(bool(picking_active))
+
+        @state.change("show_model_bounds")
+        def _show_model_bounds_changed(show_model_bounds=None, **_):
+            if self._syncing_state or show_model_bounds is None:
+                return
+            if bool(show_model_bounds) == self.show_model_bounds:
+                return
+            self.set_show_model_bounds(bool(show_model_bounds))
+
         ctrl.update_attribute = _attribute_changed
         ctrl.update_threshold = _threshold_changed
         ctrl.update_colormap = _colormap_changed
@@ -1602,6 +1812,8 @@ class BlockModelTrameApp:
         ctrl.update_data_filter_2_range = _data_filter_2_range_changed
         ctrl.update_data_filter_1_categories = _data_filter_1_categories_changed
         ctrl.update_data_filter_2_categories = _data_filter_2_categories_changed
+        ctrl.update_picking_active = _picking_active_changed
+        ctrl.update_show_model_bounds = _show_model_bounds_changed
         def _apply_threshold_text(**_):
             if self._syncing_state or self._server is None:
                 return
@@ -1612,6 +1824,355 @@ class BlockModelTrameApp:
         ctrl.reset_data_filter_1 = lambda **_: self.reset_data_filter(0)
         ctrl.reset_data_filter_2 = lambda **_: self.reset_data_filter(1)
         ctrl.update_asset_name = lambda **_: None
+        ctrl.close_picking_dialog = lambda **_: setattr(state, "picking_dialog_open", False)
+
+        def _push_pick_state(
+            *,
+            dialog_open: Optional[bool] = None,
+            dialog_text: Optional[str] = None,
+            debug_text: Optional[str] = None,
+        ) -> None:
+            changed_keys: list[str] = []
+            if dialog_open is not None:
+                state.picking_dialog_open = bool(dialog_open)
+                changed_keys.append("picking_dialog_open")
+            if dialog_text is not None:
+                state.picking_dialog_text = str(dialog_text)
+                changed_keys.append("picking_dialog_text")
+            if debug_text is not None:
+                state.picking_debug_last = str(debug_text)
+                changed_keys.append("picking_debug_last")
+            state.picking_debug_count = int(self._pick_debug_count)
+            changed_keys.append("picking_debug_count")
+
+            if hasattr(state, "dirty"):
+                for key in changed_keys:
+                    try:
+                        state.dirty(key)
+                    except Exception:
+                        break
+            if hasattr(state, "flush"):
+                try:
+                    state.flush()
+                except Exception:
+                    pass
+
+        def _extract_exact_cell_id_from_event(event_payload=None, **kwargs) -> Optional[int]:
+            def _to_int(value: object) -> Optional[int]:
+                try:
+                    arr = np.asarray(value).ravel()
+                    if arr.size == 0:
+                        return None
+                    cell_id = int(np.rint(float(arr[0])))
+                except (TypeError, ValueError):
+                    return None
+                return cell_id if cell_id >= 0 else None
+
+            def _walk(obj):
+                if isinstance(obj, dict):
+                    yield obj
+                    for v in obj.values():
+                        yield from _walk(v)
+                elif isinstance(obj, (list, tuple)):
+                    for item in obj:
+                        yield from _walk(item)
+
+            id_keys = (
+                "vtkOriginalCellIds",
+                "vtkOriginalCellId",
+                "vtkCellIds",
+                "cell_ids",
+                "cellIds",
+                "cell_id",
+                "cellId",
+                "id",
+            )
+
+            containers = []
+            if event_payload is not None:
+                containers.append(event_payload)
+            if kwargs:
+                containers.append(kwargs)
+
+            for container in containers:
+                for mapping in _walk(container):
+                    for key in id_keys:
+                        if key in mapping:
+                            maybe_id = _to_int(mapping[key])
+                            if maybe_id is not None:
+                                return maybe_id
+            return None
+
+        def _extract_world_position_from_event(event_payload=None, **kwargs) -> Optional[np.ndarray]:
+            def _to_xyz(value: object) -> Optional[np.ndarray]:
+                if isinstance(value, dict):
+                    if {"x", "y", "z"} <= set(value.keys()):
+                        try:
+                            return np.asarray(
+                                [float(value["x"]), float(value["y"]), float(value["z"])],
+                                dtype=float,
+                            )
+                        except (TypeError, ValueError):
+                            return None
+                try:
+                    arr = np.asarray(value, dtype=float).ravel()
+                except (TypeError, ValueError):
+                    return None
+                if arr.size < 3:
+                    return None
+                return arr[:3]
+
+            def _walk(obj):
+                if isinstance(obj, dict):
+                    yield obj
+                    for v in obj.values():
+                        yield from _walk(v)
+                elif isinstance(obj, (list, tuple)):
+                    for item in obj:
+                        yield from _walk(item)
+
+            position_keys = (
+                "worldPosition",
+                "world_position",
+                "position",
+                "coords",
+                "point",
+                "xyz",
+            )
+
+            containers = []
+            if event_payload is not None:
+                containers.append(event_payload)
+            if kwargs:
+                containers.append(kwargs)
+
+            for container in containers:
+                for mapping in _walk(container):
+                    for key in position_keys:
+                        if key in mapping:
+                            pos = _to_xyz(mapping[key])
+                            if pos is not None:
+                                return pos
+                    if {"x", "y", "z"} <= set(mapping.keys()):
+                        pos = _to_xyz(mapping)
+                        if pos is not None:
+                            return pos
+            return None
+
+        def _extract_display_position_from_event(event_payload=None, **kwargs) -> Optional[tuple[float, float]]:
+            def _to_xy(value: object) -> Optional[tuple[float, float]]:
+                if isinstance(value, dict):
+                    if {"x", "y"} <= set(value.keys()):
+                        try:
+                            return (float(value["x"]), float(value["y"]))
+                        except (TypeError, ValueError):
+                            return None
+                try:
+                    arr = np.asarray(value, dtype=float).ravel()
+                except (TypeError, ValueError):
+                    return None
+                if arr.size < 2:
+                    return None
+                return (float(arr[0]), float(arr[1]))
+
+            def _to_rect(value: object) -> Optional[dict[str, float]]:
+                if not isinstance(value, dict):
+                    return None
+                required = ("left", "top", "width", "height")
+                if not all(k in value for k in required):
+                    return None
+                try:
+                    return {
+                        "left": float(value["left"]),
+                        "top": float(value["top"]),
+                        "width": float(value["width"]),
+                        "height": float(value["height"]),
+                    }
+                except (TypeError, ValueError):
+                    return None
+
+            def _walk(obj):
+                if isinstance(obj, dict):
+                    yield obj
+                    for v in obj.values():
+                        yield from _walk(v)
+                elif isinstance(obj, (list, tuple)):
+                    for item in obj:
+                        yield from _walk(item)
+
+            pos_keys = (
+                "position",
+                "displayPosition",
+                "display_position",
+                "mouse",
+                "xy",
+                "display_xy",
+                "displayXY",
+                "canvasXY",
+            )
+            x_keys = ("offsetX", "clientX", "x", "screenX", "pageX")
+            y_keys = ("offsetY", "clientY", "y", "screenY", "pageY")
+
+            containers = []
+            if event_payload is not None:
+                containers.append(event_payload)
+            if kwargs:
+                containers.append(kwargs)
+
+            for container in containers:
+                for mapping in _walk(container):
+                    for key in pos_keys:
+                        if key in mapping:
+                            maybe = _to_xy(mapping[key])
+                            if maybe is not None:
+                                return maybe
+                    rect = None
+                    for rect_key in ("targetRect", "target_rect", "rect", "boundingRect", "bounding_rect"):
+                        if rect_key in mapping:
+                            rect = _to_rect(mapping[rect_key])
+                            if rect is not None:
+                                break
+                    x_val = None
+                    y_val = None
+                    for k in x_keys:
+                        if k in mapping:
+                            x_val = mapping[k]
+                            break
+                    for k in y_keys:
+                        if k in mapping:
+                            y_val = mapping[k]
+                            break
+                    if x_val is not None and y_val is not None:
+                        if (
+                            rect is not None
+                            and ("offsetX" not in mapping and "offsetY" not in mapping)
+                            and ("clientX" in mapping or "pageX" in mapping)
+                        ):
+                            try:
+                                x_val = float(x_val) - rect["left"]
+                                y_val = float(y_val) - rect["top"]
+                            except (TypeError, ValueError):
+                                pass
+                        maybe = _to_xy((x_val, y_val))
+                        if maybe is not None:
+                            return maybe
+            return None
+
+        def _summarize_pick_payload(event_payload=None, **kwargs) -> str:
+            keys: set[str] = set()
+            if isinstance(event_payload, dict):
+                keys.update(str(k) for k in event_payload.keys())
+            if kwargs:
+                keys.update(str(k) for k in kwargs.keys())
+            if not keys:
+                return "keys=none"
+            top = ",".join(sorted(keys)[:8])
+            return f"keys={top}"
+
+        def _resolve_cell_id_from_world_position(world_pos: np.ndarray) -> Optional[int]:
+            mesh = self._active_display_mesh
+            if mesh is None or mesh.n_cells <= 0:
+                return None
+            centers = mesh.cell_centers().points
+            if centers.size == 0:
+                return None
+            deltas = centers - np.asarray(world_pos, dtype=float)
+            distances = np.einsum("ij,ij->i", deltas, deltas)
+            nearest_local = int(np.argmin(distances))
+            if "vtkOriginalCellIds" in mesh.cell_data:
+                try:
+                    return int(np.rint(float(mesh.cell_data["vtkOriginalCellIds"][nearest_local])))
+                except (TypeError, ValueError, IndexError):
+                    return None
+            return nearest_local
+
+        def _resolve_cell_id_from_display_position(display_xy: tuple[float, float]) -> Optional[int]:
+            try:
+                vtk_mod = pv._vtk
+                picker = vtk_mod.vtkCellPicker()
+            except Exception:
+                return None
+
+            renderer = getattr(self.plotter, "renderer", None)
+            if renderer is None:
+                try:
+                    renderers = getattr(self.plotter, "renderers", None)
+                    if renderers is not None and len(renderers) > 0:
+                        renderer = renderers[0]
+                except Exception:
+                    renderer = None
+            if renderer is None:
+                return None
+
+            x, y = float(display_xy[0]), float(display_xy[1])
+            h = None
+            try:
+                h = int(getattr(self.plotter, "window_size", [0, 0])[1])
+            except Exception:
+                h = None
+
+            candidates = [(x, y)]
+            if h and h > 0:
+                candidates.append((x, float(max(h - y, 0))))
+
+            for cx, cy in candidates:
+                try:
+                    success = int(picker.Pick(cx, cy, 0.0, renderer))
+                except Exception:
+                    continue
+                if success <= 0:
+                    continue
+                local_id = int(picker.GetCellId())
+                if local_id < 0:
+                    continue
+                mesh = self._active_display_mesh
+                if mesh is not None and "vtkOriginalCellIds" in mesh.cell_data:
+                    try:
+                        return int(np.rint(float(mesh.cell_data["vtkOriginalCellIds"][local_id])))
+                    except (TypeError, ValueError, IndexError):
+                        return None
+                return local_id
+            return None
+
+        def _extract_display_position_from_interactor() -> Optional[tuple[float, float]]:
+            iren = getattr(self.plotter, "iren", None)
+            if iren is None:
+                return None
+            try:
+                pos = iren.GetEventPosition()
+            except Exception:
+                return None
+            if pos is None:
+                return None
+            try:
+                arr = np.asarray(pos, dtype=float).ravel()
+            except (TypeError, ValueError):
+                return None
+            if arr.size < 2:
+                return None
+            return (float(arr[0]), float(arr[1]))
+
+        def _build_pick_message(cell_id: int) -> Optional[str]:
+            if self.state is None:
+                return None
+            if cell_id < 0 or cell_id >= self.state.mesh.n_cells:
+                return None
+            cell_centers = self.state.mesh.cell_centers().points
+            centroid = cell_centers[cell_id]
+            centroid_str = f"({centroid[0]:.1f}, {centroid[1]:.1f}, {centroid[2]:.1f})"
+            values: dict[str, object] = {}
+            for attr in self.state.attributes:
+                raw_value = self.state.mesh.cell_data[attr][cell_id]
+                if attr in self.state.categorical_mappings:
+                    if pd.isna(raw_value):
+                        values[attr] = "<NA>"
+                    else:
+                        code = int(np.rint(float(raw_value)))
+                        values[attr] = self.state.categorical_mappings[attr].get(code, f"<unknown:{code}>")
+                else:
+                    values[attr] = raw_value
+            return f"Cell ID: {cell_id}, {centroid_str}, " + ", ".join(f"{k}: {v}" for k, v in values.items())
+
         def _extract_client_key(event_payload=None, **kwargs) -> str:
             values = []
             if isinstance(event_payload, dict):
@@ -1641,28 +2202,74 @@ class BlockModelTrameApp:
                     if 0 <= code <= 255:
                         return chr(code).lower()
                 key_text = str(value).strip().lower()
+                if key_text.startswith("key") and len(key_text) == 4:
+                    return key_text[-1]
                 if key_text:
                     return key_text
             return ""
 
         def _on_zup_key_down(event=None, **kwargs):
-            if not self.z_up_lock:
-                return
             key = _extract_client_key(event, **kwargs)
             if key and key != self.z_up_hotkey:
                 return
-            _set_z_up_hotkey_state(self.plotter, True)
+            if hasattr(self.plotter, 'hotkey_pressed'):
+                self.plotter.hotkey_pressed['z'] = True
+                self.plotter.enforce_z_up()
+                self.plotter.render()
+                if self._remote_view is not None:
+                    self._remote_view.update()
 
         def _on_zup_key_up(event=None, **kwargs):
-            if not self.z_up_lock:
-                return
             key = _extract_client_key(event, **kwargs)
             if key and key != self.z_up_hotkey:
                 return
-            _set_z_up_hotkey_state(self.plotter, False)
+            if hasattr(self.plotter, 'hotkey_pressed'):
+                self.plotter.hotkey_pressed['z'] = False
+
+        def _on_key_down(event=None, **kwargs):
+            key = _extract_client_key(event, **kwargs)
+            if not key:
+                return
+            if key == self.z_up_hotkey:
+                _on_zup_key_down(event, **kwargs)
+
+        def _on_pick_click(event=None, _source: str = "bridge", **kwargs):
+            if not bool(getattr(self.plotter, "picking_enabled", False)):
+                return
+            self._pick_debug_count += 1
+            cell_id = _extract_exact_cell_id_from_event(event, **kwargs)
+            world_pos = _extract_world_position_from_event(event, **kwargs)
+            if cell_id is None and world_pos is not None:
+                cell_id = _resolve_cell_id_from_world_position(world_pos)
+            display_xy = _extract_display_position_from_event(event, **kwargs)
+            if display_xy is None:
+                display_xy = _extract_display_position_from_interactor()
+            if cell_id is None and display_xy is not None:
+                cell_id = _resolve_cell_id_from_display_position(display_xy)
+            payload_summary = _summarize_pick_payload(event, **kwargs)
+            self._pick_debug_last = (
+                f"bridge count={self._pick_debug_count}, source={_source}, cell_id={cell_id}, "
+                f"world_pos={None if world_pos is None else np.round(world_pos, 3).tolist()}, "
+                f"display_xy={None if display_xy is None else [round(display_xy[0], 2), round(display_xy[1], 2)]}, "
+                f"{payload_summary}"
+            )
+            if cell_id is None:
+                _push_pick_state(dialog_open=False, dialog_text="", debug_text=self._pick_debug_last)
+                return
+            msg = _build_pick_message(cell_id)
+            if not msg:
+                _push_pick_state(dialog_open=False, dialog_text="", debug_text=self._pick_debug_last)
+                return
+            _push_pick_state(dialog_open=True, dialog_text=msg, debug_text=self._pick_debug_last)
+
+        def _on_pick_click_client(event=None, **kwargs):
+            _on_pick_click(event, _source="client", **kwargs)
 
         ctrl.zup_key_down = _on_zup_key_down
         ctrl.zup_key_up = _on_zup_key_up
+        ctrl.key_down = _on_key_down
+        ctrl.pick_click = _on_pick_click
+        ctrl.pick_click_client = _on_pick_click_client
         if self.asset_catalog is not None:
             self._register_asset_selector_handlers()
             self._syncing_state = True
@@ -1706,7 +2313,7 @@ class BlockModelTrameApp:
             with layout.drawer:
                 with vuetify.VSheet(classes="pa-2 fill-height"):
                     with vuetify.VExpansionPanels(
-                        v_model=("source_panel", [0]),
+                        v_model=("source_panel", [1]),
                         multiple=True,
                         focusable=True,
                         flat=True,
@@ -1995,33 +2602,101 @@ class BlockModelTrameApp:
                                     dense=True,
                                     hide_details=True,
                                 )
+                                vuetify.VCheckbox(
+                                    v_model=("picking_active", bool(getattr(self.plotter, "picking_enabled", False))),
+                                    label="Picking active",
+                                    dense=True,
+                                    hide_details=True,
+                                    change=ctrl.update_picking_active,
+                                )
+                                vuetify.VCheckbox(
+                                    v_model=("show_model_bounds", self.show_model_bounds),
+                                    label="Show model bounds",
+                                    dense=True,
+                                    hide_details=True,
+                                    change=ctrl.update_show_model_bounds,
+                                )
+                                vuetify.VChip(
+                                    "Pick events: {{ picking_debug_count }}",
+                                    label=True,
+                                    small=True,
+                                    outlined=True,
+                                    classes="mt-2",
+                                )
+                                vuetify.VChip(
+                                    "{{ picking_debug_last }}",
+                                    label=True,
+                                    small=True,
+                                    outlined=True,
+                                    classes="mt-2 text-caption text-truncate",
+                                    style="max-width: 100%;",
+                                )
             with layout.content:
                 layout.content.classes = "pa-0 ma-0"
                 layout.content.style = "height: calc(100vh - 64px); overflow: hidden;"
-                if self.z_up_lock and trame_widgets is not None:
+                if trame_widgets is not None:
                     key_trap = trame_widgets.MouseTrap(
                         ZUpKeyDown=ctrl.zup_key_down,
                         ZUpKeyUp=ctrl.zup_key_up,
                     )
-                    key_trap.bind("z", "ZUpKeyDown", listen_to="keydown")
-                    key_trap.bind("z", "ZUpKeyUp", listen_to="keyup")
+                    key_trap.bind(self.z_up_hotkey, "ZUpKeyDown", listen_to="keydown")
+                    key_trap.bind(self.z_up_hotkey, "ZUpKeyUp", listen_to="keyup")
+                with vuetify.VDialog(v_model=("picking_dialog_open", False), max_width=700):
+                    with vuetify.VCard():
+                        vuetify.VCardTitle("Picked Cell")
+                        vuetify.VCardText(
+                            "{{ picking_dialog_text }}",
+                            style="white-space: pre-wrap; word-break: break-word;",
+                        )
+                        with vuetify.VSheet(classes="pa-2 d-flex justify-end"):
+                            vuetify.VBtn(
+                                "Close",
+                                click=ctrl.close_picking_dialog,
+                                color="primary",
+                                text=True,
+                            )
                 remote_view_kwargs = {
                     "interactive_ratio": 1,
                     "style": "width: 100%; height: 100%; min-height: 600px;",
+                    "interactor_events": (
+                        "pbm_interactor_events",
+                        [
+                            "KeyDown",
+                            "KeyPress",
+                            "KeyUp",
+                            "LeftButtonPress",
+                            "LeftButtonRelease",
+                        ],
+                    ),
+                    "KeyDown": ctrl.key_down,
+                    "KeyPress": ctrl.zup_key_down,
+                    "KeyUp": ctrl.zup_key_up,
+                    "LeftButtonPress": ctrl.pick_click,
                 }
-                if self.z_up_lock:
-                    remote_view_kwargs.update(
-                        {
-                            "interactor_events": ("zup_interactor_events", ["KeyDown", "KeyPress", "KeyUp"]),
-                            "KeyDown": ctrl.zup_key_down,
-                            "KeyPress": ctrl.zup_key_down,
-                            "KeyUp": ctrl.zup_key_up,
-                        }
+                with vuetify.VSheet(
+                    style="width: 100%; height: 100%;",
+                    click=(
+                        ctrl.pick_click_client,
+                        """[{
+                            clientX: $event.clientX,
+                            clientY: $event.clientY,
+                            offsetX: $event.offsetX,
+                            offsetY: $event.offsetY,
+                            targetRect: (
+                                $event.target && $event.target.getBoundingClientRect
+                            ) ? {
+                                left: $event.target.getBoundingClientRect().left,
+                                top: $event.target.getBoundingClientRect().top,
+                                width: $event.target.getBoundingClientRect().width,
+                                height: $event.target.getBoundingClientRect().height
+                            } : null
+                        }]""",
+                    ),
+                ):
+                    self._remote_view = vtk.VtkRemoteView(
+                        self.plotter.ren_win,
+                        **remote_view_kwargs,
                     )
-                self._remote_view = vtk.VtkRemoteView(
-                    self.plotter.ren_win,
-                    **remote_view_kwargs,
-                )
                 self._remote_view.update()
 
         state.ready()

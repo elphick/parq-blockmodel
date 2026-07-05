@@ -67,7 +67,6 @@ def main() -> None:
         app_kwargs["scalar"] = "density"
         app_kwargs["threshold_value"] = 2.6
         app = BlockModelTrameApp.from_pbm_file(source_path, **app_kwargs)
-
     if getattr(pv, "BUILDING_GALLERY", False):
         logger.debug("Skipping live Trame launch while building the gallery.")
         return

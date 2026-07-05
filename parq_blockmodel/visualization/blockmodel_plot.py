@@ -9,6 +9,7 @@ import pandas as pd
 import pyvista as pv
 
 from parq_blockmodel.utils.pyvista.categorical_utils import load_mapping_dict
+from parq_blockmodel.utils.pyvista.custom_plotter import CustomPlotter
 
 if TYPE_CHECKING:
     from parq_blockmodel.blockmodel import ParquetBlockModel
@@ -271,135 +272,6 @@ def _cell_info_callback(
     return cell_callback
 
 
-def _normalize_z_up_hotkey(hotkey: str) -> str:
-    normalized = str(hotkey).strip().lower()
-    if len(normalized) != 1 or not normalized.isalpha():
-        raise ValueError("z_up_hotkey must be a single alphabetic character, e.g. 'z'.")
-    return normalized
-
-
-def _register_z_up_rotation_lock(plotter: pv.Plotter, hotkey: str = "z") -> None:
-    interactor = getattr(plotter, "iren", None)
-    if interactor is None or not hasattr(interactor, "add_observer"):
-        return
-
-    normalized_hotkey = _normalize_z_up_hotkey(hotkey)
-    setattr(plotter, "_pbm_z_up_hotkey", normalized_hotkey)
-    if getattr(plotter, "_pbm_z_up_callbacks_registered", False):
-        return
-    setattr(plotter, "_pbm_z_up_callbacks_registered", True)
-    setattr(plotter, "_pbm_z_up_hotkey_down", False)
-    setattr(plotter, "_pbm_z_up_turntable_active", False)
-    setattr(plotter, "_pbm_z_up_original_style", None)
-    setattr(plotter, "_pbm_z_up_original_style_name", "")
-
-    def _extract_key(obj) -> str:
-        key_sym_getter = getattr(obj, "GetKeySym", None)
-        if callable(key_sym_getter):
-            key_sym = key_sym_getter() or ""
-            if key_sym:
-                return key_sym.lower()
-        key_code_getter = getattr(obj, "GetKeyCode", None)
-        if callable(key_code_getter):
-            key_code = key_code_getter() or ""
-            if key_code:
-                return key_code.lower()
-        return ""
-
-    def _set_camera_z_up():
-        camera = getattr(plotter, "camera", None)
-        if camera is None:
-            return
-        camera.SetViewUp(0, 0, 1)
-        if hasattr(camera, "OrthogonalizeViewUp"):
-            camera.OrthogonalizeViewUp()
-
-    def _enable_turntable_mode():
-        if getattr(plotter, "_pbm_z_up_turntable_active", False):
-            return
-        if not hasattr(interactor, "GetInteractorStyle") or not hasattr(interactor, "SetInteractorStyle"):
-            return
-        original_style = interactor.GetInteractorStyle()
-        original_style_name = ""
-        if original_style is not None and hasattr(original_style, "GetClassName"):
-            original_style_name = str(original_style.GetClassName() or "")
-        setattr(plotter, "_pbm_z_up_original_style", original_style)
-        setattr(plotter, "_pbm_z_up_original_style_name", original_style_name)
-        if hasattr(plotter, "enable_terrain_style"):
-            plotter.enable_terrain_style()
-        else:
-            terrain_style = pv._vtk.vtkInteractorStyleTerrain()
-            if hasattr(terrain_style, "SetDefaultRenderer") and hasattr(plotter, "renderer"):
-                terrain_style.SetDefaultRenderer(plotter.renderer)
-            interactor.SetInteractorStyle(terrain_style)
-        setattr(plotter, "_pbm_z_up_turntable_active", True)
-        _set_camera_z_up()
-        if hasattr(plotter, "render"):
-            plotter.render()
-
-    def _disable_turntable_mode():
-        if not getattr(plotter, "_pbm_z_up_turntable_active", False):
-            return
-        original_style_name = str(getattr(plotter, "_pbm_z_up_original_style_name", "")).lower()
-        original_style = getattr(plotter, "_pbm_z_up_original_style", None)
-        if "trackball" in original_style_name and hasattr(plotter, "enable_trackball_style"):
-            plotter.enable_trackball_style()
-        elif "joystick" in original_style_name and hasattr(plotter, "enable_joystick_style"):
-            plotter.enable_joystick_style()
-        elif "terrain" in original_style_name and hasattr(plotter, "enable_terrain_style"):
-            plotter.enable_terrain_style()
-        elif original_style is not None and hasattr(interactor, "SetInteractorStyle"):
-            interactor.SetInteractorStyle(original_style)
-        setattr(plotter, "_pbm_z_up_turntable_active", False)
-        setattr(plotter, "_pbm_z_up_original_style", None)
-        setattr(plotter, "_pbm_z_up_original_style_name", "")
-        _set_camera_z_up()
-        if hasattr(plotter, "render"):
-            plotter.render()
-
-    def _key_press_callback(obj, event):
-        key = _extract_key(obj)
-        if key == getattr(plotter, "_pbm_z_up_hotkey", "z"):
-            setattr(plotter, "_pbm_z_up_hotkey_down", True)
-            _enable_turntable_mode()
-
-    def _key_release_callback(obj, event):
-        key = _extract_key(obj)
-        if key == getattr(plotter, "_pbm_z_up_hotkey", "z"):
-            setattr(plotter, "_pbm_z_up_hotkey_down", False)
-            _disable_turntable_mode()
-
-    def _interaction_callback(obj, event):
-        if not getattr(plotter, "_pbm_z_up_hotkey_down", False):
-            return
-        _set_camera_z_up()
-        if hasattr(plotter, "render"):
-            plotter.render()
-
-    setattr(plotter, "_pbm_z_up_enable_turntable_mode", _enable_turntable_mode)
-    setattr(plotter, "_pbm_z_up_disable_turntable_mode", _disable_turntable_mode)
-
-    interactor.add_observer("KeyPressEvent", _key_press_callback)
-    interactor.add_observer("CharEvent", _key_press_callback)
-    interactor.add_observer("KeyReleaseEvent", _key_release_callback)
-    interactor.add_observer("InteractionEvent", _interaction_callback)
-
-
-def _set_z_up_hotkey_state(plotter: pv.Plotter, is_down: bool) -> None:
-    if not getattr(plotter, "_pbm_z_up_callbacks_registered", False):
-        return
-    down = bool(is_down)
-    setattr(plotter, "_pbm_z_up_hotkey_down", down)
-    if down:
-        enable_cb = getattr(plotter, "_pbm_z_up_enable_turntable_mode", None)
-        if callable(enable_cb):
-            enable_cb()
-        return
-    disable_cb = getattr(plotter, "_pbm_z_up_disable_turntable_mode", None)
-    if callable(disable_cb):
-        disable_cb()
-
-
 def _build_elevation_surface(elevation_raster: str | Path) -> pv.StructuredGrid:
     from parq_blockmodel.surface import RasterSurface
 
@@ -472,7 +344,7 @@ def render_plotter(
     elevation_raster: Optional[str | Path] = None,
     imagery_raster: Optional[str | Path] = None,
 ) -> pv.Plotter:
-    plotter = pv.Plotter()
+    plotter = CustomPlotter()
     add_mesh_kwargs = _plotter_add_mesh_kwargs(state)
     add_mesh_kwargs["show_edges"] = show_edges
 
@@ -483,23 +355,14 @@ def render_plotter(
 
     plotter.title = state.title
     if show_axes:
-        if hasattr(plotter, "add_axes"):
-            plotter.add_axes()
-        elif hasattr(plotter, "show_axes"):
-            plotter.show_axes()
+        plotter.add_axes()
 
-    text_name = "cell_info_text"
-    plotter.add_text("", position="upper_left", font_size=12, name=text_name)
+    plotter.set_directional_view(direction='WSW', elevation_deg=30)
 
     if enable_picking:
-        plotter.enable_cell_picking(
-            callback=_cell_info_callback(plotter, state, text_name),
-            show_message=False,
-            through=False,
-        )
-
-    if z_up_lock:
-        _register_z_up_rotation_lock(plotter, hotkey=z_up_hotkey)
+        callback = _cell_info_callback(plotter, state, "cell_info_text")
+        plotter.disable_picking()
+        plotter.enable_cell_picking(callback=callback, show_message=False, through=False)
 
     _add_elevation_overlay(
         plotter,
