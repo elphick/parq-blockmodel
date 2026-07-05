@@ -76,36 +76,54 @@ class CustomPlotter(pv.Plotter):
 
     def set_directional_view(
             self,
-            direction='WSW',
-            radius_factor=4.0,
-            elevation_deg=30,
-            azimuth_deg=None
+            direction: str = "WSW",
+            radius_factor: float = 4.0,
+            elevation_deg: float = 30.0,
+            azimuth_deg: float | None = None,
+            view_up: tuple[float, float, float] = (0.0, 0.0, 1.0),
     ):
-        # Map compass directions to azimuth angles (degrees)
+        """Set camera from a compass direction with elevation.
+
+        Args:
+            direction: 16-point compass direction (e.g. 'WSW').
+            radius_factor: Scale factor relative to dataset size.
+            elevation_deg: Vertical angle above horizon.
+            azimuth_deg: Optional override of compass azimuth.
+            view_up: Camera up vector.
+        """
+
         direction_azimuth = {
             'N': 0, 'NNE': 22.5, 'NE': 45, 'ENE': 67.5,
             'E': 90, 'ESE': 112.5, 'SE': 135, 'SSE': 157.5,
             'S': 180, 'SSW': 202.5, 'SW': 225, 'WSW': 247.5,
             'W': 270, 'WNW': 292.5, 'NW': 315, 'NNW': 337.5
         }
+
         if azimuth_deg is None:
-            azimuth_deg = direction_azimuth.get(direction.upper(), 247.5)  # Default to WSW
+            azimuth_deg = direction_azimuth.get(direction.upper(), 247.5)
 
         bounds = self.bounds
-        center = [
+        center = (
             (bounds[1] + bounds[0]) / 2,
             (bounds[3] + bounds[2]) / 2,
-            (bounds[5] + bounds[4]) / 2
-        ]
-        max_dim = max(bounds[1] - bounds[0], bounds[3] - bounds[2], bounds[5] - bounds[4])
-        r = max_dim * radius_factor
+            (bounds[5] + bounds[4]) / 2,
+        )
 
-        azimuth = math.radians(azimuth_deg)
+        dx = bounds[1] - bounds[0]
+        dy = bounds[3] - bounds[2]
+        dz = bounds[5] - bounds[4]
+
+        diag = math.sqrt(dx * dx + dy * dy + dz * dz)
+        r = diag * 0.5 * radius_factor
+
+        azimuth = math.radians(azimuth_deg + 90)
         elevation = math.radians(elevation_deg)
+
         x = center[0] + r * math.cos(elevation) * math.cos(azimuth)
         y = center[1] + r * math.cos(elevation) * math.sin(azimuth)
         z = center[2] + r * math.sin(elevation)
-        self.camera_position = [(x, y, z), center, (0, 0, 1)]
+
+        self.camera_position = [(x, y, z), center, view_up]
 
     def _setup_callbacks(self):
         iren = self.iren
@@ -122,6 +140,24 @@ class CustomPlotter(pv.Plotter):
         if self.hotkey_pressed['z']:
             self.camera.SetViewUp(0, 0, 1)
             self.render()
+
+    def enforce_z_up(self) -> None:
+        """Enforce z-up view by setting camera up vector.
+        
+        This works regardless of interactor state, making it suitable
+        for off-screen rendering or external event systems (e.g., trame).
+        """
+        self.camera.SetViewUp(0, 0, 1)
+
+    def setup_picking_with_callback(self, callback_func) -> None:
+        """Set up cell picking with a custom callback.
+        
+        Args:
+            callback_func: Callable that receives the picked cell.
+                          Signature: callback_func(picked_cell)
+        """
+        self.disable_picking()
+        self.enable_cell_picking(callback=callback_func, show_message=False, through=False)
 
     def enable_general_picking(self):
         def cell_callback(picked_cell):
