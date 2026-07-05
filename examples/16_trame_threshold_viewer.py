@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 logger.setLevel(logging.WARNING)
 
 # sphinx_gallery_thumbnail_path = "../docs/_static/branding/parq-blockmodel-gallery-thumbnail.svg"
-DEMO_SOURCE_KIND = "hive"  # "file" or "hive"
+DEMO_SOURCE_KIND = "file"  # "file" or "hive"
 
 
 def _seed_temporary_hive_demo() -> Path:

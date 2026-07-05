@@ -609,7 +609,7 @@ def test_plot_passes_frame_to_image_pyvista(tmp_path, monkeypatch):
         def add_axes(self):
             captured["show_axes"] = True
 
-        def set_directional_view(self, direction=None):
+        def set_directional_view(self, direction=None, **kwargs):
             captured["view"] = direction
 
         def enable_general_picking(self, *args, **kwargs):
@@ -672,7 +672,7 @@ def test_plot_categorical_passes_pyvista_category_args(tmp_path, monkeypatch):
         def add_axes(self):
             pass
 
-        def set_directional_view(self, direction=None):
+        def set_directional_view(self, direction=None, **kwargs):
             pass
 
         def enable_general_picking(self, *args, **kwargs):
@@ -736,7 +736,7 @@ def test_plot_categorical_without_nan_keeps_scalarbar_clean(tmp_path, monkeypatc
         def add_axes(self):
             pass
 
-        def set_directional_view(self, direction=None):
+        def set_directional_view(self, direction=None, **kwargs):
             pass
 
         def enable_general_picking(self, *args, **kwargs):
@@ -802,7 +802,7 @@ def test_plot_picking_shows_categorical_labels(tmp_path, monkeypatch):
         def add_axes(self):
             pass
 
-        def set_directional_view(self, direction=None):
+        def set_directional_view(self, direction=None, **kwargs):
             pass
 
         def disable_picking(self):
