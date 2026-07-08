@@ -1089,7 +1089,7 @@ class BlockModelTrameApp:
         if preserve_camera and camera_position not in (None, []):
             self.plotter.camera_position = camera_position
         else:
-            self.plotter.set_directional_view(direction='WSW', elevation_deg=30)
+            self.plotter.set_directional_view(direction='SSE', elevation_deg=30)
         self.plotter.reset_camera_clipping_range()
         if bool(getattr(self.plotter, "hotkey_pressed", {}).get("z")):
             self.plotter.enforce_z_up()

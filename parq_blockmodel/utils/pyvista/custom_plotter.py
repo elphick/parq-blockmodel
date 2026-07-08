@@ -17,7 +17,7 @@ class CustomPlotter(pv.Plotter):
     >>>
     >>> plotter = CustomPlotter()
     >>> plotter.add_mesh(grid, show_edges=True)
-    >>> plotter.set_directional_view(direction='WSW', elevation_deg=30)
+    >>> plotter.set_directional_view(direction='SSE', elevation_deg=30)
     >>> plotter.add_axes()
     >>> plotter.show()
     """
@@ -76,7 +76,7 @@ class CustomPlotter(pv.Plotter):
 
     def set_directional_view(
             self,
-            direction: str = "WSW",
+            direction: str = "SSE",
             radius_factor: float = 4.0,
             elevation_deg: float = 30.0,
             azimuth_deg: float | None = None,

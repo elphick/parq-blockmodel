@@ -137,6 +137,14 @@ def test_add_elevation_overlay_adds_textured_surface_and_toggle(monkeypatch):
         def texture_map_to_plane(self, inplace=True, use_bounds=True):
             self.mapped = bool(inplace and use_bounds)
 
+    class FakeTexture:
+        def __init__(self):
+            self.flipped = False
+
+        def flip_y(self):
+            self.flipped = True
+            return self
+
     class FakePlotter(BaseFakePlotter):
         def __init__(self):
             self.render_calls = 0
@@ -157,6 +165,7 @@ def test_add_elevation_overlay_adds_textured_surface_and_toggle(monkeypatch):
             return None
 
     fake_surface = FakeSurface()
+    fake_texture = FakeTexture()
     fake_plotter = FakePlotter()
     monkeypatch.setattr(
         "parq_blockmodel.visualization.blockmodel_plot._build_elevation_surface",
@@ -164,7 +173,7 @@ def test_add_elevation_overlay_adds_textured_surface_and_toggle(monkeypatch):
     )
     monkeypatch.setattr(
         "parq_blockmodel.visualization.blockmodel_plot.pv.read_texture",
-        lambda _path: "fake-texture",
+        lambda _path: fake_texture,
     )
 
     _add_elevation_overlay(
@@ -176,7 +185,8 @@ def test_add_elevation_overlay_adds_textured_surface_and_toggle(monkeypatch):
     assert fake_surface.mapped is True
     assert len(calls["add_mesh"]) == 1
     _, mesh_kwargs = calls["add_mesh"][0]
-    assert mesh_kwargs["texture"] == "fake-texture"
+    assert mesh_kwargs["texture"] is fake_texture
+    assert fake_texture.flipped is True
     assert calls["toggle"] is not None
     callback, _ = calls["toggle"]
     callback(False)
