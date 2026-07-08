@@ -7,6 +7,7 @@ from typing import Any, Optional, Protocol, TYPE_CHECKING
 import numpy as np
 import pandas as pd
 import pyvista as pv
+from pyvista import Texture
 
 from parq_blockmodel.utils.pyvista.categorical_utils import load_mapping_dict
 from parq_blockmodel.utils.pyvista.custom_plotter import CustomPlotter
@@ -38,7 +39,6 @@ class BlockModelPlotEngine(Protocol):
         show_axes: bool = True,
         enable_picking: bool = False,
         picked_attributes: Optional[list[str]] = None,
-        z_up_lock: bool = False,
         z_up_hotkey: str = "z",
         elevation_raster: Optional[str | Path] = None,
         imagery_raster: Optional[str | Path] = None,
@@ -301,7 +301,9 @@ def _add_elevation_overlay(
     }
     if imagery_raster is not None:
         dem_surface.texture_map_to_plane(inplace=True, use_bounds=True)
-        mesh_kwargs["texture"] = pv.read_texture(str(imagery_raster))
+        texture: Texture = pv.read_texture(str(imagery_raster))
+        texture = texture.flip_y()
+        mesh_kwargs["texture"] = texture
     else:
         mesh_kwargs.update(
             {
@@ -329,7 +331,31 @@ def _add_elevation_overlay(
             border_size=2,
         )
         if hasattr(plotter, "add_text"):
-            plotter.add_text("DEM", position=(45, 18), font_size=10, name="pbm_dem_toggle_label")
+            plotter.add_text("DEM",
+                             position=(45, 18),
+                             font_size=10,
+                             name="pbm_dem_toggle_label")
+
+        if hasattr(plotter, "add_slider_widget"):
+            def _set_dem_opacity(value: float) -> None:
+                actor.GetProperty().SetOpacity(value)
+                if hasattr(plotter, "render"):
+                    plotter.render()
+
+            slider = plotter.add_slider_widget(
+                _set_dem_opacity,
+                rng=[0.0, 1.0],
+                value=0.8,
+                title=None,
+                pointa=(0.04, 0.02),
+                pointb=(0.2, 0.02),
+                slider_width=0.01,
+                tube_width=0.003,
+                style="modern"
+            )
+
+            rep = slider.GetRepresentation()
+            rep.SetShowSliderLabel(False)
 
 
 def render_plotter(
@@ -339,8 +365,6 @@ def render_plotter(
     show_edges: bool = True,
     show_axes: bool = True,
     enable_picking: bool = False,
-    z_up_lock: bool = False,
-    z_up_hotkey: str = "z",
     elevation_raster: Optional[str | Path] = None,
     imagery_raster: Optional[str | Path] = None,
 ) -> pv.Plotter:
@@ -357,7 +381,7 @@ def render_plotter(
     if show_axes:
         plotter.add_axes()
 
-    plotter.set_directional_view(direction='WSW', elevation_deg=30)
+    plotter.set_directional_view(direction='SSE', elevation_deg=30)
 
     if enable_picking:
         callback = _cell_info_callback(plotter, state, "cell_info_text")
@@ -405,8 +429,6 @@ class PyVistaBlockModelPlotEngine:
             show_edges=show_edges,
             show_axes=show_axes,
             enable_picking=enable_picking,
-            z_up_lock=z_up_lock,
-            z_up_hotkey=z_up_hotkey,
             elevation_raster=elevation_raster,
             imagery_raster=imagery_raster,
         )
