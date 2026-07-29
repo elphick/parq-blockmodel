@@ -1078,6 +1078,66 @@ class ParquetBlockModel:
         )
 
     @classmethod
+    def from_csv(
+        cls,
+        csv_path: Path,
+        filename: Optional[Path] = None,
+        geometry: Optional[RegularGeometry] = None,
+        name: Optional[str] = None,
+        overwrite: bool = False,
+        axis_azimuth: float = 0.0,
+        axis_dip: float = 0.0,
+        axis_plunge: float = 0.0,
+        chunk_size: int = 1_000_000,
+        schema: Optional[Union[Path, "DataFrameSchema"]] = None,
+        engine_initializer: Optional[typing.Callable] = None,
+        compression: typing.Any = "fast",
+        **read_csv_kwargs: typing.Any,
+    ) -> "ParquetBlockModel":
+        """Create a :class:`ParquetBlockModel` from a CSV file.
+
+        The CSV is loaded into memory, indexed by ``["x", "y", "z"]``, and
+        then delegated to :meth:`from_dataframe`.
+
+        Args:
+            csv_path (Path): Path to an input ``.csv`` file containing ``x``,
+                ``y``, ``z`` columns.
+            filename (Path, optional): Path to the *source* ``.parquet`` file
+                used to derive the sibling ``.pbm`` output path. Defaults to
+                ``csv_path`` with suffix changed to ``.parquet``.
+            **read_csv_kwargs: Additional keyword arguments passed to
+                :func:`pandas.read_csv`.
+        """
+        if csv_path.suffix.lower() != ".csv":
+            raise ValueError(f"Filename {csv_path} must have a '.csv' extension.")
+
+        dataframe = pd.read_csv(csv_path, **read_csv_kwargs)
+        missing_columns = {"x", "y", "z"} - set(dataframe.columns)
+        if missing_columns:
+            missing_columns_str = ", ".join(sorted(missing_columns))
+            raise ValueError(
+                f"CSV file {csv_path} is missing required columns: {missing_columns_str}."
+            )
+
+        dataframe = dataframe.set_index(["x", "y", "z"])
+        parquet_filename = filename if filename is not None else csv_path.with_suffix(".parquet")
+
+        return cls.from_dataframe(
+            dataframe=dataframe,
+            filename=parquet_filename,
+            geometry=geometry,
+            name=name,
+            overwrite=overwrite,
+            axis_azimuth=axis_azimuth,
+            axis_dip=axis_dip,
+            axis_plunge=axis_plunge,
+            chunk_size=chunk_size,
+            schema=schema,
+            engine_initializer=engine_initializer,
+            compression=compression,
+        )
+
+    @classmethod
     def create_demo_block_model(cls, filename: Path, **demo_kwargs) -> "ParquetBlockModel":
         """Convenience helper used in tests to write a demo Parquet file and
         wrap it as a ParquetBlockModel.

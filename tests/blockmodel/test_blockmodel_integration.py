@@ -164,6 +164,30 @@ def test_from_dataframe_with_explicit_geometry(tmp_path):
 
 
 # ===========================================================================
+# from_csv
+# ===========================================================================
+
+
+def test_from_csv_basic_roundtrip(tmp_path):
+    df = _xyz_df().reset_index()
+    csv_path = tmp_path / "from_csv.csv"
+    df.to_csv(csv_path, index=False)
+
+    pbm = ParquetBlockModel.from_csv(csv_path)
+    assert isinstance(pbm, ParquetBlockModel)
+    assert pbm.geometry.local.shape == (2, 2, 2)
+    assert pbm.blockmodel_path == csv_path.with_suffix(".pbm")
+
+
+def test_from_csv_rejects_missing_xyz_columns(tmp_path):
+    csv_path = tmp_path / "missing_xyz.csv"
+    pd.DataFrame({"x": [1.0], "y": [2.0], "grade": [3.0]}).to_csv(csv_path, index=False)
+
+    with pytest.raises(ValueError, match="missing required columns"):
+        ParquetBlockModel.from_csv(csv_path)
+
+
+# ===========================================================================
 # from_geometry
 # ===========================================================================
 
@@ -330,7 +354,6 @@ def test_repr_contains_name_and_path(tmp_path):
     r = repr(pbm)
     assert "my_model" in r
     assert ".pbm" in r
-
 
 
 
