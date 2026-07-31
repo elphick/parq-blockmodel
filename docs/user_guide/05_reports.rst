@@ -161,4 +161,5 @@ Summary of the reporting API
 * ``write_html``: control whether the initial HTML file is written immediately,
 * ``open_in_browser``: display the report after generation.
 
-See also: :doc:`03_blockmodels` and the :doc:`/auto_examples/index` gallery.
+See also: :doc:`03_blockmodels` and the :doc:`/auto_examples/index` gallery
+(including ``18_profile_report_with_schema_descriptions.py``).

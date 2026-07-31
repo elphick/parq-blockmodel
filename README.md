@@ -17,6 +17,14 @@ A Python package for efficient storage, manipulation, and analysis of mining blo
 parq-blockmodel provides tools for reading, writing, indexing, and transforming large-scale block model datasets, 
 leveraging the performance of Apache Arrow and Parquet for scalable geoscience data workflows.
 
+## Typical 3-step workflow
+
+`parq-blockmodel` is designed around a practical 3-step process:
+
+1. **Validate** block model attributes against a Pandera schema.
+2. **Review (profile)** data quality and distributions with an HTML profile report.
+3. **View** the model interactively with the PyVista/Trame visualization path.
+
 ## Installation
 
 Install the base package from PyPI:
@@ -60,6 +68,24 @@ pbm.validate(sample_chunks=1)  # quick spot-check for large models
 
 See the [User Guide](https://parq-blockmodel.readthedocs.io/en/stable/user_guide/07_calculated_attributes.html)
 for detailed documentation on calculated attributes, including custom lookups and functions.
+
+## Profiling report review
+
+Install profiling support and create an HTML profile report:
+
+```bash
+pip install "parq-blockmodel[profiling]"
+```
+
+```python
+report = pbm.create_report(columns_per_batch=None)
+print(report.output_path)
+```
+
+When a schema includes column `title` / `description`, those values are included
+in report variable descriptions. See the
+[Profiling Reports guide](https://parq-blockmodel.readthedocs.io/en/stable/user_guide/05_reports.html)
+and the examples gallery for a full walkthrough.
 
 ## Visualization
 

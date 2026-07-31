@@ -1,7 +1,8 @@
 Quick Start Guide
 =================
 
-This page will describe the basic steps to use the package.
+This page describes a common three-step workflow: validate, review (profile),
+and view.
 
 First we define the imports...
 
@@ -19,6 +20,9 @@ Create an instance of the block model, which will read the specified parquet fil
         Path("path/to/your/parquet_file.parquet")
     )
 
+1) Validate
+-----------
+
 If you have installed ``parq-blockmodel[schema]``, you can attach a Pandera
 schema while loading the model and then validate the canonical ``.pbm`` file in
 chunks:
@@ -32,6 +36,23 @@ chunks:
 
     pbm.validate()
     pbm.validate(sample_chunks=1)  # quick spot-check on large models
+
+2) Review (profile)
+-------------------
+
+If you have installed ``parq-blockmodel[profiling]``, you can generate an HTML
+profile report:
+
+..  code-block:: python
+
+    report = pbm.create_report(columns_per_batch=None)
+    print(report.output_path)
+
+When a schema includes column ``title`` and ``description`` values, those values
+are shown in report variable descriptions.
+
+3) View
+-------
 
 If the `viz` extra is installed, you can visualize the block model using the `plot` method:
 
