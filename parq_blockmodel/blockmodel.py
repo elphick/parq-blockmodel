@@ -1413,7 +1413,7 @@ class ParquetBlockModel:
                       memory_budget: Optional[Union[int, float, str]] = None,
                       ) -> "BlockModelReport":
         """
-        Create a ydata-profiling report for the block model.
+        Create a fg-data-profiling report for the block model.
         By default the generated HTML is saved beside the block model with a
         ``.html`` suffix, and the returned report object can be re-saved later.
 
