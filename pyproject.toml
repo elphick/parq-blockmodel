@@ -1,6 +1,6 @@
 [project]
 name = "parq-blockmodel"
-version = "0.12.9"
+version = "0.12.10"
 description = "A Python package for efficient storage, manipulation, and analysis of mining block models using Parquet files."
 authors = [
     { name = "Greg Elphick", email = "11791585+elphick@users.noreply.github.com" }
@@ -16,16 +16,15 @@ classifiers = [
 ]
 
 dependencies = [
-    "numpy>=1.25.2,<2.1", # 2.1 max for numba->ydata-profiling compatibility
     "pyarrow>=16.0",
-    "parq-tools>=0.4.0",
+    "parq-tools>=0.5.2",
     "scipy>=1.11",
     "pyvista>=0.44.2",
     "geopandas>=1.1.1,<2",
 ]
 
 [project.optional-dependencies]
-profiling = ["ydata-profiling>=4.16.1", "setuptools<81"]  # ydata-profiling still imports pkg_resources; keep setuptools<81
+profiling = ["fg-data-profiling>=4.19.1", "setuptools<81"]  # ydata-profiling still imports pkg_resources; keep setuptools<81
 progress = ["tqdm>=4.67.1"]
 temporal = ["rioxarray>=0.18.0", "imageio>=2.37.0,<3", "imageio-ffmpeg>=0.6.0,<1"]
 viz = [
@@ -39,7 +38,7 @@ mesh = ["plyfile>=1.0.0"]
 cad = ["ezdxf>=1.3.0"]
 schema = ["pandera>=0.19,<0.21", "df-eval>=0.2.1"]
 all = [
-    "ydata-profiling>=4.16.1",
+    "fg-data-profiling>=4.19.1",
     "setuptools<81",
     "tqdm>=4.67.1",
     "rioxarray>=0.18.0",
@@ -53,7 +52,7 @@ all = [
     "plyfile>=1.0.0",
     "ezdxf>=1.3.0",
     "pandera>=0.19,<0.21",
-    "df-eval>=0.1.4",
+    "df-eval>=0.2.1",
 ]
 
 [dependency-groups]
