@@ -22,7 +22,7 @@ from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel
 temp_dir = Path(tempfile.gettempdir()) / "profiling_with_schema_descriptions"
 temp_dir.mkdir(parents=True, exist_ok=True)
 
-df = create_demo_blockmodel(shape=(3, 3, 3))
+df = create_demo_blockmodel(shape=(3, 3, 3), index_type="world_centroids")
 df["cu_pct"] = 0.15 + 0.01 * df["depth"]
 
 schema = DataFrameSchema(
