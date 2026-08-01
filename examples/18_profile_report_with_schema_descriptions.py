@@ -28,7 +28,11 @@ df["cu_pct"] = 0.15 + 0.01 * df["depth"]
 schema = DataFrameSchema(
     columns={
         "depth": Column(float, checks=Check.greater_than_or_equal_to(0), nullable=True),
-        "cu_pct": Column(float, nullable=True),
+        "cu_pct": Column(
+            float,
+            checks=[Check.greater_than_or_equal_to(0), Check.less_than_or_equal_to(100)],
+            nullable=True,
+        ),
     },
     strict=False,
 )
