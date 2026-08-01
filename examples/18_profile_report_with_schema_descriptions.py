@@ -10,7 +10,7 @@ This example demonstrates how Pandera schema column ``title`` and
 import tempfile
 from pathlib import Path
 
-from pandera import Column, DataFrameSchema
+from pandera import Check, Column, DataFrameSchema
 
 from parq_blockmodel import ParquetBlockModel
 from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel
@@ -27,7 +27,7 @@ df["cu_pct"] = 0.15 + 0.01 * df["depth"]
 
 schema = DataFrameSchema(
     columns={
-        "depth": Column(float, nullable=True),
+        "depth": Column(float, checks=Check.greater_than_or_equal_to(0), nullable=True),
         "cu_pct": Column(float, nullable=True),
     },
     strict=False,
