@@ -87,6 +87,6 @@ geometry and schema YAML so the chosen policy can be recovered later. The
 See also
 --------
 
-* Gallery example: :doc:`/auto_examples/16_compression_framework`
+* Gallery example: :doc:`/auto_examples/17_compression_framework`
 * :doc:`07_calculated_attributes`
 * :doc:`03_blockmodels`

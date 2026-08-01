@@ -41,7 +41,7 @@ xyz-centric Parquet files remain supported, and ``ParquetBlockModel`` can
 promote them into canonical ``.pbm`` containers with embedded geometry.
 
 Compression lifecycle, fast writes, archive rewrites, and schema-driven
-compression overrides are covered in :doc:`user_guide/11_compression_framework`.
+compression overrides are covered in :doc:`user_guide/12_compression_framework`.
 
 For a deeper, developer-oriented discussion of how geometry and metadata
 are encoded, see :ref:`geometry-metadata-design`.
@@ -49,7 +49,7 @@ are encoded, see :ref:`geometry-metadata-design`.
 Profiling and HTML report generation are covered in :doc:`user_guide/05_reports`.
 
 Interactive Trame-based visualization is documented in
-:doc:`user_guide/10_trame_visualization`.
+:doc:`user_guide/11_trame_visualization`.
 
 .. toctree::
    :maxdepth: 2
