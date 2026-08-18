@@ -1,20 +1,23 @@
 Quick Start Guide
 =================
 
-This page describes a common three-step workflow: validate, review (profile),
-and view.
+This page describes the three-step workflow designed into parq-blockmodel:
 
-First we define the imports...
+1. **Validate** — Check data against a schema
+2. **Review** — Profile data quality with an HTML report
+3. **View** — Visualize the model interactively
+
+For installation prerequisites, see :doc:`./installation`.
+
+Base Setup
+----------
+
+First we import and load a block model:
 
 ..  code-block:: python
 
     from pathlib import Path
-
     from parq_blockmodel import ParquetBlockModel
-
-Create an instance of the block model, which will read the specified parquet file.
-
-..  code-block:: python
 
     pbm: ParquetBlockModel = ParquetBlockModel.from_parquet(
         Path("path/to/your/parquet_file.parquet")
@@ -23,9 +26,9 @@ Create an instance of the block model, which will read the specified parquet fil
 1) Validate
 -----------
 
-If you have installed ``parq-blockmodel[schema]``, you can attach a Pandera
-schema while loading the model and then validate the canonical ``.pbm`` file in
-chunks:
+**Prerequisite:** ``pip install "parq-blockmodel[schema]"``
+
+Attach a Pandera schema while loading and validate the model in chunks:
 
 ..  code-block:: python
 
@@ -37,11 +40,14 @@ chunks:
     pbm.validate()
     pbm.validate(sample_chunks=1)  # quick spot-check on large models
 
+See :doc:`../user_guide/03_blockmodels` for detailed schema usage.
+
 2) Review (profile)
 -------------------
 
-If you have installed ``parq-blockmodel[profiling]``, you can generate an HTML
-profile report:
+**Prerequisite:** ``pip install "parq-blockmodel[profiling]"``
+
+Generate an interactive HTML profile report:
 
 ..  code-block:: python
 
@@ -49,21 +55,27 @@ profile report:
     print(report.output_path)
 
 When a schema includes column ``title`` and ``description`` values, those values
-are shown in report variable descriptions.
+are shown in the report.
+
+See :doc:`../user_guide/05_reports` for advanced profiling options.
 
 3) View
 -------
 
-If the `viz` extra is installed, you can visualize the block model using the `plot` method:
+**Prerequisite:** ``pip install "parq-blockmodel[viz]"``
+
+Visualize the block model with PyVista or Trame.
+
+**PyVista (default):**
 
 ..  code-block:: python
 
-    import pyvista as pv
-
-    p: pv.Plotter = pbm.plot(z_up_lock=True, z_up_hotkey="z")
+    p = pbm.plot(z_up_lock=True, z_up_hotkey="z")
     p.show()
 
-To use the Trame viewer from ``pbm.plot(...)``:
+With ``z_up_lock=True``, press ``z`` to enter turntable-style orbit (yaw/pitch, no roll).
+
+**Trame (web-based interactive):**
 
 ..  code-block:: python
 
@@ -77,16 +89,23 @@ To use the Trame viewer from ``pbm.plot(...)``:
     )
     app.launch(port=8080)
 
-You can also construct the app directly:
+Or construct the app directly:
 
 ..  code-block:: python
 
     from parq_blockmodel.visualization import BlockModelTrameApp
 
-    app = BlockModelTrameApp(pbm, scalar=pbm.available_attributes[0], z_up_lock=True, z_up_hotkey="z")
+    app = BlockModelTrameApp(
+        pbm,
+        scalar=pbm.available_attributes[0],
+        z_up_lock=True,
+        z_up_hotkey="z"
+    )
     app.launch(port=8080)
 
-With ``z_up_lock=True``, hold ``z`` for turntable-style orbit (yaw/pitch, no roll) with camera up aligned to +Z.
+See :doc:`../user_guide/11_trame_visualization` for full documentation.
 
+Next Steps
+----------
 
-For examples that demonstrate a range of use cases, see the :doc:`/auto_examples/index`.
+For more examples and workflows, see the :doc:`/auto_examples/index`.

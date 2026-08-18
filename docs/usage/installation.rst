@@ -1,50 +1,95 @@
 Installation
 ============
 
-.. toctree::
-   :maxdepth: 2
-   :caption: Installation:
+The package is pip installable from PyPI.
 
+Base Install
+------------
 
-The package is pip installable.
-
-..  code-block::
-
-    pip install parq-blockmodel
-
-Common optional extras can be installed from PyPI as needed.
+For data I/O and basic operations:
 
 .. code-block::
 
-    pip install "parq-blockmodel[profiling,progress,viz]"
+    pip install parq-blockmodel
 
-To enable Pandera-backed schema validation and YAML schema loading support,
-install the ``schema`` extra:
+3-Step Workflow (Full Install)
+------------------------------
+
+For the complete experience—validate, profile, and visualize:
+
+.. code-block::
+
+    pip install "parq-blockmodel[schema,profiling,viz]"
+
+Install by Workflow Step
+------------------------
+
+**Step 1: Validate** — Schema validation with Pandera
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block::
 
     pip install "parq-blockmodel[schema]"
 
-The ``schema`` extra installs:
+Enables:
 
-* ``pandera`` for defining and applying ``DataFrameSchema`` objects, and
-* ``df-eval`` for loading schema definitions from YAML files via
-  ``df_eval.utils.pandera_io_compat``.
+* Pandera ``DataFrameSchema`` definitions and validation
+* YAML schema loading via ``df-eval``
+* See :doc:`../user_guide/03_blockmodels` for usage
 
-For editable local development, install from a clone instead:
+**Step 2: Review** — Profiling reports
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block::
 
-    pip install -e ".[profiling,progress,viz,schema]"
+    pip install "parq-blockmodel[profiling]"
 
-Or, if poetry is more your flavour.
+Enables:
 
-..  code-block::
+* HTML profile report generation with ``ydata-profiling``
+* Batch-wise profiling for large block models
+* See :doc:`../user_guide/05_reports` for usage
 
-    poetry add parq-blockmodel
+**Step 3: View** — Interactive visualization
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-or with extras...
+.. code-block::
 
-..  code-block::
+    pip install "parq-blockmodel[viz]"
 
-    poetry add "parq-blockmodel[profiling,progress,viz,schema]"
+Enables:
+
+* 3D visualization with PyVista and Trame
+* Block model rendering and interactive exploration
+* Terrain context with rasters
+* See :doc:`../user_guide/11_trame_visualization` for usage
+
+For Editable Development
+------------------------
+
+Install from a local clone with all development and optional dependencies:
+
+.. code-block::
+
+    pip install -e ".[schema,profiling,viz]"
+
+Troubleshooting: ImportError for Optional Features
+---------------------------------------------------
+
+If you see an error like ``ModuleNotFoundError: No module named 'pyvista'`` when trying to use visualization, 
+you need to install the visualization extra:
+
+.. code-block::
+
+    pip install "parq-blockmodel[viz]"
+
+Similarly:
+
+* For schema validation errors: ``pip install "parq-blockmodel[schema]"``
+* For profiling errors: ``pip install "parq-blockmodel[profiling]"``
+
+Or install all three at once:
+
+.. code-block::
+
+    pip install "parq-blockmodel[schema,profiling,viz]"

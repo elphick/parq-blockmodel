@@ -33,18 +33,35 @@ Install the base package from PyPI:
 pip install parq-blockmodel
 ```
 
-Install the optional schema validation support when you want to validate block
-model attributes with Pandera schemas or load schema definitions from YAML:
+### Full 3-Step Workflow
+
+For the complete experience (validate, profile, and visualize), install with all workflow extras:
+
+```bash
+pip install "parq-blockmodel[schema,profiling,viz]"
+```
+
+### Installation by Workflow Step
+
+**Step 1: Validate** — Pandera schema support for data validation:
 
 ```bash
 pip install "parq-blockmodel[schema]"
 ```
 
-Install the visualization extras when you want to use the Trame viewer:
+**Step 2: Review** — HTML profiling reports for data quality inspection:
+
+```bash
+pip install "parq-blockmodel[profiling]"
+```
+
+**Step 3: View** — Interactive 3D visualization with PyVista/Trame:
 
 ```bash
 pip install "parq-blockmodel[viz]"
 ```
+
+See the [Quick Start Guide](https://parq-blockmodel.readthedocs.io/en/stable/usage/quickstart.html) for a walkthrough of the 3-step workflow.
 
 ## Schema validation
 
