@@ -877,6 +877,66 @@ def test_from_dataframe_strict_filter_persists_only_schema_columns(tmp_path):
     assert "waste" not in raw.columns
 
 
+def test_from_parquet_strict_filter_excludes_non_required_df_eval_columns(tmp_path):
+    """strict='filter' should not persist required=False df-eval columns."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+
+    df = create_demo_blockmodel(shape=(2, 2, 2))
+    df["density"] = 2.5
+    source_parquet = tmp_path / "strict_filter_df_eval_source.parquet"
+    df.to_parquet(source_parquet)
+
+    schema = DataFrameSchema(
+       columns={
+           "density": Column(float, required=True),
+           "tonnes": Column(
+               float,
+               required=False,
+               metadata={"df-eval": {"expr": "density * volume"}},
+           ),
+       },
+       strict="filter",
+    )
+
+    pbm = ParquetBlockModel.from_parquet(source_parquet, schema=schema)
+    assert "tonnes" not in pbm.persisted_columns
+    assert "tonnes" in pbm.calculated_columns
+
+    raw = pbm.read(index="ijk", dense=True)
+    assert "tonnes" not in raw.columns
+
+
+def test_from_dataframe_strict_filter_excludes_non_required_df_eval_columns(tmp_path):
+    """strict='filter' should not persist required=False df-eval dataframe columns."""
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = 2.5
+
+    schema = DataFrameSchema(
+       columns={
+           "density": Column(float, required=True),
+           "tonnes": Column(
+               float,
+               required=False,
+               metadata={"df-eval": {"expr": "density * volume"}},
+           ),
+       },
+       strict="filter",
+    )
+
+    pbm = ParquetBlockModel.from_dataframe(
+       df[["density"]],
+       filename=tmp_path / "strict_filter_df_eval_dataframe.parquet",
+       schema=schema,
+    )
+    assert "tonnes" not in pbm.persisted_columns
+    assert "tonnes" in pbm.calculated_columns
+
+    raw = pbm.read(index="ijk", dense=True)
+    assert "tonnes" not in raw.columns
+
+
 def test_from_parquet_strict_filter_persists_optional_schema_columns(tmp_path):
     """strict='filter' should persist schema-defined optional columns from source."""
     df = create_demo_blockmodel(shape=(2, 2, 2))
