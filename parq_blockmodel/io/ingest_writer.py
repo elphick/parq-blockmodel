@@ -200,7 +200,10 @@ class IngestWriter:
             schema_column_names = list(schema_columns.keys()) if isinstance(schema_columns, dict) else []
             strict_filter = schema_utils.schema_uses_strict_filter(self.schema)
             if strict_filter:
-                persist_targets = [name for name in schema_column_names if name in schema_ops]
+                persist_targets = [
+                    name for name in schema_column_names
+                    if name in schema_ops and name in required_cols
+                ]
             else:
                 persist_targets = [name for name in required_cols if name in schema_ops]
             if persist_targets:
@@ -222,7 +225,7 @@ class IngestWriter:
                     if c in ParquetBlockModel.POSITION_COLUMNS or c in schema_column_set
                 ]
                 for col_name in schema_column_names:
-                    if col_name not in output_cols:
+                    if col_name not in output_cols and col_name in required_cols:
                         output_cols.append(col_name)
                 special_cols = [c for c in ParquetBlockModel.SPECIAL_COLUMN_ORDER if c in output_cols]
                 schema_cols = [
@@ -529,7 +532,10 @@ class IngestWriter:
             schema_column_names = list(schema_columns.keys()) if isinstance(schema_columns, dict) else []
             strict_filter = schema_utils.schema_uses_strict_filter(self.schema)
             if strict_filter:
-                persist_targets = [name for name in schema_column_names if name in schema_ops]
+                persist_targets = [
+                    name for name in schema_column_names
+                    if name in schema_ops and name in required_cols
+                ]
             else:
                 persist_targets = [name for name in required_cols if name in schema_ops]
 
