@@ -2,7 +2,8 @@ import numpy as np
 import pytest
 from shapely.geometry import Polygon, MultiPolygon, box
 
-from parq_blockmodel import LocalGeometry, PolygonField, RegularGeometry, WorldFrame
+from parq_blockmodel import LocalGeometry, RegularGeometry, WorldFrame
+from parq_blockmodel.polygon_field import PolygonField
 
 
 def make_geometry(

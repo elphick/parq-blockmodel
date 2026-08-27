@@ -2,7 +2,8 @@ from pathlib import Path
 
 import numpy as np
 
-from parq_blockmodel import ParquetBlockModel, RasterSurface, RegularGeometry
+from parq_blockmodel import ParquetBlockModel, RegularGeometry
+from parq_blockmodel.surface import RasterSurface
 
 
 def make_pbm(tmp_path: Path) -> ParquetBlockModel:

@@ -3,9 +3,10 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from parq_blockmodel import LocalGeometry, MeshSurface, RasterSurface, RegularGeometry, WorldFrame
+from parq_blockmodel import LocalGeometry, RegularGeometry, WorldFrame
 from parq_blockmodel.mesh.ply import write_ply
 from parq_blockmodel.mesh.types import TriangleMesh
+from parq_blockmodel.surface import RasterSurface, MeshSurface
 
 
 def make_geometry(

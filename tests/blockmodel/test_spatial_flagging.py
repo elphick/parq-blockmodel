@@ -4,7 +4,9 @@ import numpy as np
 import pyvista as pv
 from shapely.geometry import box
 
-from parq_blockmodel import MeshSolid, ParquetBlockModel, PolygonField, RegularGeometry
+from parq_blockmodel import ParquetBlockModel, RegularGeometry
+from parq_blockmodel.polygon_field import PolygonField
+from parq_blockmodel.solid import MeshSolid
 
 
 def make_pbm(tmp_path: Path) -> ParquetBlockModel:
