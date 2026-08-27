@@ -5,11 +5,6 @@ os.environ["YDATA_SUPPRESS_BANNER"] = "1"
 from importlib import metadata
 from .blockmodel import ParquetBlockModel
 from .geometry import RegularGeometry, LocalGeometry, WorldFrame, Extents
-from .polygon_field import PolygonField
-from .solid import Solid, MeshSolid
-from .surface import Surface, RasterSurface, MeshSurface
-from .visualization import BlockModelPlotEngine, BlockModelPlotState, BlockModelTrameApp, PyVistaBlockModelPlotEngine
-from .utils.demo_block_model import create_demo_blockmodel
 
 try:
     __version__ = metadata.version('parq_blockmodel')
@@ -19,19 +14,8 @@ except metadata.PackageNotFoundError:
 
 __all__ = [
     "ParquetBlockModel",
-    "create_demo_blockmodel",
     "RegularGeometry",
     "LocalGeometry",
     "WorldFrame",
     "Extents",
-    "PolygonField",
-    "Solid",
-    "MeshSolid",
-    "Surface",
-    "RasterSurface",
-    "MeshSurface",
-    "BlockModelPlotEngine",
-    "BlockModelPlotState",
-    "PyVistaBlockModelPlotEngine",
-    "BlockModelTrameApp",
 ]

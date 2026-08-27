@@ -1467,7 +1467,7 @@ wheels = [
 
 [[package]]
 name = "parq-blockmodel"
-version = "0.12.13"
+version = "0.12.14"
 source = { editable = "." }
 dependencies = [
     { name = "parq-tools" },
