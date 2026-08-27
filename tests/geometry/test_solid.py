@@ -4,9 +4,10 @@ import numpy as np
 import pyvista as pv
 import pytest
 
-from parq_blockmodel import LocalGeometry, MeshSolid, RegularGeometry, WorldFrame
+from parq_blockmodel import LocalGeometry, RegularGeometry, WorldFrame
 from parq_blockmodel.mesh.ply import write_ply
 from parq_blockmodel.mesh.types import TriangleMesh
+from parq_blockmodel.solid import MeshSolid
 
 
 def add_cube_3dfaces(target, origin, size=1.0, layer=None):
