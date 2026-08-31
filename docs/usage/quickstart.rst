@@ -77,6 +77,8 @@ With ``z_up_lock=True``, press ``z`` to enter turntable-style orbit (yaw/pitch, 
 
 **Trame (web-based interactive):**
 
+Requires ``pip install "parq-blockmodel[server-viz]"`` in addition to the local visualization extra.
+
 ..  code-block:: python
 
     from parq_blockmodel.visualization import TrameBlockModelPlotEngine

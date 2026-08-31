@@ -19,8 +19,8 @@ import numpy as np
 import pandas as pd
 import pyvista as pv
 
-from parq_blockmodel import MeshSolid, ParquetBlockModel, RegularGeometry
-
+from parq_blockmodel import ParquetBlockModel, RegularGeometry
+from parq_blockmodel.solid import MeshSolid
 
 # %%
 # Create a geometry-backed block model

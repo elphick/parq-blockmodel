@@ -18,8 +18,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
-from parq_blockmodel import ParquetBlockModel, RasterSurface, RegularGeometry
-
+from parq_blockmodel import ParquetBlockModel, RegularGeometry
+from parq_blockmodel.surface import RasterSurface
 
 # %%
 # Create a geometry-backed block model

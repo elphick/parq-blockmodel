@@ -4,6 +4,12 @@ Trame visualization
 The Trame viewer provides a read-only interactive view for
 :class:`parq_blockmodel.blockmodel.ParquetBlockModel`.
 
+Install the server visualization extra first:
+
+.. code-block::
+
+   pip install "parq-blockmodel[server-viz]"
+
 Supported workflows
 -------------------
 
