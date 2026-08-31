@@ -1,6 +1,6 @@
 [project]
 name = "parq-blockmodel"
-version = "0.12.14"
+version = "0.13.0"
 description = "A Python package for efficient storage, manipulation, and analysis of mining block models using Parquet files."
 authors = [
     { name = "Greg Elphick", email = "11791585+elphick@users.noreply.github.com" }
@@ -17,7 +17,7 @@ classifiers = [
 
 dependencies = [
     "pyarrow>=16.0",
-    "parq-tools>=0.5.3",
+    "parq-tools>=0.5.3",  # can use the profiling extra when we no longer need to pin fg-data-profiling
     "scipy>=1.11",
 ]
 
@@ -26,13 +26,19 @@ schema = [
     "pandera>=0.19",
     "df-eval>=0.2.1"]
 profiling = [
-    "fg-data-profiling>=4.19.1",
+    "fg-data-profiling>=4.19.0,<4.19.1",  # 4.19.1 wheel is mispackaged (missing data_profiling/__init__.py)
     "setuptools<81"]  # ydata-profiling still imports pkg_resources; keep setuptools<81
 viz = [
     "pyvista>=0.44.2",
-    "geopandas>=1.1.1",
     "plotly>=6.1.1",
     "kaleido>=1.1.0,<2",
+]
+spatial = [
+    "shapely>=2",
+    "geopandas>=1.1.1",
+]
+server-viz = [
+    "pyvista>=0.44.2",
     "trame>=3.10.2,<4",
     "trame-vtk>=2.9.0,<3",
     "trame-vuetify>=3.0.1,<4",
@@ -45,12 +51,13 @@ temporal = [
 mesh = ["plyfile>=1.0.0"]
 cad = ["ezdxf>=1.3.0"]
 all = [
-    "fg-data-profiling>=4.19.1",
+    "fg-data-profiling>=4.19.0,<4.19.1",  # 4.19.1 wheel is mispackaged
     "setuptools<81",
     "rioxarray>=0.18.0",
     "imageio>=2.37.0,<3",
     "imageio-ffmpeg>=0.6.0,<1",
     "pyvista>=0.44.2",
+    "shapely>=2",
     "geopandas>=1.1.1",
     "plotly>=6.1.1",
     "kaleido>=1.1.0,<2",

@@ -23,7 +23,7 @@ leveraging the performance of Apache Arrow and Parquet for scalable geoscience d
 
 1. **Validate** block model attributes against a Pandera schema.
 2. **Review (profile)** data quality and distributions with an HTML profile report.
-3. **View** the model interactively with the PyVista/Trame visualization path.
+3. **View** the model interactively with local PyVista plotting or the Trame server viewer.
 
 ## Installation
 
@@ -35,10 +35,10 @@ pip install parq-blockmodel
 
 ### Full 3-Step Workflow
 
-For the complete experience (validate, profile, and visualize), install with all workflow extras:
+For the complete experience (validate, profile, local visualization, and GIS/server options), install with all workflow extras:
 
 ```bash
-pip install "parq-blockmodel[schema,profiling,viz]"
+pip install "parq-blockmodel[all]"
 ```
 
 ### Installation by Workflow Step
@@ -55,10 +55,22 @@ pip install "parq-blockmodel[schema]"
 pip install "parq-blockmodel[profiling]"
 ```
 
-**Step 3: View** — Interactive 3D visualization with PyVista/Trame:
+**Step 3: View** — Local plotting with PyVista and Plotly:
 
 ```bash
 pip install "parq-blockmodel[viz]"
+
+**Optional: Spatial / GIS** — GeoDataFrame, GeoParquet, and polygon workflows:
+
+```bash
+pip install "parq-blockmodel[spatial]"
+```
+
+**Optional: Server viewer** — Trame web app support:
+
+```bash
+pip install "parq-blockmodel[server-viz]"
+```
 ```
 
 See the [Quick Start Guide](https://parq-blockmodel.readthedocs.io/en/stable/usage/quickstart.html) for a walkthrough of the 3-step workflow.
@@ -108,6 +120,9 @@ and the examples gallery for a full walkthrough.
 
 The block-model plotting path now delegates through `parq_blockmodel.visualization`, which keeps the
 rendering logic isolated from `ParquetBlockModel` itself.
+
+Install `parq-blockmodel[viz]` for local PyVista/Plotly plotting, and add
+`parq-blockmodel[server-viz]` for Trame examples.
 
 ```python
 from parq_blockmodel import ParquetBlockModel

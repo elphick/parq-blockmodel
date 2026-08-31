@@ -2290,6 +2290,30 @@ class ParquetBlockModel:
         write_ply(mesh, output_path, binary=binary)
         return Path(output_path)
 
+    def to_categorical_geodataframe(
+        self,
+        column: str,
+        *,
+        categories: Optional[typing.Sequence[typing.Any]] = None,
+        precedence: Optional[typing.Sequence[typing.Any]] = None,
+    ):
+        """Build precedence-aware plan-view category footprints as a GeoDataFrame.
+
+        Notes
+        -----
+        Uses a fast local-(i,j) footprint path suitable for typical rotated
+        models. Geometries with meaningful horizontal components in ``axis_w``
+        (tilted logical columns) are rejected explicitly.
+        """
+        from parq_blockmodel.footprint.categorical import to_categorical_geodataframe
+
+        return to_categorical_geodataframe(
+            self,
+            column=column,
+            categories=categories,
+            precedence=precedence,
+        )
+
     def to_glb(
         self,
         output_path: Union[str, Path],

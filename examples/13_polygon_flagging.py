@@ -22,8 +22,8 @@ import pandas as pd
 import pyvista as pv
 from shapely.geometry import Polygon
 
-from parq_blockmodel import ParquetBlockModel, PolygonField, RegularGeometry
-
+from parq_blockmodel import ParquetBlockModel, RegularGeometry
+from parq_blockmodel.polygon_field import PolygonField
 
 # %%
 # Create a geometry-backed block model
