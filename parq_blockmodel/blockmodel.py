@@ -2314,6 +2314,24 @@ class ParquetBlockModel:
             precedence=precedence,
         )
 
+    def to_footprint_geodataframe(
+        self,
+        *,
+        attributes: Optional[typing.Mapping[str, typing.Mapping[str, typing.Any]]] = None,
+    ):
+        """Build dense and sparse plan-view footprints as a GeoDataFrame.
+
+        Notes
+        -----
+        The result always contains two rows in deterministic order:
+        dense model extent first, then sparse populated extent. Reduction to
+        logical ``(i, j)`` footprint cells is only permitted when ``axis_w``
+        remains orthogonal to the plan-view footprint plane.
+        """
+        from parq_blockmodel.footprint import to_footprint_geodataframe
+
+        return to_footprint_geodataframe(self, attributes=attributes)
+
     def to_glb(
         self,
         output_path: Union[str, Path],
