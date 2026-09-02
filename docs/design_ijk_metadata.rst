@@ -75,7 +75,7 @@ internal components that separate concerns:
 **WorldFrame** (world embedding)
 
 - Represents the spatial reference system and orientation
-- Stores: ``origin``, ``axis_u``, ``axis_v``, ``axis_w``, ``srs``
+- Stores: ``origin``, ``axis_u``, ``axis_v``, ``axis_w``, structured ``crs`` (CRSDef) and legacy ``srs`` string for compatibility
 - Provides: orthonormal rotation matrix and transform methods
 - Maps: local (u, v, w) ↔ world (x, y, z) coordinates
 - Ensures: axes are orthonormal (enforced in ``__post_init__``)
@@ -114,6 +114,9 @@ via ``to_metadata_dict`` and ``from_metadata``.
         "axis_u": [ux, uy, uz],
         "axis_v": [vx, vy, vz],
         "axis_w": [wx, wy, wz],
+        # New structured CRS metadata (preferred):
+        "crs": {"authority": "EPSG", "code": 4326, "name": "WGS 84", "wkt": "..."} or None,
+        # Legacy compatibility string (kept when present):
         "srs": "EPSG:XXXX" or None,
     }
 

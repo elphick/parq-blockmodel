@@ -47,7 +47,7 @@ geometry = RegularGeometry(
         axis_u=axis_u,
         axis_v=axis_v,
         axis_w=axis_w,
-        srs="EPSG:28350",
+        crs="EPSG:28350",
     ),
 )
 pbm = ParquetBlockModel.from_geometry(geometry=geometry, path=pbm_path)
