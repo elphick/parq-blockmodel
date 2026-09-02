@@ -12,11 +12,11 @@ def make_geometry(
     axis_u=(1.0, 0.0, 0.0),
     axis_v=(0.0, 1.0, 0.0),
     axis_w=(0.0, 0.0, 1.0),
-    srs=None,
+    crs=None,
 ):
     return RegularGeometry(
         local=LocalGeometry(corner=corner, block_size=block_size, shape=shape),
-        world=WorldFrame(axis_u=axis_u, axis_v=axis_v, axis_w=axis_w, srs=srs),
+        world=WorldFrame(axis_u=axis_u, axis_v=axis_v, axis_w=axis_w, crs=crs),
     )
 
 
@@ -51,7 +51,7 @@ def test_regular_geometry_init():
 
 def test_regular_geometry_composition_init():
     local = LocalGeometry(corner=(1.0, 2.0, 3.0), block_size=(1.0, 1.0, 1.0), shape=(2, 2, 2))
-    world = WorldFrame(axis_u=(1.0, 0.0, 0.0), axis_v=(0.0, 1.0, 0.0), axis_w=(0.0, 0.0, 1.0), srs="EPSG:4326")
+    world = WorldFrame(axis_u=(1.0, 0.0, 0.0), axis_v=(0.0, 1.0, 0.0), axis_w=(0.0, 0.0, 1.0), crs="EPSG:4326")
     geom = RegularGeometry(local=local, world=world)
 
     assert geom.local is local
@@ -70,7 +70,7 @@ def test_regular_geometry_exposes_flat_legacy_properties():
 
 
 def test_centroid_properties():
-    geom = make_geometry(srs="my_srs")
+    geom = make_geometry(crs="my_srs")
     np.testing.assert_allclose(geom.centroid_x, [0.5, 0.5, 0.5, 0.5, 1.5, 1.5, 1.5, 1.5])
     np.testing.assert_allclose(geom.centroid_y, [0.5, 0.5, 1.5, 1.5, 0.5, 0.5, 1.5, 1.5])
     np.testing.assert_allclose(geom.centroid_z, [0.5, 1.5, 0.5, 1.5, 0.5, 1.5, 0.5, 1.5])
@@ -234,7 +234,7 @@ def test_axis_rotation_non_normalized():
 
 
 def test_metadata_roundtrip():
-    geom = make_geometry(corner=(1.0, 2.0, 3.0), srs="EPSG:4326")
+    geom = make_geometry(corner=(1.0, 2.0, 3.0), crs="EPSG:4326")
     meta = geom.to_metadata_dict()
     geom2 = RegularGeometry.from_metadata(meta)
     assert geom2.local.corner == geom.local.corner

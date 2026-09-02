@@ -115,7 +115,7 @@ def _build_new_geometry(blockmodel, new_block_size, new_shape) -> RegularGeometr
             axis_u=blockmodel.geometry.world.axis_u,
             axis_v=blockmodel.geometry.world.axis_v,
             axis_w=blockmodel.geometry.world.axis_w,
-            srs=blockmodel.geometry.world.srs,
+            crs=blockmodel.geometry.world.crs,
         ),
         world_id_encoding=blockmodel.geometry.world_id_encoding,
     )

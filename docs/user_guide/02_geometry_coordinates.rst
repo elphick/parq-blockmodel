@@ -60,8 +60,11 @@ Key metadata fields:
     - ``axis_v = (0, 1, 0)`` → v-axis aligned with world Y
     - ``axis_w = (0, 0, 1)`` → w-axis aligned with world Z
 
-**srs** (optional)
-    Spatial Reference System (CRS) identifier for geographic context (managed by ``WorldFrame``).
+**crs** (optional)
+    Structured spatial reference system metadata (CRS). Use a string like ``"EPSG:4326"`` or a
+    structured dict (``{"authority": "EPSG", "code": 4326}``) when providing a CRS. The
+    metadata serializer prefers a structured ``crs`` object but preserves the legacy ``srs``
+    string for backward compatibility (``WorldFrame.srs`` exposes the original string when present).
 
 Logical Indices (i, j, k)
 --------------------------

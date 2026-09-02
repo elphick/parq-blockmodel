@@ -300,6 +300,49 @@ class ParquetBlockModel:
         """Persisted block-property columns (non-positional)."""
         return [c for c in self.columns if c not in self.POSITION_COLUMNS]
 
+    # ------------------------------------------------------------------
+    # CRS helpers
+    # ------------------------------------------------------------------
+
+    @property
+    def crs(self):
+        """Return the structured CRS (CRSDef) for this block model, or None."""
+        if self.geometry is None:
+            return None
+        return getattr(self.geometry, "world", None).crs
+
+    @property
+    def crs_key(self):
+        """Return a tuple (authority, code) identifying the CRS, or None."""
+        crs = self.crs
+        if crs is None:
+            return None
+        return (crs.authority, crs.code)
+
+    @property
+    def pyproj_crs(self):
+        """Return a pyproj.CRS instance for this model's CRS.
+
+        Requires pyproj to be installed. For EPSG authorities constructs via EPSG code;
+        for other authorities attempts to use WKT if available.
+        """
+        try:
+            from pyproj import CRS as _CRS
+        except ImportError as exc:  # pragma: no cover
+            raise ImportError("pyproj is required to obtain a pyproj CRS object") from exc
+        crs = self.crs
+        if crs is None:
+            return None
+        if crs.authority == "EPSG":
+            try:
+                return _CRS.from_epsg(int(crs.code))
+            except Exception:
+                # Fallback to user input
+                return _CRS.from_user_input(crs.to_string())
+        if crs.wkt:
+            return _CRS.from_wkt(crs.wkt)
+        raise ValueError("Cannot construct pyproj CRS for LOCAL authority without WKT")
+
     @property
     def calculated_columns(self) -> list[str]:
         """df-eval columns available for materialization (schema + intrinsic)."""

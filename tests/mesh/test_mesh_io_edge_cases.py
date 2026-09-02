@@ -44,10 +44,10 @@ def _simple_mesh(with_ijk: bool = False, with_face_attr: bool = False, with_meta
     )
 
 
-def _make_geometry(shape=(2, 2, 2), srs=None):
+def _make_geometry(shape=(2, 2, 2), crs=None):
     g = RegularGeometry(
         local=LocalGeometry(corner=(0, 0, 0), block_size=(1, 1, 1), shape=shape),
-        world=WorldFrame(axis_u=(1, 0, 0), axis_v=(0, 1, 0), axis_w=(0, 0, 1), srs=srs),
+        world=WorldFrame(axis_u=(1, 0, 0), axis_v=(0, 1, 0), axis_w=(0, 0, 1), crs=crs),
     )
     return g
 
@@ -292,7 +292,7 @@ class TestTriangulationEdgeCases:
 
     def test_triangulate_with_srs_in_geometry_adds_metadata(self):
         """geometry.world.srs being set should appear in mesh metadata."""
-        geometry = _make_geometry(srs="EPSG:32754")
+        geometry = _make_geometry(crs="EPSG:32754")
         generator = BlockMeshGenerator(geometry)
         mesh = generator.triangulate(block_data=None, surface_only=False, sparse=False)
 

@@ -11,6 +11,7 @@ from parq_blockmodel.types import Point, Vector, Shape3D, BlockSize
 from parq_blockmodel.utils.geometry_utils import (
     validate_axes_orthonormal,
 )
+from parq_blockmodel.crs import CRSDef
 
 
 @dataclass
@@ -129,7 +130,7 @@ class WorldFrame:
     axis_u: Vector = (1.0, 0.0, 0.0)
     axis_v: Vector = (0.0, 1.0, 0.0)
     axis_w: Vector = (0.0, 0.0, 1.0)
-    srs: Optional[str] = None
+    crs: Optional[CRSDef] = None
 
     def __post_init__(self):
         if not validate_axes_orthonormal(self.axis_u, self.axis_v, self.axis_w):
@@ -144,6 +145,37 @@ class WorldFrame:
         self.axis_u = (axis_u[0], axis_u[1], axis_u[2])
         self.axis_v = (axis_v[0], axis_v[1], axis_v[2])
         self.axis_w = (axis_w[0], axis_w[1], axis_w[2])
+
+        # Normalize CRS input: accept CRSDef, a metadata dict, or legacy string
+        # Preserve legacy string when parsing fails to maintain backward compatibility.
+        self._legacy_srs = None
+        if self.crs is not None and not isinstance(self.crs, CRSDef):
+            if isinstance(self.crs, dict):
+                try:
+                    self.crs = CRSDef.from_metadata(self.crs)
+                except Exception:
+                    self._legacy_srs = str(self.crs)
+                    self.crs = None
+            else:
+                # Allow legacy string like "EPSG:4326" or arbitrary strings
+                try:
+                    parsed = CRSDef.from_string(str(self.crs))
+                    self.crs = parsed
+                except Exception:
+                    # Keep original string for backward compatibility
+                    self._legacy_srs = str(self.crs)
+                    self.crs = None
+
+    @property
+    def srs(self) -> Optional[str]:
+        """Backward-compatible string SRS accessor.
+
+        Returns the legacy "AUTH:code" string when a CRS is present or when a
+        legacy string was provided; otherwise None.
+        """
+        if self.crs is not None:
+            return self.crs.to_string()
+        return self._legacy_srs
 
     @property
     def rotation_matrix(self) -> np.ndarray:
@@ -369,7 +401,7 @@ class RegularGeometry:
         axis_u: Vector = (1.0, 0.0, 0.0),
         axis_v: Vector = (0.0, 1.0, 0.0),
         axis_w: Vector = (0.0, 0.0, 1.0),
-        srs: Optional[str] = None,
+        crs: Optional[str] = None,
     ) -> "RegularGeometry":
         """Convenience factory for creating RegularGeometry with keyword arguments.
 
@@ -386,14 +418,14 @@ class RegularGeometry:
             axis_u (Vector, optional): Orthonormal U-axis for world embedding. Defaults to (1, 0, 0).
             axis_v (Vector, optional): Orthonormal V-axis for world embedding. Defaults to (0, 1, 0).
             axis_w (Vector, optional): Orthonormal W-axis for world embedding. Defaults to (0, 0, 1).
-            srs (str, optional): Spatial reference system identifier.
+            crs (str, optional): Spatial reference system identifier (stringified "AUTH:code" or CRSDef-compatible value).
 
         Returns:
             RegularGeometry: New geometry instance.
         """
         return cls(
             local=LocalGeometry(corner=corner, block_size=block_size, shape=shape),
-            world=WorldFrame(origin=(0.0, 0.0, 0.0), axis_u=axis_u, axis_v=axis_v, axis_w=axis_w, srs=srs),
+            world=WorldFrame(origin=(0.0, 0.0, 0.0), axis_u=axis_u, axis_v=axis_v, axis_w=axis_w, crs=crs),
         )
 
     def __init__(
@@ -409,7 +441,7 @@ class RegularGeometry:
         axis_u: Optional[Vector] = None,
         axis_v: Optional[Vector] = None,
         axis_w: Optional[Vector] = None,
-        srs: Optional[str] = None,
+        crs: Optional[str] = None,
     ):
         """Initialize RegularGeometry.
 
@@ -419,7 +451,7 @@ class RegularGeometry:
         3. Or mix default parameters with keyword overrides
         """
         # If old-style parameters are provided, use them to construct local/world
-        if any(p is not None for p in [corner, block_size, shape, axis_u, axis_v, axis_w, srs]):
+        if any(p is not None for p in [corner, block_size, shape, axis_u, axis_v, axis_w, crs]):
             if local is not None or world is not None:
                 raise ValueError(
                     "Cannot specify both new-style (local/world) and old-style "
@@ -436,7 +468,7 @@ class RegularGeometry:
                 axis_u=axis_u or (1.0, 0.0, 0.0),
                 axis_v=axis_v or (0.0, 1.0, 0.0),
                 axis_w=axis_w or (0.0, 0.0, 1.0),
-                srs=srs,
+                crs=crs,
             )
         elif local is None or world is None:
             # If neither new-style nor old-style provided, use defaults
@@ -571,8 +603,15 @@ class RegularGeometry:
             "axis_u": list(self.world.axis_u),
             "axis_v": list(self.world.axis_v),
             "axis_w": list(self.world.axis_w),
-            "srs": self.world.srs,
         }
+        # Prefer structured CRS metadata, but keep srs string for backward-compatibility
+        if self.world.crs is not None:
+            metadata["crs"] = self.world.crs.to_metadata()
+            metadata["srs"] = self.world.srs
+        else:
+            # Preserve legacy srs string if present
+            if self.world.srs is not None:
+                metadata["srs"] = self.world.srs
         if self.world_id_encoding is not None:
             metadata["world_id_encoding"] = self.world_id_encoding
         return metadata
@@ -591,7 +630,7 @@ class RegularGeometry:
                 axis_u=tuple(meta["axis_u"]),
                 axis_v=tuple(meta["axis_v"]),
                 axis_w=tuple(meta["axis_w"]),
-                srs=meta.get("srs"),
+                crs=meta.get("crs", meta.get("srs")),
             ),
             schema_version=str(meta.get("schema_version", "1.1")),
             world_id_encoding=meta.get("world_id_encoding"),

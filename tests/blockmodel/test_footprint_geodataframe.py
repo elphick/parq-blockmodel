@@ -32,7 +32,7 @@ def _make_footprint_pbm(
             axis_u=axis_u,
             axis_v=axis_v,
             axis_w=axis_w,
-            srs="EPSG:28350",
+            crs="EPSG:28350",
         ),
     )
     pbm = ParquetBlockModel.from_geometry(geometry=geometry, path=tmp_path / "footprint_extent.pbm")
