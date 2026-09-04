@@ -430,7 +430,7 @@ def test_block_id_column_matches_geometry_row_indices(tmp_path):
 
 def test_world_id_persisted_and_decodable(tmp_path):
     parquet_path = tmp_path / "world_id_source.parquet"
-    blocks = create_demo_blockmodel(shape=(3, 2, 2), block_size=(1.0, 1.0, 1.0), corner=(500000.0, 7000000.0, 100.0)).reset_index()
+    blocks = create_demo_blockmodel(shape=(3, 2, 2), block_size=(1.0, 1.0, 1.0), corner=(0.0, 0.0, 0.0)).reset_index()
     blocks[["x", "y", "z", "depth"]].to_parquet(parquet_path, index=False)
 
     pbm = ParquetBlockModel.from_parquet(parquet_path, columns=["depth"], chunk_size=4)
@@ -440,6 +440,7 @@ def test_world_id_persisted_and_decodable(tmp_path):
     assert persisted["world_id"].dtype == np.int64
 
     offset, scale, bits_per_axis = get_world_id_encoding_params(pbm.geometry.world_id_encoding)
+    assert offset == (0.0, 0.0, 0.0)
     x_dec, y_dec, z_dec = decode_world_coordinates(
         persisted["world_id"].to_numpy(dtype=np.int64),
         offset=offset,
@@ -455,7 +456,7 @@ def test_world_id_persisted_and_decodable(tmp_path):
 
 def test_metadata_contains_schema_version_and_world_id_encoding(tmp_path):
     parquet_path = tmp_path / "world_id_meta_source.parquet"
-    blocks = create_demo_blockmodel(shape=(2, 2, 2), block_size=(1.0, 1.0, 1.0), corner=(500000.0, 7000000.0, 50.0)).reset_index()
+    blocks = create_demo_blockmodel(shape=(2, 2, 2), block_size=(1.0, 1.0, 1.0), corner=(0.0, 0.0, 0.0)).reset_index()
     blocks[["x", "y", "z", "depth"]].to_parquet(parquet_path, index=False)
 
     pbm = ParquetBlockModel.from_parquet(parquet_path, columns=["depth"], chunk_size=4)
@@ -464,10 +465,26 @@ def test_metadata_contains_schema_version_and_world_id_encoding(tmp_path):
     assert geom.schema_version == "1.1"
     assert geom.world_id_encoding is not None
     assert geom.world_id_encoding.get("column") == "world_id"
+    assert geom.world_id_encoding["offset"] == {"x": 0.0, "y": 0.0, "z": 0.0, "units": "world"}
 
     geom_meta = pq.read_metadata(pbm.blockmodel_path).metadata[b"parq-blockmodel"].decode("utf-8")
     assert "schema_version" in geom_meta
     assert "world_id_encoding" in geom_meta
+
+
+def test_from_parquet_raises_when_world_id_overflows_zero_offset(tmp_path):
+    parquet_path = tmp_path / "world_id_overflow_source.parquet"
+    blocks = create_demo_blockmodel(
+        shape=(2, 2, 2),
+        block_size=(1.0, 1.0, 1.0),
+        corner=(0.0, 1700000.0, 0.0),
+    ).reset_index()
+    blocks[["x", "y", "z", "depth"]].to_parquet(parquet_path, index=False)
+
+    with pytest.raises(ValueError, match="zero-offset world_id encoding"):
+        ParquetBlockModel.from_parquet(parquet_path, columns=["depth"], chunk_size=4)
+
+
 
 
 def test_canonical_special_column_order_defaults(tmp_path):

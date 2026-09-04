@@ -10,6 +10,7 @@ from parq_blockmodel.utils.spatial_encoding import (
     multiindex_to_encoded_index,
     encoded_index_to_multiindex,
 )
+from parq_blockmodel.io.ingest_utils import build_world_id_encoding_from_xyz
 
 
 # ---------------------------------------------------------------------------
@@ -87,3 +88,29 @@ def test_multiindex_roundtrip():
     np.testing.assert_allclose(restored.get_level_values("x"), xs, atol=1e-1)
     np.testing.assert_allclose(restored.get_level_values("y"), ys, atol=1e-1)
     np.testing.assert_allclose(restored.get_level_values("z"), zs, atol=1e-1)
+
+
+def test_build_world_id_encoding_zero_offset_default():
+    x = np.array([0.0, 10.0, 20.0])
+    y = np.array([0.0, 5.0, 15.0])
+    z = np.array([0.0, 1.0, 2.0])
+    enc = build_world_id_encoding_from_xyz(x, y, z, scale=10.0)
+    # Default builder should produce zero offset
+    assert enc["offset"]["x"] == 0.0
+    assert enc["offset"]["y"] == 0.0
+    assert enc["offset"]["z"] == 0.0
+    assert enc["range_after_offset"]["x_min"] == 0.0
+
+
+def test_build_world_id_encoding_overflow_raises_and_suggests_offset():
+    # Construct coords that exceed encoder capacity for zero-offset encoding
+    x = np.array([-1000.0, 1701000.0])
+    y = np.array([0.0, 1.0])
+    z = np.array([0.0, 1.0])
+    with pytest.raises(ValueError) as exc:
+        build_world_id_encoding_from_xyz(x, y, z, scale=10.0)
+    msg = str(exc.value)
+    assert "zero-offset" in msg
+    # Suggested offset should be present and reflect the floored minimum
+    assert "offset.x" in msg
+    assert "-1000" in msg
