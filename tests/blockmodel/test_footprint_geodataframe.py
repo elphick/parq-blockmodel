@@ -26,9 +26,23 @@ def _make_footprint_pbm(
         axis_dip=axis_dip,
         axis_plunge=axis_plunge,
     )
-    geometry = RegularGeometry(
-        local=LocalGeometry(corner=(100.0, 200.0, 300.0), block_size=(10.0, 20.0, 5.0), shape=(4, 3, 2)),
+    local = LocalGeometry(corner=(100.0, 200.0, 300.0), block_size=(10.0, 20.0, 5.0), shape=(4, 3, 2))
+    base_geometry = RegularGeometry(
+        local=local,
         world=WorldFrame(
+            axis_u=axis_u,
+            axis_v=axis_v,
+            axis_w=axis_w,
+            crs="EPSG:28350",
+        ),
+    )
+    coords = base_geometry.to_dataframe().to_numpy(dtype=float)
+    mins = coords.min(axis=0)
+    world_origin = tuple(np.where(mins < 0.0, -mins, 0.0))
+    geometry = RegularGeometry(
+        local=local,
+        world=WorldFrame(
+            origin=world_origin,
             axis_u=axis_u,
             axis_v=axis_v,
             axis_w=axis_w,

@@ -724,7 +724,7 @@ class ParquetBlockModel:
         y = df["y"].to_numpy(dtype=float)
         z = df["z"].to_numpy(dtype=float)
         if self.geometry.world_id_encoding is None:
-            self.geometry.world_id_encoding = self._build_world_id_encoding_from_xyz(x, y, z)
+            self.geometry.world_id_encoding = ingest_utils.build_world_id_encoding_from_xyz(x, y, z)
 
         offset, scale, bits_per_axis = get_world_id_encoding_params(self.geometry.world_id_encoding)
         df["world_id"] = encode_world_coordinates(
@@ -1292,14 +1292,39 @@ class ParquetBlockModel:
         layout.
         """
 
-        create_toy_blockmodel(shape=shape, block_size=block_size, corner=corner,
-                              axis_azimuth=axis_azimuth, axis_dip=axis_dip, axis_plunge=axis_plunge,
-                              deposit_bearing=deposit_bearing, deposit_dip=deposit_dip, deposit_plunge=deposit_plunge,
-                              grade_name=grade_name, grade_min=grade_min, grade_max=grade_max,
-                              deposit_center=deposit_center, deposit_radii=deposit_radii,
-                              noise_std=noise_std, noise_rel=noise_rel,
-                              noise_seed=noise_seed, parquet_filepath=filename,
-                              )
+        toy_df = create_toy_blockmodel(
+            shape=shape,
+            block_size=block_size,
+            corner=corner,
+            axis_azimuth=axis_azimuth,
+            axis_dip=axis_dip,
+            axis_plunge=axis_plunge,
+            deposit_bearing=deposit_bearing,
+            deposit_dip=deposit_dip,
+            deposit_plunge=deposit_plunge,
+            grade_name=grade_name,
+            grade_min=grade_min,
+            grade_max=grade_max,
+            deposit_center=deposit_center,
+            deposit_radii=deposit_radii,
+            noise_std=noise_std,
+            noise_rel=noise_rel,
+            noise_seed=noise_seed,
+        )
+        if not isinstance(toy_df, pd.DataFrame):
+            raise TypeError("create_toy_blockmodel returned a path unexpectedly")
+
+        coords = toy_df[["x", "y", "z"]].to_numpy(dtype=float)
+        mins = coords.min(axis=0)
+        world_origin = tuple(float(v) for v in np.where(mins < 0.0, -mins, 0.0))
+        if any(v != 0.0 for v in world_origin):
+            toy_df["x"] = toy_df["x"] + world_origin[0]
+            toy_df["y"] = toy_df["y"] + world_origin[1]
+            toy_df["z"] = toy_df["z"] + world_origin[2]
+
+        # Persist the synthetic source file expected by IngestWriter.
+        toy_df.to_parquet(filename)
+
         # get the orientation of the axes
         axis_u, axis_v, axis_w = angles_to_axes(
             axis_azimuth=axis_azimuth, axis_dip=axis_dip,
@@ -1307,7 +1332,7 @@ class ParquetBlockModel:
         # create geometry that aligns with the demo block model
         geometry = RegularGeometry(
             local=LocalGeometry(corner=corner, block_size=block_size, shape=shape),
-            world=WorldFrame(axis_u=axis_u, axis_v=axis_v, axis_w=axis_w),
+            world=WorldFrame(origin=world_origin, axis_u=axis_u, axis_v=axis_v, axis_w=axis_w),
         )
 
         if not geometry.is_rotated:

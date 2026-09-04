@@ -231,6 +231,12 @@ def build_world_id_encoding_from_xyz(
 ) -> dict[str, object]:
     """Build default world_id encoding metadata from xyz ranges.
 
+    This builder uses a zero offset by default (i.e. offset = (0.0, 0.0, 0.0)).
+    If the observed coordinates do not fit the encoding space with a zero
+    offset, a ValueError is raised describing the observed ranges, the
+    encoder bounds, and suggesting a rounded offset that would make the
+    data fit the encoder's range.
+
     Parameters
     ----------
     x, y, z : np.ndarray
@@ -248,7 +254,10 @@ def build_world_id_encoding_from_xyz(
     Raises
     ------
     ValueError
-        If axis bit counts are invalid or exceed supported limits.
+        If axis bit counts are invalid or the coordinates exceed supported limits
+        for a zero-offset encoding. The error message includes a suggested offset
+        (rounded to the quantization) that would bring the minimum coordinates to
+        the zero origin used by the encoder.
     """
     x_bits, y_bits, z_bits = tuple(int(v) for v in bits_per_axis)
     if x_bits <= 0 or y_bits <= 0 or z_bits <= 0:
@@ -260,21 +269,63 @@ def build_world_id_encoding_from_xyz(
     if (x_bits + y_bits + z_bits) > 64:
         raise ValueError("axis bit counts must total <= 64 for 64-bit storage.")
 
-    ox = np.floor(float(np.min(x)) * scale) / scale
-    oy = np.floor(float(np.min(y)) * scale) / scale
-    oz = np.floor(float(np.min(z)) * scale) / scale
+    # DEFAULT BEHAVIOR: zero offset
+    ox = 0.0
+    oy = 0.0
+    oz = 0.0
 
-    x_span = float(np.max(x) - ox)
-    y_span = float(np.max(y) - oy)
-    z_span = float(np.max(z) - oz)
+    # Observed coordinate extents
+    x_min = float(np.min(x))
+    y_min = float(np.min(y))
+    z_min = float(np.min(z))
+    x_max = float(np.max(x))
+    y_max = float(np.max(y))
+    z_max = float(np.max(z))
+
+    # Encoder axis maximums after offset (zero-based)
     x_axis_max = ((1 << x_bits) - 1) / scale
     y_axis_max = ((1 << y_bits) - 1) / scale
     z_axis_max = ((1 << z_bits) - 1) / scale
+
+    x_span = x_max - ox
+    y_span = y_max - oy
+    z_span = z_max - oz
+
+    # If spans exceed encoder capacity for zero-offset encoding, raise with helpful message
     if x_span > x_axis_max or y_span > y_axis_max or z_span > z_axis_max:
-        raise ValueError(
-            f"Coordinates exceed world_id span limits (x/y/z bits={x_bits}/{y_bits}/{z_bits} at scale={scale}). "
-            "Provide a custom encoding strategy."
-        )
+        # Suggested offsets that would shift minima to non-negative quantized origin
+        suggested_ox = float(np.floor(x_min * scale) / scale)
+        suggested_oy = float(np.floor(y_min * scale) / scale)
+        suggested_oz = float(np.floor(z_min * scale) / scale)
+
+        # Format suggestion to quantization precision (decimals implied by scale)
+        try:
+            decimals = max(0, int(round(np.log10(scale))))
+        except Exception:
+            decimals = 1
+        fmt = lambda v: f"{v:.{decimals}f}"
+
+        parts = [
+            f"Coordinates do not fit zero-offset world_id encoding (bits x/y/z = {x_bits}/{y_bits}/{z_bits}, scale = {scale}).",
+            "Observed coordinate ranges:",
+            f"  x: [{x_min}, {x_max}]",
+            f"  y: [{y_min}, {y_max}]",
+            f"  z: [{z_min}, {z_max}]",
+            "Encoder allowable ranges with offset = 0:",
+            f"  x: [0.0, {x_axis_max}]",
+            f"  y: [0.0, {y_axis_max}]",
+            f"  z: [0.0, {z_axis_max}]",
+            "",
+            "Suggested rounded offset (quantized) that would make minima non-negative:",
+            f"  offset.x = {fmt(suggested_ox)}",
+            f"  offset.y = {fmt(suggested_oy)}",
+            f"  offset.z = {fmt(suggested_oz)}",
+            "",
+            "Options:",
+            " - Supply an explicit world_id_encoding dict with the suggested 'offset' to your geometry/constructor. (Preferred)",
+            " - Re-run encoding with a larger bits_per_axis or a different scale so the extents fit a zero-offset encoding.",
+        ]
+        raise ValueError("\n".join(parts))
 
     return {
         "enabled": True,
