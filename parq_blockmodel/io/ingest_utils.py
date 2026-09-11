@@ -117,66 +117,66 @@ def validate_geometry(
     dense_count = int(np.prod(geometry.local.shape))
     seen: set[int] = set()
 
-    pf = pq.ParquetFile(filepath)
-    if has_block_id and has_xyz:
-        columns_to_read = ["block_id", "x", "y", "z"]
-    elif has_block_id:
-        columns_to_read = ["block_id"]
-    elif has_world_id:
-        columns_to_read = ["world_id"]
-    elif has_xyz:
-        columns_to_read = ["x", "y", "z"]
-    else:
-        columns_to_read = ["i", "j", "k"]
-
-    for batch in pf.iter_batches(columns=columns_to_read, batch_size=chunk_size):
+    with pq.ParquetFile(filepath) as pf:
         if has_block_id and has_xyz:
-            block_ids = np.asarray(batch.column(0), dtype=np.uint32)
-            x = np.asarray(batch.column(1), dtype=float)
-            y = np.asarray(batch.column(2), dtype=float)
-            z = np.asarray(batch.column(3), dtype=float)
-            assert_block_id_xyz_consistent(
-                block_ids=block_ids,
-                x=x,
-                y=y,
-                z=z,
-                geometry=geometry,
-                tol=tol,
-                context=f"validation for {filepath}",
-            )
+            columns_to_read = ["block_id", "x", "y", "z"]
         elif has_block_id:
-            block_ids = np.asarray(batch.column(0), dtype=np.uint32)
+            columns_to_read = ["block_id"]
         elif has_world_id:
-            if not geometry.world_id_encoding:
-                raise ValueError(
-                    "world_id column present but metadata has no world_id_encoding payload."
-                )
-            offset, scale, bits_per_axis = get_world_id_encoding_params(
-                geometry.world_id_encoding
-            )
-            world_ids = np.asarray(batch.column(0), dtype=np.int64)
-            x, y, z = decode_world_coordinates(
-                world_ids, offset=offset, scale=scale, bits_per_axis=bits_per_axis
-            )
-            block_ids = geometry.row_index_from_xyz(x, y, z, tol=tol).astype(np.uint32)
+            columns_to_read = ["world_id"]
         elif has_xyz:
-            x = np.asarray(batch.column(0), dtype=float)
-            y = np.asarray(batch.column(1), dtype=float)
-            z = np.asarray(batch.column(2), dtype=float)
-            block_ids = geometry.row_index_from_xyz(x, y, z, tol=tol).astype(np.uint32)
+            columns_to_read = ["x", "y", "z"]
         else:
-            i = np.asarray(batch.column(0), dtype=np.int64)
-            j = np.asarray(batch.column(1), dtype=np.int64)
-            k = np.asarray(batch.column(2), dtype=np.int64)
-            block_ids = geometry.row_index_from_ijk(i, j, k).astype(np.uint32)
+            columns_to_read = ["i", "j", "k"]
 
-        if np.any(block_ids < 0) or np.any(block_ids >= dense_count):
-            raise ValueError("Sparse positions must be a subset of the dense geometry grid.")
+        for batch in pf.iter_batches(columns=columns_to_read, batch_size=chunk_size):
+            if has_block_id and has_xyz:
+                block_ids = np.asarray(batch.column(0), dtype=np.uint32)
+                x = np.asarray(batch.column(1), dtype=float)
+                y = np.asarray(batch.column(2), dtype=float)
+                z = np.asarray(batch.column(3), dtype=float)
+                assert_block_id_xyz_consistent(
+                    block_ids=block_ids,
+                    x=x,
+                    y=y,
+                    z=z,
+                    geometry=geometry,
+                    tol=tol,
+                    context=f"validation for {filepath}",
+                )
+            elif has_block_id:
+                block_ids = np.asarray(batch.column(0), dtype=np.uint32)
+            elif has_world_id:
+                if not geometry.world_id_encoding:
+                    raise ValueError(
+                        "world_id column present but metadata has no world_id_encoding payload."
+                    )
+                offset, scale, bits_per_axis = get_world_id_encoding_params(
+                    geometry.world_id_encoding
+                )
+                world_ids = np.asarray(batch.column(0), dtype=np.int64)
+                x, y, z = decode_world_coordinates(
+                    world_ids, offset=offset, scale=scale, bits_per_axis=bits_per_axis
+                )
+                block_ids = geometry.row_index_from_xyz(x, y, z, tol=tol).astype(np.uint32)
+            elif has_xyz:
+                x = np.asarray(batch.column(0), dtype=float)
+                y = np.asarray(batch.column(1), dtype=float)
+                z = np.asarray(batch.column(2), dtype=float)
+                block_ids = geometry.row_index_from_xyz(x, y, z, tol=tol).astype(np.uint32)
+            else:
+                i = np.asarray(batch.column(0), dtype=np.int64)
+                j = np.asarray(batch.column(1), dtype=np.int64)
+                k = np.asarray(batch.column(2), dtype=np.int64)
+                block_ids = geometry.row_index_from_ijk(i, j, k).astype(np.uint32)
 
-        seen_before = len(seen)
-        seen.update(block_ids.tolist())
-        if len(seen) - seen_before != len(block_ids):
-            raise ValueError("Duplicate block positions detected in dataset.")
+            if np.any(block_ids < 0) or np.any(block_ids >= dense_count):
+                raise ValueError("Sparse positions must be a subset of the dense geometry grid.")
+
+            seen_before = len(seen)
+            seen.update(block_ids.tolist())
+            if len(seen) - seen_before != len(block_ids):
+                raise ValueError("Duplicate block positions detected in dataset.")
 
     logger.debug(f"Geometry validation completed successfully for {filepath}.")
 

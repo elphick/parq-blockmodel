@@ -178,6 +178,31 @@ class ParquetBlockModel:
                 raise ValueError("The sparse ParquetBlockModel is invalid. "
                                  "Sparse centroids must be a subset of the dense grid.")
 
+    def close(self) -> None:
+        """Close any open Parquet resources associated with this model."""
+        for resource_name in ("pf", "data"):
+            resource = getattr(self, resource_name, None)
+            if resource is not None:
+                close_method = getattr(resource, "close", None)
+                if callable(close_method):
+                    try:
+                        close_method()
+                    except Exception:
+                        pass
+                setattr(self, resource_name, None)
+
+    def __enter__(self) -> "ParquetBlockModel":
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.close()
+
+    def __del__(self) -> None:
+        try:
+            self.close()
+        except Exception:
+            pass
+
     def configure_engine(self, initializer: typing.Callable) -> None:
         """Register custom lookups and functions with the df-eval Engine.
 
@@ -259,6 +284,11 @@ class ParquetBlockModel:
 
     def _refresh_path_bound_state(self) -> None:
         """Refresh cached state that depends on the backing Parquet file."""
+        if getattr(self, "pf", None) is not None:
+            try:
+                self.pf.close()
+            except Exception:
+                pass
         self.pf = ParquetFile(self.blockmodel_path)
         self.data = LazyParquetDF(self.blockmodel_path)
         self.columns = pq.read_schema(self.blockmodel_path).names
@@ -867,8 +897,14 @@ class ParquetBlockModel:
 
     def _iter_batches(self, columns: list[str], batch_size: int = 1_000_000) -> Iterator[pa.RecordBatch]:
         pf = pq.ParquetFile(self.blockmodel_path)
-        for batch in pf.iter_batches(columns=columns, batch_size=batch_size):
-            yield batch
+        try:
+            for batch in pf.iter_batches(columns=columns, batch_size=batch_size):
+                yield batch
+        finally:
+            try:
+                pf.close()
+            except Exception:
+                pass
 
     def _iter_block_ids(self, batch_size: int = 1_000_000) -> Iterator[np.ndarray]:
         cols = set(self.columns)
@@ -2130,10 +2166,12 @@ class ParquetBlockModel:
                 },
             )
         else:
-            if len(dataframe) != int(ParquetFile(self.blockmodel_path).metadata.num_rows):
+            with pq.ParquetFile(self.blockmodel_path) as pf:
+                num_rows = int(pf.metadata.num_rows)
+            if len(dataframe) != num_rows:
                 raise ValueError(
                     f"DataFrame row count ({len(dataframe)}) does not match "
-                    f"block model rows ({int(ParquetFile(self.blockmodel_path).metadata.num_rows)})."
+                    f"block model rows ({num_rows})."
                 )
             missing_columns = [col for col in self.columns if col not in dataframe.columns]
             if missing_columns:
@@ -2197,28 +2235,24 @@ class ParquetBlockModel:
         self.data = None  # type: ignore[assignment]
 
         with atomic_output_file(self.blockmodel_path) as tmp_path:
-            parquet_file = pq.ParquetFile(self.blockmodel_path)
-            schema = parquet_file.schema_arrow
-            metadata = schema_utils.build_schema_metadata(
-                geometry=self.geometry,
-                schema=self.schema,
-                base_metadata=dict(schema.metadata or {}),
-                compression=archive_policy,
-            )
-            writer = pq.ParquetWriter(
-                tmp_path,
-                schema.with_metadata(metadata),
-                **schema_utils.build_parquet_compression_kwargs(schema.names, archive_policy),
-            )
-            try:
-                for batch in parquet_file.iter_batches(batch_size=1_000_000):
-                    writer.write_batch(batch)
-            finally:
-                writer.close()
+            with pq.ParquetFile(self.blockmodel_path) as parquet_file:
+                schema = parquet_file.schema_arrow
+                metadata = schema_utils.build_schema_metadata(
+                    geometry=self.geometry,
+                    schema=self.schema,
+                    base_metadata=dict(schema.metadata or {}),
+                    compression=archive_policy,
+                )
+                writer = pq.ParquetWriter(
+                    tmp_path,
+                    schema.with_metadata(metadata),
+                    **schema_utils.build_parquet_compression_kwargs(schema.names, archive_policy),
+                )
                 try:
-                    parquet_file.close()
-                except Exception:
-                    pass
+                    for batch in parquet_file.iter_batches(batch_size=1_000_000):
+                        writer.write_batch(batch)
+                finally:
+                    writer.close()
 
         self.pf = ParquetFile(self.blockmodel_path)
         self.data = LazyParquetDF(self.blockmodel_path)
@@ -2599,29 +2633,29 @@ class ParquetBlockModel:
         """
         columns = self.columns
         dense_index = self.geometry.to_multi_index_xyz()
-        parquet_file = pq.ParquetFile(self.blockmodel_path)
-        total_rows = parquet_file.metadata.num_rows
-        total_batches = max(math.ceil(total_rows / chunk_size), 1)
+        with pq.ParquetFile(self.blockmodel_path) as parquet_file:
+            total_rows = parquet_file.metadata.num_rows
+            total_batches = max(math.ceil(total_rows / chunk_size), 1)
 
-        progress = tqdm(total=total_batches, desc="Exporting", disable=not show_progress) if show_progress else None
+            progress = tqdm(total=total_batches, desc="Exporting", disable=not show_progress) if show_progress else None
 
-        with atomic_output_file(filepath) as tmp_path:
-            writer = None
-            try:
-                for batch in parquet_file.iter_batches(batch_size=chunk_size, columns=columns):
-                    df = pa.Table.from_batches([batch]).to_pandas()
-                    df = df.reindex(dense_index)
-                    table = pa.Table.from_pandas(df)
-                    if writer is None:
-                        writer = pq.ParquetWriter(tmp_path, table.schema)
-                    writer.write_table(table)
+            with atomic_output_file(filepath) as tmp_path:
+                writer = None
+                try:
+                    for batch in parquet_file.iter_batches(batch_size=chunk_size, columns=columns):
+                        df = pa.Table.from_batches([batch]).to_pandas()
+                        df = df.reindex(dense_index)
+                        table = pa.Table.from_pandas(df)
+                        if writer is None:
+                            writer = pq.ParquetWriter(tmp_path, table.schema)
+                        writer.write_table(table)
+                        if progress:
+                            progress.update(1)
+                finally:
+                    if writer is not None:
+                        writer.close()
                     if progress:
-                        progress.update(1)
-            finally:
-                if writer is not None:
-                    writer.close()
-                if progress:
-                    progress.close()
+                        progress.close()
 
 # ---------------------------------------------------------------------------
 # Backwards-compatible private helper for tests
