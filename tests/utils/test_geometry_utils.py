@@ -8,6 +8,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 import pytest
 
+from parq_blockmodel.geometry import RegularGeometry, LocalGeometry, WorldFrame
 from parq_blockmodel.utils.geometry_utils import (
     validate_geometry,
     validate_axes_orthonormal,
@@ -91,6 +92,49 @@ def test_validate_geometry_valid(tmp_path):
     validate_geometry(p)
 
 
+def test_validate_geometry_ignores_stale_block_id_and_world_id_with_xyz(tmp_path):
+    geom = RegularGeometry(
+        local=LocalGeometry(corner=(0.0, 0.0, 0.0), block_size=(1.0, 1.0, 1.0), shape=(2, 1, 1)),
+        world=WorldFrame(origin=(0.0, 0.0, 0.0)),
+    )
+    df = pd.DataFrame(
+        {
+            "block_id": [99, 98],
+            "world_id": [123, 456],
+            "x": [0.5, 1.5],
+            "y": [0.5, 0.5],
+            "z": [0.5, 0.5],
+        }
+    )
+    p = _write_parquet(tmp_path, df)
+
+    from parq_blockmodel.io.ingest_utils import validate_geometry as ingest_validate_geometry
+
+    ingest_validate_geometry(p, geometry=geom)
+
+
+def test_validate_geometry_raises_for_invalid_xyz_despite_stale_positional_columns(tmp_path):
+    geom = RegularGeometry(
+        local=LocalGeometry(corner=(0.0, 0.0, 0.0), block_size=(1.0, 1.0, 1.0), shape=(2, 1, 1)),
+        world=WorldFrame(origin=(0.0, 0.0, 0.0)),
+    )
+    df = pd.DataFrame(
+        {
+            "block_id": [99, 98],
+            "world_id": [123, 456],
+            "x": [0.25, 1.5],
+            "y": [0.5, 0.5],
+            "z": [0.5, 0.5],
+        }
+    )
+    p = _write_parquet(tmp_path, df)
+
+    from parq_blockmodel.io.ingest_utils import validate_geometry as ingest_validate_geometry
+
+    with pytest.raises(ValueError):
+        ingest_validate_geometry(p, geometry=geom)
+
+
 # ---------------------------------------------------------------------------
 # validate_axes_orthonormal
 # ---------------------------------------------------------------------------
@@ -162,4 +206,3 @@ def test_rotate_points_azimuth_90():
     rotated = rotate_points(pts, azimuth=90, dip=0, plunge=0)
     # After 90° azimuth, (1,0,0) maps to roughly (0,1,0)
     assert rotated.shape == (1, 3)
-
