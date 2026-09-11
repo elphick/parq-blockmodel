@@ -140,21 +140,21 @@ class IngestWriter:
         # Lazy import to avoid circular dependencies
         from parq_blockmodel.blockmodel import ParquetBlockModel
 
-        pf = pq.ParquetFile(self.input_path)
-        src_cols = pf.schema.names
-        compression_policy = schema_utils.resolve_active_compression_policy(self.compression)
+        with pq.ParquetFile(self.input_path) as pf:
+            src_cols = pf.schema.names
+            compression_policy = schema_utils.resolve_active_compression_policy(self.compression)
 
-        # Determine output columns
-        if columns is None:
-            output_cols = list(src_cols)
-            for special_col in ParquetBlockModel.SPECIAL_COLUMN_ORDER:
-                if special_col not in output_cols:
-                    output_cols.append(special_col)
-        else:
-            missing = [c for c in columns if c not in src_cols]
-            if missing:
-                raise ValueError(f"Requested columns not present in source parquet: {missing}")
-            output_cols = list(columns)
+            # Determine output columns
+            if columns is None:
+                output_cols = list(src_cols)
+                for special_col in ParquetBlockModel.SPECIAL_COLUMN_ORDER:
+                    if special_col not in output_cols:
+                        output_cols.append(special_col)
+            else:
+                missing = [c for c in columns if c not in src_cols]
+                if missing:
+                    raise ValueError(f"Requested columns not present in source parquet: {missing}")
+                output_cols = list(columns)
 
         # Check available positional representations
         has_block_id = "block_id" in src_cols
@@ -261,135 +261,132 @@ class IngestWriter:
             read_cols = list(dict.fromkeys(src_cols + [c for c in ParquetBlockModel.SPECIAL_COLUMN_ORDER if c in src_cols]))
 
         # Stream data through batches
-        with atomic_output_file(self.output_path) as tmp_path:
-            writer = None
-            seen_block_ids: set[int] = set()
-            try:
-                for batch in pf.iter_batches(columns=read_cols, batch_size=chunk_size):
-                    df_batch = pa.Table.from_batches([batch]).to_pandas(ignore_metadata=True)
-
-                    # Validate consistency if both block_id and xyz present
-                    if "block_id" in df_batch.columns and {"x", "y", "z"}.issubset(df_batch.columns):
-                        assert_block_id_xyz_consistent(
-                            block_ids=df_batch["block_id"].to_numpy(dtype=np.uint32),
-                            x=df_batch["x"].to_numpy(dtype=float),
-                            y=df_batch["y"].to_numpy(dtype=float),
-                            z=df_batch["z"].to_numpy(dtype=float),
-                            geometry=self.geometry,
-                            tol=tol,
-                            context=f"canonical write for {self.input_path}",
-                        )
-
-                    # Derive block_id from available positional columns
-                    if "block_id" in df_batch.columns:
-                        block_ids = df_batch["block_id"].to_numpy(dtype=np.uint32)
-                    elif "world_id" in df_batch.columns:
-                        world_ids = df_batch["world_id"].to_numpy(dtype=np.int64)
-                        xw, yw, zw = decode_world_coordinates(
-                            world_ids, offset=offset, scale=scale, bits_per_axis=bits_per_axis
-                        )
-                        block_ids = self.geometry.row_index_from_xyz(xw, yw, zw, tol=tol).astype(np.uint32)
-                    elif {"x", "y", "z"}.issubset(df_batch.columns):
-                        block_ids = self.geometry.row_index_from_xyz(
-                            df_batch["x"].to_numpy(),
-                            df_batch["y"].to_numpy(),
-                            df_batch["z"].to_numpy(),
-                            tol=tol,
-                        ).astype(np.uint32)
-                    else:
-                        block_ids = self.geometry.row_index_from_ijk(
-                            df_batch["i"].to_numpy(),
-                            df_batch["j"].to_numpy(),
-                            df_batch["k"].to_numpy(),
-                        ).astype(np.uint32)
-
-                    # Validate block_ids are within bounds
-                    if np.any(block_ids < 0) or np.any(block_ids >= int(np.prod(self.geometry.local.shape))):
-                        raise ValueError("Source data contains positions outside geometry bounds.")
-
-                    # Validate uniqueness within batch
-                    if np.unique(block_ids).size != block_ids.size:
-                        raise ValueError("Canonical .pbm requires unique block_id values.")
-
-                    # Validate global uniqueness across all batches
-                    seen_before = len(seen_block_ids)
-                    seen_block_ids.update(block_ids.tolist())
-                    if len(seen_block_ids) - seen_before != block_ids.size:
-                        raise ValueError("Canonical .pbm requires unique block_id values.")
-
-                    # Ensure all spatial columns are present
-                    df_batch["block_id"] = block_ids
-                    if not {"x", "y", "z"}.issubset(df_batch.columns):
-                        x, y, z = self.geometry.xyz_from_row_index(block_ids)
-                        df_batch["x"] = x
-                        df_batch["y"] = y
-                        df_batch["z"] = z
-                    if not {"i", "j", "k"}.issubset(df_batch.columns):
-                        i, j, k = self.geometry.ijk_from_row_index(block_ids)
-                        df_batch["i"] = i.astype(np.int32)
-                        df_batch["j"] = j.astype(np.int32)
-                        df_batch["k"] = k.astype(np.int32)
-
-                    # Coerce spatial column dtypes
-                    df_batch = ParquetBlockModel._coerce_special_column_dtypes(
-                        df_batch,
-                        columns=["block_id", "i", "j", "k", "x", "y", "z"],
-                    )
-
-                    # Ensure world_id is present
-                    if "world_id" not in df_batch.columns:
-                        x = df_batch["x"].to_numpy(dtype=float)
-                        y = df_batch["y"].to_numpy(dtype=float)
-                        z = df_batch["z"].to_numpy(dtype=float)
-                        df_batch["world_id"] = encode_world_coordinates(
-                            x, y, z, offset=offset, scale=scale, bits_per_axis=bits_per_axis
-                        ).astype(np.int64)
-
-                    df_batch = ParquetBlockModel._coerce_special_column_dtypes(df_batch)
-
-                    # Apply schema validation and df-eval operations if schema provided
-                    if self.schema is not None:
-                        df_batch = ParquetBlockModel._apply_df_eval_operations(
-                            df_batch,
-                            self.schema,
-                            operations=selected_persist_operations,
-                            engine_initializer=self.engine_initializer,
-                        )
-                        df_batch = ParquetBlockModel._validate_chunk(df_batch, self.schema)
-
-                    # Select output columns, guarding against any cols absent from df_batch
-                    ordered = ParquetBlockModel._ordered_columns(output_cols)
-                    ordered = [c for c in ordered if c in df_batch.columns]
-                    write_df = df_batch[ordered]
-
-                    table = pa.Table.from_pandas(write_df, preserve_index=False)
-                    meta = ParquetBlockModel._build_schema_metadata(
-                        geometry=self.geometry,
-                        schema=self.schema,
-                        base_metadata=dict(table.schema.metadata or {}),
-                        compression=compression_policy,
-                    )
-                    table = table.replace_schema_metadata(meta)
-
-                    # Write batch (first batch initializes writer)
-                    if writer is None:
-                        writer = pq.ParquetWriter(
-                            tmp_path,
-                            table.schema,
-                            **schema_utils.build_parquet_compression_kwargs(table.column_names, compression_policy),
-                        )
-                    else:
-                        if table.schema != writer.schema:
-                            table = table.cast(writer.schema)
-                    writer.write_table(table)
-
-            finally:
-                if writer is not None:
-                    writer.close()
+        with pq.ParquetFile(self.input_path) as pf:
+            with atomic_output_file(self.output_path) as tmp_path:
+                writer = None
+                seen_block_ids: set[int] = set()
                 try:
-                    pf.close()
-                except Exception:
-                    pass
+                    for batch in pf.iter_batches(columns=read_cols, batch_size=chunk_size):
+                        df_batch = pa.Table.from_batches([batch]).to_pandas(ignore_metadata=True)
+
+                        # Validate consistency if both block_id and xyz present
+                        if "block_id" in df_batch.columns and {"x", "y", "z"}.issubset(df_batch.columns):
+                            assert_block_id_xyz_consistent(
+                                block_ids=df_batch["block_id"].to_numpy(dtype=np.uint32),
+                                x=df_batch["x"].to_numpy(dtype=float),
+                                y=df_batch["y"].to_numpy(dtype=float),
+                                z=df_batch["z"].to_numpy(dtype=float),
+                                geometry=self.geometry,
+                                tol=tol,
+                                context=f"canonical write for {self.input_path}",
+                            )
+
+                        # Derive block_id from available positional columns
+                        if "block_id" in df_batch.columns:
+                            block_ids = df_batch["block_id"].to_numpy(dtype=np.uint32)
+                        elif "world_id" in df_batch.columns:
+                            world_ids = df_batch["world_id"].to_numpy(dtype=np.int64)
+                            xw, yw, zw = decode_world_coordinates(
+                                world_ids, offset=offset, scale=scale, bits_per_axis=bits_per_axis
+                            )
+                            block_ids = self.geometry.row_index_from_xyz(xw, yw, zw, tol=tol).astype(np.uint32)
+                        elif {"x", "y", "z"}.issubset(df_batch.columns):
+                            block_ids = self.geometry.row_index_from_xyz(
+                                df_batch["x"].to_numpy(),
+                                df_batch["y"].to_numpy(),
+                                df_batch["z"].to_numpy(),
+                                tol=tol,
+                            ).astype(np.uint32)
+                        else:
+                            block_ids = self.geometry.row_index_from_ijk(
+                                df_batch["i"].to_numpy(),
+                                df_batch["j"].to_numpy(),
+                                df_batch["k"].to_numpy(),
+                            ).astype(np.uint32)
+
+                        # Validate block_ids are within bounds
+                        if np.any(block_ids < 0) or np.any(block_ids >= int(np.prod(self.geometry.local.shape))):
+                            raise ValueError("Source data contains positions outside geometry bounds.")
+
+                        # Validate uniqueness within batch
+                        if np.unique(block_ids).size != block_ids.size:
+                            raise ValueError("Canonical .pbm requires unique block_id values.")
+
+                        # Validate global uniqueness across all batches
+                        seen_before = len(seen_block_ids)
+                        seen_block_ids.update(block_ids.tolist())
+                        if len(seen_block_ids) - seen_before != block_ids.size:
+                            raise ValueError("Canonical .pbm requires unique block_id values.")
+
+                        # Ensure all spatial columns are present
+                        df_batch["block_id"] = block_ids
+                        if not {"x", "y", "z"}.issubset(df_batch.columns):
+                            x, y, z = self.geometry.xyz_from_row_index(block_ids)
+                            df_batch["x"] = x
+                            df_batch["y"] = y
+                            df_batch["z"] = z
+                        if not {"i", "j", "k"}.issubset(df_batch.columns):
+                            i, j, k = self.geometry.ijk_from_row_index(block_ids)
+                            df_batch["i"] = i.astype(np.int32)
+                            df_batch["j"] = j.astype(np.int32)
+                            df_batch["k"] = k.astype(np.int32)
+
+                        # Coerce spatial column dtypes
+                        df_batch = ParquetBlockModel._coerce_special_column_dtypes(
+                            df_batch,
+                            columns=["block_id", "i", "j", "k", "x", "y", "z"],
+                        )
+
+                        # Ensure world_id is present
+                        if "world_id" not in df_batch.columns:
+                            x = df_batch["x"].to_numpy(dtype=float)
+                            y = df_batch["y"].to_numpy(dtype=float)
+                            z = df_batch["z"].to_numpy(dtype=float)
+                            df_batch["world_id"] = encode_world_coordinates(
+                                x, y, z, offset=offset, scale=scale, bits_per_axis=bits_per_axis
+                            ).astype(np.int64)
+
+                        df_batch = ParquetBlockModel._coerce_special_column_dtypes(df_batch)
+
+                        # Apply schema validation and df-eval operations if schema provided
+                        if self.schema is not None:
+                            df_batch = ParquetBlockModel._apply_df_eval_operations(
+                                df_batch,
+                                self.schema,
+                                operations=selected_persist_operations,
+                                engine_initializer=self.engine_initializer,
+                            )
+                            df_batch = ParquetBlockModel._validate_chunk(df_batch, self.schema)
+
+                        # Select output columns, guarding against any cols absent from df_batch
+                        ordered = ParquetBlockModel._ordered_columns(output_cols)
+                        ordered = [c for c in ordered if c in df_batch.columns]
+                        write_df = df_batch[ordered]
+
+                        table = pa.Table.from_pandas(write_df, preserve_index=False)
+                        meta = ParquetBlockModel._build_schema_metadata(
+                            geometry=self.geometry,
+                            schema=self.schema,
+                            base_metadata=dict(table.schema.metadata or {}),
+                            compression=compression_policy,
+                        )
+                        table = table.replace_schema_metadata(meta)
+
+                        # Write batch (first batch initializes writer)
+                        if writer is None:
+                            writer = pq.ParquetWriter(
+                                tmp_path,
+                                table.schema,
+                                **schema_utils.build_parquet_compression_kwargs(table.column_names, compression_policy),
+                            )
+                        else:
+                            if table.schema != writer.schema:
+                                table = table.cast(writer.schema)
+                        writer.write_table(table)
+
+                finally:
+                    if writer is not None:
+                        writer.close()
 
         logger.debug(
             f"Successfully wrote canonical .pbm file to {self.output_path} "

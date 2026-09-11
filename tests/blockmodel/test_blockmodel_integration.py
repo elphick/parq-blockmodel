@@ -49,6 +49,18 @@ def test_constructor_rejects_non_pbm_extension(tmp_path):
         ParquetBlockModel(fake)
 
 
+def test_blockmodel_close_releases_parquet_handles(tmp_path):
+    pbm = _make_pbm(tmp_path)
+    assert pbm.pf is not None
+    pbm.close()
+    assert pbm.pf is None
+    assert pbm.data is None
+
+    pbm._refresh_path_bound_state()
+    assert pbm.pf is not None
+    assert pbm.data is not None
+
+
 # ===========================================================================
 # centroid_index property
 # ===========================================================================

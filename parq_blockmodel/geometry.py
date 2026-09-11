@@ -875,69 +875,68 @@ class RegularGeometry:
 
         import pyarrow.parquet as pq
 
-        pf = pq.ParquetFile(filepath)
-        try:
-            return cls.from_parquet_metadata(pf.metadata)
-        except KeyError:
-            pass
+        with pq.ParquetFile(filepath) as pf:
+            try:
+                return cls.from_parquet_metadata(pf.metadata)
+            except KeyError:
+                pass
 
-        # Fallback: infer from centroids and rotation angles.
-        columns = set(pf.schema.names)
-        if not {"x", "y", "z"}.issubset(columns):
-            raise ValueError("Parquet file must contain x, y, z columns to infer geometry.")
+            # Fallback: infer from centroids and rotation angles.
+            columns = set(pf.schema.names)
+            if not {"x", "y", "z"}.issubset(columns):
+                raise ValueError("Parquet file must contain x, y, z columns to infer geometry.")
 
-        from parq_blockmodel.utils.geometry_utils import angles_to_axes
+            from parq_blockmodel.utils.geometry_utils import angles_to_axes
 
-        axis_u, axis_v, axis_w = angles_to_axes(
-            axis_azimuth=axis_azimuth,
-            axis_dip=axis_dip,
-            axis_plunge=axis_plunge,
-        )
+            axis_u, axis_v, axis_w = angles_to_axes(
+                axis_azimuth=axis_azimuth,
+                axis_dip=axis_dip,
+                axis_plunge=axis_plunge,
+            )
 
-        R = np.array([axis_u, axis_v, axis_w], dtype=float).T
+            R = np.array([axis_u, axis_v, axis_w], dtype=float).T
 
-        local_x_values: set[float] = set()
-        local_y_values: set[float] = set()
-        local_z_values: set[float] = set()
+            local_x_values: set[float] = set()
+            local_y_values: set[float] = set()
+            local_z_values: set[float] = set()
 
-        for batch in pf.iter_batches(columns=["x", "y", "z"], batch_size=chunk_size):
-            table = batch.to_pydict()
-            x = np.asarray(table["x"], dtype=float)
-            y = np.asarray(table["y"], dtype=float)
-            z = np.asarray(table["z"], dtype=float)
-            pts = np.vstack([x, y, z])
-            local = R.T @ pts
+            for batch in pf.iter_batches(columns=["x", "y", "z"], batch_size=chunk_size):
+                table = batch.to_pydict()
+                x = np.asarray(table["x"], dtype=float)
+                y = np.asarray(table["y"], dtype=float)
+                z = np.asarray(table["z"], dtype=float)
+                pts = np.vstack([x, y, z])
+                local = R.T @ pts
 
-            local_x_values.update(np.unique(local[0]).tolist())
-            local_y_values.update(np.unique(local[1]).tolist())
-            local_z_values.update(np.unique(local[2]).tolist())
+                local_x_values.update(np.unique(local[0]).tolist())
+                local_y_values.update(np.unique(local[1]).tolist())
+                local_z_values.update(np.unique(local[2]).tolist())
 
-        ux = np.array(sorted(local_x_values), dtype=float)
-        uy = np.array(sorted(local_y_values), dtype=float)
-        uz = np.array(sorted(local_z_values), dtype=float)
+            ux = np.array(sorted(local_x_values), dtype=float)
+            uy = np.array(sorted(local_y_values), dtype=float)
+            uz = np.array(sorted(local_z_values), dtype=float)
 
-        if ux.size < 2 or uy.size < 2 or uz.size < 2:
-            raise ValueError("Cannot infer block size/shape from degenerate centroid coordinates.")
+            if ux.size < 2 or uy.size < 2 or uz.size < 2:
+                raise ValueError("Cannot infer block size/shape from degenerate centroid coordinates.")
 
-        dx = float(np.diff(ux).min())
-        dy = float(np.diff(uy).min())
-        dz = float(np.diff(uz).min())
+            dx = float(np.diff(ux).min())
+            dy = float(np.diff(uy).min())
+            dz = float(np.diff(uz).min())
 
-        ni = int(round((ux.max() - ux.min()) / dx)) + 1
-        nj = int(round((uy.max() - uy.min()) / dy)) + 1
-        nk = int(round((uz.max() - uz.min()) / dz)) + 1
+            ni = int(round((ux.max() - ux.min()) / dx)) + 1
+            nj = int(round((uy.max() - uy.min()) / dy)) + 1
+            nk = int(round((uz.max() - uz.min()) / dz)) + 1
 
-        # Corner is half a block before the minimum centroid along each axis.
-        corner = (float(ux.min() - dx / 2), float(uy.min() - dy / 2), float(uz.min() - dz / 2))
+            # Corner is half a block before the minimum centroid along each axis.
+            corner = (float(ux.min() - dx / 2), float(uy.min() - dy / 2), float(uz.min() - dz / 2))
 
-        block_size: BlockSize = (dx, dy, dz)
-        shape: Shape3D = (ni, nj, nk)
+            block_size: BlockSize = (dx, dy, dz)
+            shape: Shape3D = (ni, nj, nk)
 
-
-        return cls(
-            local=LocalGeometry(corner=corner, block_size=block_size, shape=shape),
-            world=WorldFrame(axis_u=axis_u, axis_v=axis_v, axis_w=axis_w),
-        )
+            return cls(
+                local=LocalGeometry(corner=corner, block_size=block_size, shape=shape),
+                world=WorldFrame(axis_u=axis_u, axis_v=axis_v, axis_w=axis_w),
+            )
 
     @classmethod
     def from_multi_index(
