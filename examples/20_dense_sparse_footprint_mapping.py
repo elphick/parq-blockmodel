@@ -39,7 +39,7 @@ pbm_path = temp_dir / "dense_sparse_footprint_mapping.pbm"
 axis_u, axis_v, axis_w = angles_to_axes(axis_azimuth=30.0, axis_dip=0.0, axis_plunge=0.0)
 geometry = RegularGeometry(
     local=LocalGeometry(
-        corner=(100.0, 200.0, 0.0),
+        corner=(150.0, 200.0, 0.0),
         block_size=(20.0, 20.0, 10.0),
         shape=(6, 5, 4),
     ),
