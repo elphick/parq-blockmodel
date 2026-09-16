@@ -41,8 +41,10 @@ df[["density", "grade"]].head()
 
 # %%
 try:
+    import os
+    os.environ.setdefault("DISABLE_PANDERA_IMPORT_WARNING", "True")
     import df_eval  # noqa: F401
-    from pandera import Column, DataFrameSchema
+    from pandera.pandas import Column, DataFrameSchema
 except ImportError:
     print(
         "Install parq-blockmodel[schema] to run the schema-backed part of this example."

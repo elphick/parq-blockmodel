@@ -7,17 +7,20 @@ example ``tonnes`` and ``contained_metal`` are defined in Pandera ``df-eval``
 metadata and materialized for downsampling.
 """
 
+import os
 import tempfile
 from pathlib import Path
 
 import numpy as np
+
+os.environ.setdefault("DISABLE_PANDERA_IMPORT_WARNING", "True")
 
 from parq_blockmodel import ParquetBlockModel
 from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel
 
 try:
     import df_eval  # noqa: F401
-    from pandera import Column, DataFrameSchema
+    from pandera.pandas import Column, DataFrameSchema
 except ImportError:
     print("Install parq-blockmodel[schema] to run this example.")
     raise SystemExit(0)

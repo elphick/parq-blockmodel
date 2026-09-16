@@ -6,12 +6,15 @@ Block models represent 3D data, typically via a 3D array.  3D arrays can be flat
 representation that can be stored in a parquet file.
 
 """
+import os
 import tempfile
 
 from pathlib import Path
 
 import pyvista as pv
-from pandera import Column, DataFrameSchema
+
+os.environ.setdefault("DISABLE_PANDERA_IMPORT_WARNING", "True")
+from pandera.pandas import Column, DataFrameSchema
 
 from parq_blockmodel import ParquetBlockModel
 from parq_blockmodel.visualization import BlockModelTrameApp, TrameBlockModelPlotEngine

@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 import numpy as np
@@ -94,12 +95,19 @@ def test_class_method(tmpdir):
     # p.show()
 
     import pyvista as pv
+
+    interactive = os.getenv("PARQ_BLOCKMODEL_INTERACTIVE", "0") == "1"
     p = pv.Plotter()
     img = pbm.create_heatmap_from_threshold(attribute='grade', threshold=57.0, axis='z', return_array=False)
     p.add_mesh(img)
     p.view_xy()
     p.show_axes()
     p.show_grid()
-    p.show(auto_close=False)
 
-    pbm.plot_heatmap(attribute='grade', threshold=57.0, axis='z').show(renderer='browser')
+    if interactive:
+        p.show(auto_close=False)
+        pbm.plot_heatmap(attribute='grade', threshold=57.0, axis='z').show(renderer='browser')
+    else:
+        # Default to headless/CI-safe behavior: do not open GUI windows by default.
+        # Local developers can opt back in with PARQ_BLOCKMODEL_INTERACTIVE=1.
+        pass

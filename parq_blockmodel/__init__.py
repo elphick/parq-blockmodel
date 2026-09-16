@@ -1,6 +1,3 @@
-import os
-
-os.environ["YDATA_SUPPRESS_BANNER"] = "1"
 
 from importlib import metadata
 from .blockmodel import ParquetBlockModel
