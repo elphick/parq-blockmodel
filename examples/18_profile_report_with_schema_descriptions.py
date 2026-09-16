@@ -7,10 +7,12 @@ This example demonstrates how Pandera schema column ``title`` and
 ``create_report`` output.
 """
 
+import os
 import tempfile
 from pathlib import Path
 
-from pandera import Check, Column, DataFrameSchema
+os.environ.setdefault("DISABLE_PANDERA_IMPORT_WARNING", "True")
+from pandera.pandas import Check, Column, DataFrameSchema
 
 from parq_blockmodel import ParquetBlockModel
 from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel

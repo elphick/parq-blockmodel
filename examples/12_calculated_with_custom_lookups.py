@@ -12,10 +12,14 @@ Engine before evaluation.
 
 # %%
 # Import necessary libraries
+import os
+from pathlib import Path
+
+os.environ.setdefault("DISABLE_PANDERA_IMPORT_WARNING", "True")
+
 import numpy as np
 import pandas as pd
-from pathlib import Path
-from pandera import DataFrameSchema, Column
+from pandera.pandas import DataFrameSchema, Column
 from df_eval import DictResolver
 
 from parq_blockmodel import ParquetBlockModel, RegularGeometry, LocalGeometry, WorldFrame

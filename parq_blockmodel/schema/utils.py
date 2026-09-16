@@ -45,12 +45,18 @@ def load_schema(schema: Union[Path, "DataFrameSchema"]) -> "DataFrameSchema":
         If schema is not a recognised type.
     """
     try:
-        from pandera import DataFrameSchema as _DataFrameSchema
-    except ImportError as exc:  # pragma: no cover
-        raise ImportError(
-            "Schema support requires 'pandera'. Install it with: "
-            "pip install 'parq-blockmodel[schema]'"
-        ) from exc
+        from parq_blockmodel.compat.pandera_compat import DataFrameSchema as _DataFrameSchema
+    except Exception as exc:  # pragma: no cover
+        # Fall back to trying to import pandera directly to provide the original
+        # error message if pandera isn't available in the environment.
+        try:  # pattern for pandera<0.24.0
+            from pandera import DataFrameSchema as _DataFrameSchema
+        except ImportError as exc2:  # pragma: no cover
+            raise ImportError(
+                "Schema support requires 'pandera'. Install it with: "
+                "pip install 'parq-blockmodel[schema]'"
+            ) from exc2
+
 
     if isinstance(schema, _DataFrameSchema):
         return schema

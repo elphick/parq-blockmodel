@@ -2,15 +2,16 @@
 from pathlib import Path
 import json
 
+import os
 import pandas as pd
 import numpy as np
 import pytest
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+os.environ.setdefault("DISABLE_PANDERA_IMPORT_WARNING", "True")
 pandera = pytest.importorskip("pandera", reason="pandera not installed")
-
-from pandera import DataFrameSchema, Column
+from pandera.pandas import DataFrameSchema, Column
 
 from parq_blockmodel import ParquetBlockModel, RegularGeometry, LocalGeometry, WorldFrame
 from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel

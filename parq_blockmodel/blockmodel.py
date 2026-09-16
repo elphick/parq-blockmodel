@@ -1359,7 +1359,18 @@ class ParquetBlockModel:
             toy_df["z"] = toy_df["z"] + world_origin[2]
 
         # Persist the synthetic source file expected by IngestWriter.
-        toy_df.to_parquet(filename)
+        # Accept either a raw parquet path or a final .pbm path; if the caller
+        # passes a .pbm destination, write the raw source to a sibling parquet
+        # file so the final output is not the same file being read from.
+        source_path = Path(filename)
+        output_path = source_path
+        if source_path.suffix.lower() == ".pbm":
+            source_path = source_path.with_suffix(".parquet")
+            output_path = source_path.with_suffix(".pbm")
+        else:
+            output_path = source_path.with_suffix(".pbm")
+
+        toy_df.to_parquet(source_path)
 
         # get the orientation of the axes
         axis_u, axis_v, axis_w = angles_to_axes(
@@ -1373,18 +1384,17 @@ class ParquetBlockModel:
 
         if not geometry.is_rotated:
             from parq_blockmodel.io.ingest_utils import validate_geometry
-            validate_geometry(filepath=filename, geometry=geometry)
+            validate_geometry(filepath=source_path, geometry=geometry)
 
-        new_filepath = filename.resolve().with_suffix(".pbm")
         from parq_blockmodel.io.ingest_writer import IngestWriter
         writer = IngestWriter(
-            input_path=filename,
-            output_path=new_filepath,
+            input_path=source_path,
+            output_path=output_path,
             geometry=geometry,
         )
         writer.write(columns=None, chunk_size=1_000_000)
 
-        return cls(blockmodel_path=new_filepath, geometry=geometry)
+        return cls(blockmodel_path=output_path, geometry=geometry)
 
     @classmethod
     def from_geometry(
