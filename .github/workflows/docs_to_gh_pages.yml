@@ -1,11 +1,15 @@
 name: "Build and Publish Docs to GitHub Pages"
 on:
   push:
+    branches:
+      - main
     paths:
       - 'examples/*.py'
       - 'docs/**'
       - 'README.md'
   pull_request:
+    branches:
+      - main
     paths:
       - 'docs/**'
       - 'examples/*.py'
