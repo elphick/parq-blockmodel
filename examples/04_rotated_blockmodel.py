@@ -36,7 +36,7 @@ from parq_blockmodel.utils.geometry_utils import angles_to_axes
 # %%
 # Define a small rotated RegularGeometry
 # --------------------------------------
-corner = (0.0, 0.0, 0.0)
+corner = (10.0, 10.0, 10.0)
 block_size = (1.0, 1.0, 1.0)
 shape = (3, 3, 3)
 
