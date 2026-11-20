@@ -726,7 +726,7 @@ def test_trame_app_supports_categorical_data_filter(tmp_path, monkeypatch):
     df = pd.read_parquet(parquet_path)
     categories = pd.Categorical(["A", "B", "C"] * 9)
     df["rock_type"] = categories[: len(df)]
-    df.to_parquet(parquet_path, index=False)
+    df.drop(columns=["block_id", "world_id", "i", "j", "k"], errors="ignore").to_parquet(parquet_path, index=False)
     pbm = ParquetBlockModel.from_parquet(parquet_path)
 
     class FakePlotter(BaseFakePlotter):
@@ -821,7 +821,7 @@ def test_trame_app_renders_categorical_attributes(tmp_path, monkeypatch):
     df = pd.read_parquet(parquet_path)
     categories = pd.Categorical(["A", "B", "C"] * 9)
     df["rock_type"] = categories[: len(df)]
-    df.to_parquet(parquet_path, index=False)
+    df.drop(columns=["block_id", "world_id", "i", "j", "k"], errors="ignore").to_parquet(parquet_path, index=False)
     pbm = ParquetBlockModel.from_parquet(parquet_path)
 
     class FakePlotter(BaseFakePlotter):

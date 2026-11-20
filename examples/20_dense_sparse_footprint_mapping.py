@@ -72,7 +72,7 @@ sparse_table = table.take(pa.array(subset_indices, type=pa.int64()))
 pq.write_table(sparse_table, pbm.blockmodel_path)
 
 pbm = ParquetBlockModel(pbm_path)
-print("Sparse model rows:", pbm.pf.metadata.num_rows)
+print("Sparse model rows:", pq.read_metadata(pbm.blockmodel_path).num_rows)
 print("Model sparsity:", f"{pbm.sparsity:.1%}")
 
 

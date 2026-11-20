@@ -50,7 +50,7 @@ toy_df = create_toy_blockmodel(
 
 # Build an xyz-indexed source parquet for the external-use-case scenario.
 source_df = toy_df.reset_index(drop=False)
-source_df = source_df.drop(columns=["i", "j", "k"], errors="ignore")
+source_df = source_df.drop(columns=["block_id", "world_id", "i", "j", "k"], errors="ignore")
 source_df = source_df.set_index(["x", "y", "z"]).sort_index()
 source_df.to_parquet(source_parquet)
 
@@ -132,6 +132,5 @@ plotter.show_axes()
 
 plotter.link_views()
 plotter.show()
-
 
 

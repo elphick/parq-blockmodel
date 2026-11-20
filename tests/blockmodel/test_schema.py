@@ -29,7 +29,7 @@ def _make_demo_parquet(tmp_path: Path) -> Path:
         corner=(0.0, 0.0, 0.0),
     )
     parquet_path = tmp_path / "demo.parquet"
-    df.to_parquet(parquet_path)
+    df.drop(columns="block_id").to_parquet(parquet_path, index=False)
     return parquet_path
 
 
@@ -268,12 +268,12 @@ def test_cross_chunk_type_mismatch_resolved_without_schema(tmp_path):
     block_size = (1.0, 1.0, 1.0)
     corner = (0.0, 0.0, 0.0)
 
-    df = create_demo_blockmodel(shape=shape, block_size=block_size, corner=corner)
+    df = create_demo_blockmodel(shape=shape, block_size=block_size, corner=corner).drop(columns="block_id")
 
     # Force the 'depth' column to int
     df["depth"] = df["depth"].astype(int)
     parquet_path = tmp_path / "mixed.parquet"
-    df.to_parquet(parquet_path, row_group_size=4)
+    df.to_parquet(parquet_path, index=False, row_group_size=4)
 
     # Manually write a parquet with two row groups having different dtypes
     # (int64 first half, float64 second half) to simulate the real-world issue.
@@ -838,10 +838,10 @@ def test_pipeline_function_from_parquet_is_lazy_after_cold_open(tmp_path):
     pytest.importorskip("df_eval", reason="df-eval not installed")
     from df_eval import Engine
 
-    df = create_demo_blockmodel(shape=(2, 2, 2)).reset_index()
+    df = create_demo_blockmodel(shape=(2, 2, 2))
     df["density"] = 3.0
     source_path = tmp_path / "pipeline_source.parquet"
-    df.to_parquet(source_path)
+    df.drop(columns="block_id").to_parquet(source_path, index=False)
     schema = DataFrameSchema(
         columns={
             "density": Column(float, required=True),
@@ -964,7 +964,7 @@ def test_from_parquet_excludes_non_required_columns_from_persisted(tmp_path):
     df = create_demo_blockmodel(shape=(2, 2, 2))
     df["density"] = 2.5
     source_parquet = tmp_path / "source.parquet"
-    df.to_parquet(source_parquet)
+    df.drop(columns="block_id").to_parquet(source_parquet, index=False)
     
     schema = DataFrameSchema(
        columns={
@@ -995,7 +995,7 @@ def test_from_parquet_strict_filter_persists_only_schema_columns(tmp_path):
     df["density"] = np.linspace(2.0, 3.0, len(df))
     df["waste"] = np.linspace(10.0, 20.0, len(df))
     source_parquet = tmp_path / "strict_filter_source.parquet"
-    df.to_parquet(source_parquet)
+    df.drop(columns="block_id").to_parquet(source_parquet, index=False)
 
     schema = DataFrameSchema(
         columns={"density": Column(float, required=True)},
@@ -1046,7 +1046,7 @@ def test_from_parquet_strict_filter_excludes_non_required_df_eval_columns(tmp_pa
     df = create_demo_blockmodel(shape=(2, 2, 2))
     df["density"] = 2.5
     source_parquet = tmp_path / "strict_filter_df_eval_source.parquet"
-    df.to_parquet(source_parquet)
+    df.drop(columns="block_id").to_parquet(source_parquet, index=False)
 
     schema = DataFrameSchema(
        columns={
@@ -1105,7 +1105,7 @@ def test_from_parquet_strict_filter_persists_optional_schema_columns(tmp_path):
     df["density"] = np.linspace(2.0, 3.0, len(df))
     df["waste"] = np.linspace(10.0, 20.0, len(df))
     source_parquet = tmp_path / "strict_filter_optional_source.parquet"
-    df.to_parquet(source_parquet)
+    df.drop(columns="block_id").to_parquet(source_parquet, index=False)
 
     schema = DataFrameSchema(
         columns={
@@ -1161,7 +1161,7 @@ def test_from_parquet_persists_calculated_columns_with_required_true(tmp_path):
     df = create_demo_blockmodel(shape=(2, 2, 2))
     df["density"] = 2.5
     source_parquet = tmp_path / "source.parquet"
-    df.to_parquet(source_parquet)
+    df.drop(columns="block_id").to_parquet(source_parquet, index=False)
     
     schema = DataFrameSchema(
        columns={
@@ -1241,7 +1241,7 @@ def test_validation_remains_read_only_after_from_parquet(tmp_path):
     df = create_demo_blockmodel(shape=(2, 2, 2))
     df["density"] = 2.5
     source_parquet = tmp_path / "source.parquet"
-    df.to_parquet(source_parquet)
+    df.drop(columns="block_id").to_parquet(source_parquet, index=False)
     
     # Create without schema
     pbm = ParquetBlockModel.from_parquet(source_parquet)
@@ -1272,7 +1272,7 @@ def test_from_parquet_alias_is_applied_before_dependent_calculations(tmp_path):
     df = create_demo_blockmodel(shape=(2, 2, 2))
     df["deposit"] = np.linspace(0.12345, 0.82345, len(df))
     source_parquet = tmp_path / "alias_source.parquet"
-    df.to_parquet(source_parquet)
+    df.drop(columns="block_id").to_parquet(source_parquet, index=False)
 
     schema = DataFrameSchema(
         columns={
@@ -1304,7 +1304,7 @@ def test_from_parquet_alias_only_is_applied_before_validation_and_persisted(tmp_
     df = create_demo_blockmodel(shape=(2, 2, 2))
     df["deposit"] = np.linspace(0.12345, 0.82345, len(df))
     source_parquet = tmp_path / "alias_only_source.parquet"
-    df.to_parquet(source_parquet)
+    df.drop(columns="block_id").to_parquet(source_parquet, index=False)
 
     schema = DataFrameSchema(
         columns={
@@ -1330,7 +1330,7 @@ def test_from_parquet_alias_refreshes_attributes(tmp_path):
     df = create_demo_blockmodel(shape=(2, 2, 2))
     df["deposit"] = np.linspace(0.12345, 0.82345, len(df))
     source_parquet = tmp_path / "alias_attributes_source.parquet"
-    df.to_parquet(source_parquet)
+    df.drop(columns="block_id").to_parquet(source_parquet, index=False)
 
     schema = DataFrameSchema(
         columns={
@@ -1357,7 +1357,7 @@ def test_from_parquet_persists_schema_columns_in_schema_order(tmp_path):
     df["grade"] = np.linspace(0.1, 0.8, len(df))
     df["deposit"] = np.linspace(0.12345, 0.82345, len(df))
     source_parquet = tmp_path / "schema_order_source.parquet"
-    df.to_parquet(source_parquet)
+    df.drop(columns="block_id").to_parquet(source_parquet, index=False)
 
     schema = DataFrameSchema(
         columns={

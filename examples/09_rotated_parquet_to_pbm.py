@@ -80,7 +80,7 @@ toy_df = create_toy_blockmodel(
 )
 
 source_df = toy_df.reset_index(drop=False)
-source_df = source_df.drop(columns=["i", "j", "k"], errors="ignore")
+source_df = source_df.drop(columns=["block_id", "world_id", "i", "j", "k"], errors="ignore")
 rotated_xyz = rotate_points(
     source_df[["x", "y", "z"]].to_numpy(dtype=float),
     azimuth=axis_azimuth,

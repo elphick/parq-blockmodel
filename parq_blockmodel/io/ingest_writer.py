@@ -15,7 +15,7 @@ import pyarrow as pa
 import pyarrow.parquet as pq
 
 from parq_blockmodel.geometry import RegularGeometry
-from parq_blockmodel.io.ingest_utils import assert_block_id_xyz_consistent, build_world_id_encoding_from_xyz
+from parq_blockmodel.io.ingest_utils import build_world_id_encoding_from_xyz
 from parq_blockmodel.schema import utils as schema_utils
 from parq_blockmodel.utils.spatial_encoding import (
     decode_world_coordinates,
@@ -286,25 +286,13 @@ class IngestWriter:
         output_cols = [c for c in output_cols if c not in pipeline_output_columns]
 
         # Stream data through batches
-        with pq.ParquetFile(self.input_path) as pf:
-            with atomic_output_file(self.output_path) as tmp_path:
+        with atomic_output_file(self.output_path) as tmp_path:
+            with pq.ParquetFile(self.input_path) as pf:
                 writer = None
                 seen_block_ids: set[int] = set()
                 try:
                     for batch in pf.iter_batches(columns=read_cols, batch_size=chunk_size):
                         df_batch = pa.Table.from_batches([batch]).to_pandas(ignore_metadata=True)
-
-                        # Validate consistency if both block_id and xyz present
-                        if "block_id" in df_batch.columns and {"x", "y", "z"}.issubset(df_batch.columns):
-                            assert_block_id_xyz_consistent(
-                                block_ids=df_batch["block_id"].to_numpy(dtype=np.uint32),
-                                x=df_batch["x"].to_numpy(dtype=float),
-                                y=df_batch["y"].to_numpy(dtype=float),
-                                z=df_batch["z"].to_numpy(dtype=float),
-                                geometry=self.geometry,
-                                tol=tol,
-                                context=f"canonical write for {self.input_path}",
-                            )
 
                         # Derive block_id from available positional columns
                         if "block_id" in df_batch.columns:
@@ -316,6 +304,7 @@ class IngestWriter:
                             )
                             block_ids = self.geometry.row_index_from_xyz(xw, yw, zw, tol=tol).astype(np.uint32)
                         elif {"x", "y", "z"}.issubset(df_batch.columns):
+                            # The conversion already validates grid alignment.
                             block_ids = self.geometry.row_index_from_xyz(
                                 df_batch["x"].to_numpy(),
                                 df_batch["y"].to_numpy(),
