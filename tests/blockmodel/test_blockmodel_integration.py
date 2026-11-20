@@ -37,6 +37,10 @@ def _make_pbm(tmp_path, shape=(3, 3, 3), name="model"):
     )
 
 
+def _xyz_source(shape=(2, 2, 2)):
+    return create_demo_blockmodel(shape=shape).reset_index(drop=True).drop(columns="block_id")
+
+
 # ===========================================================================
 # Constructor guard
 # ===========================================================================
@@ -49,16 +53,51 @@ def test_constructor_rejects_non_pbm_extension(tmp_path):
         ParquetBlockModel(fake)
 
 
-def test_blockmodel_close_releases_parquet_handles(tmp_path):
+def test_blockmodel_lazy_dataframe_does_not_lock_file(tmp_path):
     pbm = _make_pbm(tmp_path)
-    assert pbm.pf is not None
+    data = pbm.data
+    assert len(data["depth"]) == 27
+    assert data.head().shape[0] == 5
+    moved = pbm.blockmodel_path.rename(tmp_path / "moved.pbm")
+    moved.rename(pbm.blockmodel_path)
+
     pbm.close()
-    assert pbm.pf is None
     assert pbm.data is None
 
     pbm._refresh_path_bound_state()
-    assert pbm.pf is not None
     assert pbm.data is not None
+
+
+@pytest.mark.parametrize("sparse", [False, True])
+def test_constructor_reads_only_one_footer(tmp_path, monkeypatch, sparse):
+    source = _make_pbm(tmp_path)
+    if sparse:
+        table = pq.read_table(source.blockmodel_path)
+        pq.write_table(table.slice(0, 20), source.blockmodel_path)
+    read_metadata = pq.read_metadata
+    metadata_reads = []
+
+    def counted_metadata(*args, **kwargs):
+        metadata_reads.append(args[0])
+        return read_metadata(*args, **kwargs)
+
+    def unexpected_read(*args, **kwargs):
+        pytest.fail("Construction should only read the footer")
+
+    monkeypatch.setattr(pq, "read_metadata", counted_metadata)
+    monkeypatch.setattr(pq, "read_schema", unexpected_read)
+    monkeypatch.setattr(pq, "ParquetFile", unexpected_read)
+    monkeypatch.setattr(pq, "read_table", unexpected_read)
+    monkeypatch.setattr(pd, "read_parquet", unexpected_read)
+    monkeypatch.setattr(ParquetBlockModel, "_iter_batches", unexpected_read)
+    model = ParquetBlockModel(source.blockmodel_path)
+    assert metadata_reads == [source.blockmodel_path]
+    assert model.columns == source.columns
+    assert model.column_dtypes == source.column_dtypes
+    assert model.compression == source.compression
+    assert model._num_rows == (20 if sparse else 27)
+    assert model.is_sparse == sparse
+    assert model.sparsity == pytest.approx(7 / 27 if sparse else 0)
 
 
 # ===========================================================================
@@ -78,7 +117,7 @@ def test_centroid_index_from_xyz_columns(tmp_path):
 def test_centroid_index_derived_when_xyz_absent(tmp_path):
     """centroid_index should be derived from geometry when x/y/z columns are absent."""
     source_parquet = tmp_path / "source.parquet"
-    create_demo_blockmodel(shape=(2, 2, 2)).reset_index().to_parquet(source_parquet, index=False)
+    _xyz_source().to_parquet(source_parquet, index=False)
     # Build a .pbm that retains only block_id + depth (no xyz)
     pbm = ParquetBlockModel.from_parquet(source_parquet, columns=["depth"])
     assert "x" not in pbm.columns
@@ -107,7 +146,7 @@ def test_sparsity_is_zero_for_dense_model(tmp_path):
 
 def test_sparsity_nonzero_for_sparse_model(tmp_path):
     parquet_path = tmp_path / "sparse.parquet"
-    blocks = create_demo_blockmodel(shape=(3, 3, 3)).reset_index()
+    blocks = _xyz_source(shape=(3, 3, 3))
     blocks.iloc[:-5].to_parquet(parquet_path, index=False)
     pbm = ParquetBlockModel.from_parquet(parquet_path)
     assert 0.0 < pbm.sparsity < 1.0
@@ -225,15 +264,86 @@ def test_from_geometry_creates_dense_grid(tmp_path):
 
 
 def test_from_parquet_overwrite_existing_pbm(tmp_path):
-    """from_parquet on a .pbm path with overwrite=False must raise ValueError."""
     source = tmp_path / "source.parquet"
-    create_demo_blockmodel(shape=(2, 2, 2)).reset_index().to_parquet(source, index=False)
+    _xyz_source().to_parquet(source, index=False)
     pbm1 = ParquetBlockModel.from_parquet(source)
-    pbm_path = pbm1.blockmodel_path  # the .pbm file
+    pbm_path = pbm1.blockmodel_path
 
-    # Calling from_parquet on the .pbm with overwrite=False should raise
     with pytest.raises(ValueError, match="overwrite"):
         ParquetBlockModel.from_parquet(pbm_path, overwrite=False)
+
+    pbm2 = ParquetBlockModel.from_parquet(pbm_path, overwrite=True)
+    pd.testing.assert_frame_equal(pbm1.read(index=None), pbm2.read(index=None))
+    assert pbm_path.rename(tmp_path / "moved.pbm").exists()
+
+
+@pytest.mark.parametrize("indexed", [False, True])
+def test_from_parquet_rejects_ambiguous_roundtrip_with_working_fix(tmp_path, monkeypatch, indexed):
+    pbm = _make_pbm(tmp_path)
+    df = pbm.read(index=None)
+    if indexed:
+        df = df.set_index(["i", "j", "k"])
+    source = tmp_path / "mutated.parquet"
+    df.to_parquet(source)
+
+    with pytest.raises(ValueError, match=r"found block_id, world_id, i, j, k alongside x, y, z") as exc:
+        ParquetBlockModel.from_parquet(source, columns=["depth"])
+
+    message = str(exc.value)
+    assert 'df = df.drop(columns=["block_id", "world_id", "i", "j", "k"])' in message
+    assert not source.with_suffix(".pbm").exists()
+    monkeypatch.chdir(tmp_path)
+    recipe = message.split("\n\n")[-1]
+    exec("\n".join(line.strip() for line in recipe.splitlines()), {"pd": pd})
+    clean = ParquetBlockModel.from_parquet(tmp_path / "mutated_clean.parquet")
+    assert clean._num_rows == pbm._num_rows
+
+
+def test_from_parquet_fix_without_xyz_preserves_geometry_metadata(tmp_path, monkeypatch):
+    pbm = _make_pbm(tmp_path)
+    source = tmp_path / "positions.parquet"
+    table = pq.read_table(pbm.blockmodel_path)
+    pq.write_table(table.select(["block_id", "world_id", "depth"]), source)
+
+    with pytest.raises(ValueError, match=r"found world_id alongside block_id") as exc:
+        ParquetBlockModel.from_parquet(source)
+
+    monkeypatch.chdir(tmp_path)
+    recipe = str(exc.value).split("\n\n")[-1]
+    exec("\n".join(line.strip() for line in recipe.splitlines()), {"pd": pd})
+    clean = ParquetBlockModel.from_parquet(tmp_path / "positions_clean.parquet")
+    assert clean.geometry.local == pbm.geometry.local
+    assert clean._num_rows == pbm._num_rows
+
+
+@pytest.mark.parametrize("positions", [["block_id"], ["world_id"], ["i", "j", "k"], ["x", "y", "z"]])
+def test_from_parquet_accepts_each_single_positional_representation(tmp_path, positions):
+    original = _make_pbm(tmp_path)
+    source = tmp_path / "source.parquet"
+    table = pq.read_table(original.blockmodel_path)
+    pq.write_table(table.select([*positions, *original.attributes]), source)
+
+    pbm = ParquetBlockModel.from_parquet(source, chunk_size=4)
+    assert pbm._num_rows == 27
+    renamed = pbm.blockmodel_path.rename(tmp_path / "renamed.pbm")
+    renamed.rename(pbm.blockmodel_path)
+    assert list(map(len, pbm._iter_batches(["block_id"], batch_size=10))) == [10, 10, 7]
+    pd.testing.assert_frame_equal(original.read(index=None), pbm.read(index=None))
+    assert pbm.blockmodel_path.rename(tmp_path / "renamed.pbm").exists()
+
+
+def test_write_and_compress_refresh_row_count(tmp_path):
+    pbm = _make_pbm(tmp_path)
+    df = pbm.read(index=None)
+    pbm.write(df)
+    assert pbm._num_rows == len(df)
+
+    # Replace the backing file with a sparse subset before rewriting it.
+    table = pq.read_table(pbm.blockmodel_path).slice(0, 20)
+    pq.write_table(table, pbm.blockmodel_path)
+    pbm.compress()
+    assert pbm._num_rows == 20
+    assert pbm.sparsity == pytest.approx(7 / 27)
 
 
 # ===========================================================================
@@ -313,7 +423,7 @@ def test_read_with_invalid_index_raises(tmp_path):
 
 def test_read_dense_ijk_reindexes_to_full_grid(tmp_path):
     parquet_path = tmp_path / "sparse_read.parquet"
-    blocks = create_demo_blockmodel(shape=(3, 3, 3)).reset_index()
+    blocks = _xyz_source(shape=(3, 3, 3))
     blocks.iloc[:-3].to_parquet(parquet_path, index=False)
     pbm = ParquetBlockModel.from_parquet(parquet_path)
     assert pbm.is_sparse
@@ -330,7 +440,7 @@ def test_read_dense_ijk_reindexes_to_full_grid(tmp_path):
 def test_write_canonical_pbm_raises_on_missing_requested_column(tmp_path):
     """_write_canonical_pbm with a requested column absent from source should raise."""
     source = tmp_path / "source_col.parquet"
-    create_demo_blockmodel(shape=(2, 2, 2)).reset_index().to_parquet(source, index=False)
+    _xyz_source().to_parquet(source, index=False)
 
     with pytest.raises(ValueError, match="not present"):
         ParquetBlockModel.from_parquet(source, columns=["nonexistent_col"])
@@ -366,8 +476,4 @@ def test_repr_contains_name_and_path(tmp_path):
     r = repr(pbm)
     assert "my_model" in r
     assert ".pbm" in r
-
-
-
-
 

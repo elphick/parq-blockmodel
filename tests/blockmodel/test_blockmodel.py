@@ -275,7 +275,7 @@ def test_block_model_with_categorical_data(tmp_path):
     blocks = create_demo_blockmodel()
     blocks['category_col'] = pd.Categorical(['A', 'B', 'C'] * (len(blocks) // 3))
 
-    blocks.to_parquet(parquet_path)
+    blocks[["x", "y", "z", "depth", "depth_category", "category_col"]].to_parquet(parquet_path, index=False)
 
     # Load the block model
     block_model = ParquetBlockModel.from_parquet(parquet_path)
@@ -293,7 +293,7 @@ def test_sparse_block_model(tmp_path):
     parquet_path = tmp_path / "sparse_block_model.parquet"
     blocks = create_demo_blockmodel(shape=(4, 4, 4), block_size=(1.0, 1.0, 1.0), corner=(0.0, 0.0, 0.0))
     blocks = blocks.query('z!=1.5')  # Drop a single z value to create a sparse dataset
-    blocks.to_parquet(parquet_path)
+    blocks[["x", "y", "z", "depth", "depth_category"]].to_parquet(parquet_path, index=False)
     # Load the block model
     block_model = ParquetBlockModel.from_parquet(parquet_path)
     # Check if the block model is created correctly
@@ -323,14 +323,14 @@ def test_from_parquet_raises_on_incongruent_block_id_and_xyz(tmp_path):
     blocks.loc[0, "block_id"] = int(blocks.loc[0, "block_id"]) + 1
     blocks[["block_id", "x", "y", "z", "depth"]].to_parquet(parquet_path, index=False)
 
-    with pytest.raises(ValueError, match="Inconsistent positional columns"):
+    with pytest.raises(ValueError, match="multiple positional representations: found block_id alongside x, y, z"):
         ParquetBlockModel.from_parquet(parquet_path)
 
 
 def test_read_without_xyz_uses_block_id(tmp_path):
     parquet_path = tmp_path / "source.parquet"
-    blocks = create_demo_blockmodel(shape=(2, 2, 2), block_size=(1.0, 1.0, 1.0), corner=(0.0, 0.0, 0.0)).reset_index()
-    blocks.to_parquet(parquet_path, index=False)
+    blocks = create_demo_blockmodel(shape=(2, 2, 2), block_size=(1.0, 1.0, 1.0), corner=(0.0, 0.0, 0.0))
+    blocks[["x", "y", "z", "depth", "depth_category"]].to_parquet(parquet_path, index=False)
 
     pbm = ParquetBlockModel.from_parquet(parquet_path, columns=["depth"], chunk_size=3)
     assert "x" not in pbm.columns
@@ -350,9 +350,9 @@ def test_read_without_xyz_uses_block_id(tmp_path):
 
 def test_sparse_validation_without_xyz(tmp_path):
     parquet_path = tmp_path / "source_sparse.parquet"
-    blocks = create_demo_blockmodel(shape=(3, 3, 2), block_size=(1.0, 1.0, 1.0), corner=(0.0, 0.0, 0.0)).reset_index()
+    blocks = create_demo_blockmodel(shape=(3, 3, 2), block_size=(1.0, 1.0, 1.0), corner=(0.0, 0.0, 0.0))
     sparse = blocks.iloc[:-2].copy()
-    sparse.to_parquet(parquet_path, index=False)
+    sparse[["x", "y", "z", "depth", "depth_category"]].to_parquet(parquet_path, index=False)
 
     pbm = ParquetBlockModel.from_parquet(parquet_path, columns=["depth"], chunk_size=4)
     assert pbm.is_sparse
@@ -361,8 +361,8 @@ def test_sparse_validation_without_xyz(tmp_path):
 
 def test_block_id_persisted_in_dense_pbm(tmp_path):
     parquet_path = tmp_path / "dense_source.parquet"
-    blocks = create_demo_blockmodel(shape=(3, 2, 2), block_size=(1.0, 1.0, 1.0), corner=(0.0, 0.0, 0.0)).reset_index()
-    blocks.to_parquet(parquet_path, index=False)
+    blocks = create_demo_blockmodel(shape=(3, 2, 2), block_size=(1.0, 1.0, 1.0), corner=(0.0, 0.0, 0.0))
+    blocks[["x", "y", "z", "depth", "depth_category"]].to_parquet(parquet_path, index=False)
 
     pbm = ParquetBlockModel.from_parquet(parquet_path, columns=["depth"], chunk_size=4)
     persisted = pd.read_parquet(pbm.blockmodel_path)
@@ -383,7 +383,7 @@ def test_block_id_persisted_in_sparse_pbm(tmp_path):
     parquet_path = tmp_path / "sparse_source.parquet"
     blocks = create_demo_blockmodel(shape=(3, 3, 2), block_size=(1.0, 1.0, 1.0), corner=(0.0, 0.0, 0.0)).reset_index()
     sparse = blocks.drop(index=[1, 4, 11]).reset_index(drop=True)
-    sparse.to_parquet(parquet_path, index=False)
+    sparse[["x", "y", "z", "depth", "depth_category"]].to_parquet(parquet_path, index=False)
 
     pbm = ParquetBlockModel.from_parquet(parquet_path, columns=["depth"], chunk_size=3)
     persisted = pd.read_parquet(pbm.blockmodel_path)
@@ -1014,4 +1014,4 @@ def test_canonical_pbm_requires_unique_block_id(tmp_path):
     pq.write_table(patched, pbm.blockmodel_path)
 
     with pytest.raises(ValueError, match="Canonical \\.pbm requires unique block_id values"):
-        ParquetBlockModel(pbm.blockmodel_path)
+        ParquetBlockModel(pbm.blockmodel_path, validate=True)

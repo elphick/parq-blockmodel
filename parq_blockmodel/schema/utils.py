@@ -110,44 +110,40 @@ def dump_schema_yaml(schema: "DataFrameSchema") -> str:
     return yaml_text
 
 
-def load_embedded_schema(parquet_path: Path) -> Optional["DataFrameSchema"]:
+def _embedded_pbm_payload(metadata: pq.FileMetaData) -> dict[str, typing.Any]:
+    payload = (metadata.metadata or {}).get(PBM_METADATA_KEY)
+    if payload is None:
+        return {}
+    payload_dict = json.loads(payload)
+    if not isinstance(payload_dict, dict):
+        raise ValueError("Embedded PBM metadata must decode to a dictionary.")
+    return payload_dict
+
+
+def load_embedded_schema(parquet_path: Union[Path, pq.FileMetaData]) -> Optional["DataFrameSchema"]:
     """Extract and load a schema embedded in Parquet metadata.
 
     Parameters
     ----------
-    parquet_path : Path
-        Path to the Parquet file.
+    parquet_path : Path or FileMetaData
+        Path to the Parquet file or its already-read footer.
 
     Returns
     -------
     DataFrameSchema or None
         The embedded schema, or None if not present.
     """
-    metadata = pq.read_metadata(parquet_path).metadata or {}
-    payload = metadata.get(PBM_METADATA_KEY)
-    if payload is None:
-        return None
-    payload_text = payload.decode("utf-8") if isinstance(payload, (bytes, bytearray)) else str(payload)
-    payload_dict = json.loads(payload_text)
-    if not isinstance(payload_dict, dict):
-        raise ValueError("Embedded PBM metadata must decode to a dictionary.")
-    schema_yaml = payload_dict.get("schema_yaml")
+    metadata = parquet_path if isinstance(parquet_path, pq.FileMetaData) else pq.read_metadata(parquet_path)
+    schema_yaml = _embedded_pbm_payload(metadata).get("schema_yaml")
     if schema_yaml is None:
         return None
     return load_schema(schema_yaml)
 
 
-def load_embedded_compression(parquet_path: Path) -> Optional[dict[str, typing.Any]]:
+def load_embedded_compression(parquet_path: Union[Path, pq.FileMetaData]) -> Optional[dict[str, typing.Any]]:
     """Extract compression policy metadata embedded in a Parquet file."""
-    metadata = pq.read_metadata(parquet_path).metadata or {}
-    payload = metadata.get(PBM_METADATA_KEY)
-    if payload is None:
-        return None
-    json_text = payload.decode("utf-8") if isinstance(payload, (bytes, bytearray)) else str(payload)
-    compression_payload = json.loads(json_text)
-    if not isinstance(compression_payload, dict):
-        raise ValueError("Embedded PBM metadata must decode to a dictionary.")
-    compression = compression_payload.get("compression")
+    metadata = parquet_path if isinstance(parquet_path, pq.FileMetaData) else pq.read_metadata(parquet_path)
+    compression = _embedded_pbm_payload(metadata).get("compression")
     if compression is None:
         return None
     if not isinstance(compression, dict):
@@ -456,10 +452,10 @@ def build_schema_metadata(
     return metadata
 
 
-def load_embedded_pipeline_functions(parquet_path: Path) -> list[str]:
+def load_embedded_pipeline_functions(parquet_path: Union[Path, pq.FileMetaData]) -> list[str]:
     """Load pipeline function names recorded in Parquet metadata."""
-    metadata = pq.read_metadata(parquet_path).metadata or {}
-    payload = metadata.get(PIPELINE_FUNCTIONS_METADATA_KEY)
+    metadata = parquet_path if isinstance(parquet_path, pq.FileMetaData) else pq.read_metadata(parquet_path)
+    payload = (metadata.metadata or {}).get(PIPELINE_FUNCTIONS_METADATA_KEY)
     if payload is None:
         return []
     names = json.loads(payload.decode("utf-8"))

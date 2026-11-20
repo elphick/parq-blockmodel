@@ -75,6 +75,18 @@ pip install "parq-blockmodel[server-viz]"
 
 See the [Quick Start Guide](https://parq-blockmodel.readthedocs.io/en/stable/usage/quickstart.html) for a walkthrough of the 3-step workflow.
 
+Opening an existing `.pbm` with `ParquetBlockModel(path)` reads only the footer.
+Use `ParquetBlockModel(path, validate=True)` to scan block IDs for uniqueness
+and geometry bounds when the file's provenance is unknown.
+
+When importing a source `.parquet` with `from_parquet`, supply exactly one
+position representation: `x, y, z`, `i, j, k`, `block_id`, or `world_id`.
+Only `x, y, z` supports geometry inference; the other representations require
+embedded geometry metadata. When exporting `pbm.read(index=None)` for later
+re-import, keep `x, y, z` and drop any `block_id`, `world_id`, `i`, `j`, and `k`
+columns. This restriction does not apply to rewriting a canonical `.pbm` with
+`overwrite=True`.
+
 ## Schema validation
 
 `ParquetBlockModel` accepts an optional `schema=` argument on its main

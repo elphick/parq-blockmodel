@@ -52,7 +52,6 @@ from parq_blockmodel.utils.spatial_encoding import (
     encode_world_coordinates,
     get_world_id_encoding_params,
 )
-from pyarrow.parquet import ParquetFile
 from tqdm import tqdm
 
 from parq_tools import ParquetProfileReport, LazyParquetDF
@@ -77,6 +76,26 @@ if typing.TYPE_CHECKING:
     from parq_blockmodel.surface import Surface
 
 logger = logging.getLogger(__name__)
+
+
+class _ScopedParquetReader:
+    """Provide LazyParquetDF's read operations without retaining an open file."""
+
+    def __init__(self, path: Path):
+        self.path = path
+
+    def read(self, *args, **kwargs):
+        with pq.ParquetFile(self.path) as reader:
+            return reader.read(*args, **kwargs)
+
+    def read_row_group(self, *args, **kwargs):
+        with pq.ParquetFile(self.path) as reader:
+            return reader.read_row_group(*args, **kwargs)
+
+    def iter_batches(self, *args, **kwargs):
+        with pq.ParquetFile(self.path) as reader:
+            yield from reader.iter_batches(*args, **kwargs)
+
 
 class ParquetBlockModel:
     """A class to represent a **regular** Parquet block model.
@@ -106,8 +125,8 @@ class ParquetBlockModel:
     Attributes:
         blockmodel_path (Path): Path to the canonical ``.pbm`` file backing this block model.
         name (str): The name of the block model, derived from the file name.
-        geometry (RegularGeometry): Geometry of the block model, loaded from Parquet metadata or
-            inferred from centroid columns.
+        geometry (RegularGeometry): Geometry of the block model, loaded from Parquet metadata
+            unless supplied by the caller.
     """
 
     # Positional columns describe geometry/placement and are excluded from
@@ -134,6 +153,7 @@ class ParquetBlockModel:
         geometry: Optional[RegularGeometry] = None,
         schema: Optional[Union[Path, "DataFrameSchema"]] = None,
         engine_initializer: Optional[typing.Callable] = None,
+        validate: bool = False,
     ):
         """
         Initialize a ParquetBlockModel.
@@ -146,50 +166,53 @@ class ParquetBlockModel:
             engine_initializer: Optional callable that configures the df-eval Engine
                 for custom lookups/functions. Signature: Callable[[Engine], Engine].
                 Called before applying calculated column operations.
+            validate: Scan block IDs to check uniqueness and geometry bounds. By default
+                only the Parquet footer is read; use True for files of unknown provenance.
         """
         if blockmodel_path.suffix != ".pbm":
             raise ValueError("The provided file must have a '.pbm' extension.")
         self.blockmodel_path = blockmodel_path
         self.name = name or blockmodel_path.stem
-        self.geometry = geometry or RegularGeometry.from_parquet(self.blockmodel_path)
+        metadata = pq.read_metadata(self.blockmodel_path)
+        self.geometry = geometry or RegularGeometry.from_parquet_metadata(metadata)
         if schema is not None:
             self.schema = schema_utils.load_schema(schema)
         else:
-            self.schema = schema_utils.load_embedded_schema(self.blockmodel_path)
+            self.schema = schema_utils.load_embedded_schema(metadata)
         self.compression = (
-            schema_utils.load_embedded_compression(self.blockmodel_path)
+            schema_utils.load_embedded_compression(metadata)
             or schema_utils.extract_schema_compression_policy(self.schema)
         )
         self._engine_initializer = engine_initializer
-        self.pf: ParquetFile
-        # Lazy view over the backing Parquet file for large models.
-        self.data: LazyParquetDF
+        self._data: Optional[LazyParquetDF] = None
+        self._closed = False
         self.columns: list[str]
         self._centroid_index: Optional[pd.MultiIndex] = None
         self.attributes: list[str]
-        self._refresh_path_bound_state()
-        self._extract_column_dtypes()
+        self._refresh_path_bound_state(metadata)
         self._logger = logging.getLogger(__name__)
-        self._assert_canonical_block_id_invariant()
         self._schema_service: Optional[SchemaService] = None
 
-        if self.is_sparse:
-            if not self.validate_sparse():
-                raise ValueError("The sparse ParquetBlockModel is invalid. "
-                                 "Sparse centroids must be a subset of the dense grid.")
+        if "block_id" not in self.columns:
+            raise ValueError("Canonical .pbm requires a 'block_id' column.")
+        if validate:
+            self._assert_canonical_block_id_invariant()
+
+    @property
+    def data(self) -> Optional[LazyParquetDF]:
+        """Return the legacy lazy dataframe, initialized only on access."""
+        if self._data is None and not self._closed:
+            data = LazyParquetDF(self.blockmodel_path)
+            # parq-tools keeps an open reader even when no read is in progress.
+            data._parquet_file.close()
+            data._parquet_file = _ScopedParquetReader(self.blockmodel_path)
+            self._data = data
+        return self._data
 
     def close(self) -> None:
-        """Close any open Parquet resources associated with this model."""
-        for resource_name in ("pf", "data"):
-            resource = getattr(self, resource_name, None)
-            if resource is not None:
-                close_method = getattr(resource, "close", None)
-                if callable(close_method):
-                    try:
-                        close_method()
-                    except Exception:
-                        pass
-                setattr(self, resource_name, None)
+        """Release the cached lazy dataframe associated with this model."""
+        self._data = None
+        self._closed = True
 
     def __enter__(self) -> "ParquetBlockModel":
         return self
@@ -280,41 +303,37 @@ class ParquetBlockModel:
                 raise ValueError("Canonical .pbm requires unique block_id values.")
             total += int(block_ids.size)
 
-        if total != int(self.pf.metadata.num_rows):
+        if total != self._num_rows:
             raise ValueError("Canonical .pbm block_id validation could not cover all rows.")
 
     def __repr__(self):
         return f"ParquetBlockModel(name={self.name}, path={self.blockmodel_path})"
 
-    def _extract_column_dtypes(self):
+    def _refresh_path_bound_state(self, metadata: Optional[pq.FileMetaData] = None) -> None:
+        """Refresh cached state that depends on the backing Parquet footer."""
+        if metadata is None:
+            metadata = pq.read_metadata(self.blockmodel_path)
+        schema = metadata.schema.to_arrow_schema()
+        self._num_rows: int = metadata.num_rows
+        self.columns = schema.names
+        self.attributes = [col for col in self.columns if col not in self.POSITION_COLUMNS]
+        self._centroid_index = None
+        self._data = None
+        self._closed = False
         self.column_dtypes: dict[str, np.dtype] = {}
         self._column_categorical_ordered: dict[str, bool] = {}
-        schema = pq.read_schema(self.blockmodel_path)
-        for col in self.columns:
+        for field in schema:
+            col = field.name
             if col in ["x", "y", "z"]:
                 continue
-            field_type = schema.field(col).type
+            field_type = field.type
             if pa.types.is_dictionary(field_type):
                 self.column_dtypes[col] = pd.CategoricalDtype(ordered=field_type.ordered)
                 self._column_categorical_ordered[col] = field_type.ordered
             else:
                 self.column_dtypes[col] = field_type.to_pandas_dtype()
 
-    def _refresh_path_bound_state(self) -> None:
-        """Refresh cached state that depends on the backing Parquet file."""
-        if getattr(self, "pf", None) is not None:
-            try:
-                self.pf.close()
-            except Exception:
-                pass
-        self.pf = ParquetFile(self.blockmodel_path)
-        self.data = LazyParquetDF(self.blockmodel_path)
-        self.columns = pq.read_schema(self.blockmodel_path).names
-        self.attributes = [col for col in self.columns if col not in self.POSITION_COLUMNS]
-        self._centroid_index = None
-        self._pipeline_function_metadata_names = schema_utils.load_embedded_pipeline_functions(
-            self.blockmodel_path
-        )
+        self._pipeline_function_metadata_names = schema_utils.load_embedded_pipeline_functions(metadata)
         self._refresh_pipeline_function_registry()
 
     def _refresh_pipeline_function_registry(self) -> None:
@@ -756,7 +775,6 @@ class ParquetBlockModel:
         )
 
         self._refresh_path_bound_state()
-        self._extract_column_dtypes()
         self.compression = active_policy
 
     def recompute_spatial(self) -> None:
@@ -928,12 +946,12 @@ class ParquetBlockModel:
     @property
     def is_sparse(self) -> bool:
         dense_count = int(np.prod(self.geometry.local.shape))
-        return int(self.pf.metadata.num_rows) < dense_count
+        return self._num_rows < dense_count
 
     @property
     def sparsity(self) -> float:
         dense_count = int(np.prod(self.geometry.local.shape))
-        return 1.0 - (int(self.pf.metadata.num_rows) / dense_count)
+        return 1.0 - (self._num_rows / dense_count)
 
     def validate_sparse(self) -> bool:
         dense_count = int(np.prod(self.geometry.local.shape))
@@ -947,15 +965,8 @@ class ParquetBlockModel:
         return len(seen) == total
 
     def _iter_batches(self, columns: list[str], batch_size: int = 1_000_000) -> Iterator[pa.RecordBatch]:
-        pf = pq.ParquetFile(self.blockmodel_path)
-        try:
-            for batch in pf.iter_batches(columns=columns, batch_size=batch_size):
-                yield batch
-        finally:
-            try:
-                pf.close()
-            except Exception:
-                pass
+        with pq.ParquetFile(self.blockmodel_path) as pf:
+            yield from pf.iter_batches(columns=columns, batch_size=batch_size)
 
     def _iter_block_ids(self, batch_size: int = 1_000_000) -> Iterator[np.ndarray]:
         cols = set(self.columns)
@@ -992,15 +1003,52 @@ class ParquetBlockModel:
             return
 
         dense_count = int(np.prod(self.geometry.local.shape))
-        if int(self.pf.metadata.num_rows) != dense_count:
+        if self._num_rows != dense_count:
             raise ValueError("Sparse model requires block_id, world_id, ijk, or xyz positional columns.")
 
-        offset = 0
-        for rg in range(self.pf.metadata.num_row_groups):
-            n_rows = self.pf.metadata.row_group(rg).num_rows
-            ids = np.arange(offset, offset + n_rows, dtype=np.uint32)
-            offset += n_rows
-            yield ids
+        for offset in range(0, self._num_rows, batch_size):
+            yield np.arange(offset, min(offset + batch_size, self._num_rows), dtype=np.uint32)
+
+    @classmethod
+    def _reject_ambiguous_parquet_positions(cls, parquet_path: Path) -> None:
+        schema = pq.read_schema(parquet_path)
+        columns = set(schema.names)
+        # Prefer retaining centroids, since only xyz supports geometry inference.
+        groups = [("x", "y", "z"), ("block_id",), ("world_id",), ("i", "j", "k")]
+        representations = [group for group in groups if columns.issuperset(group)]
+        if len(representations) <= 1:
+            return
+
+        keep = representations[0]
+        drop = [col for col in cls.SPECIAL_COLUMN_ORDER if col in columns and col not in keep]
+        conflicting_columns = {col for group in representations[1:] for col in group}
+        conflicts = [col for col in drop if col in conflicting_columns]
+        index_columns = (schema.pandas_metadata or {}).get("index_columns", [])
+        restore_index = ".reset_index()" if any(col in index_columns for col in cls.POSITION_COLUMNS) else ""
+        clean_name = f"{parquet_path.stem}_clean.parquet"
+        if keep == ("x", "y", "z"):
+            metadata_note = ""
+            write_clean = f"    df.to_parquet({json.dumps(clean_name)})"
+        else:
+            metadata_note = " Without x, y, z, the cleaned file needs embedded PBM geometry metadata."
+            write_clean = (
+                "    import pyarrow as pa\n"
+                "    import pyarrow.parquet as pq\n"
+                f"    metadata = pq.read_metadata({json.dumps(parquet_path.name)}).metadata\n"
+                "    table = pa.Table.from_pandas(df, preserve_index=False)\n"
+                '    table = table.replace_schema_metadata({b"parq-blockmodel": metadata[b"parq-blockmodel"]})\n'
+                f"    pq.write_table(table, {json.dumps(clean_name)})"
+            )
+        raise ValueError(
+            "Source .parquet contains multiple positional representations: "
+            f"found {', '.join(conflicts)} alongside {', '.join(keep)}.\n\n"
+            "A source .parquet should contain exactly one positional representation. "
+            "Drop the other positional columns before calling from_parquet()."
+            f"{metadata_note}\n\n"
+            f"    df = pd.read_parquet({json.dumps(parquet_path.name)}){restore_index}\n"
+            f"    df = df.drop(columns={json.dumps(drop)})\n"
+            f"{write_clean}"
+        )
 
     @classmethod
     def from_parquet(
@@ -1022,10 +1070,11 @@ class ParquetBlockModel:
         xyz-centric) into a canonical ``.pbm`` container with embedded
         :class:`RegularGeometry` metadata.
 
-        The input Parquet is expected to contain centroid columns
-        ``x``, ``y``, ``z`` describing block centroids in world
-        coordinates. :class:`RegularGeometry` is reconstructed from those
-        centroids and/or any existing ``"parq-blockmodel"`` metadata via
+        A source ``.parquet`` must contain exactly one positional representation:
+        ``block_id``, ``world_id``, ``i, j, k``, or ``x, y, z``. Multiple
+        representations are allowed when rewriting a canonical ``.pbm`` with
+        ``overwrite=True``. :class:`RegularGeometry` is reconstructed from
+        embedded ``"parq-blockmodel"`` metadata or inferred from ``x, y, z`` via
         :meth:`RegularGeometry.from_parquet`. Geometry becomes the
         authoritative description of the dense ijk grid; xyz centroids
         are treated as a derived view.
@@ -1062,6 +1111,8 @@ class ParquetBlockModel:
                     f"File {parquet_path} appears to be a compliant ParquetBlockModel file. "
                     f"Use the constructor directly, or pass overwrite=True to allow mutation."
                 )
+        elif parquet_path.suffix.lower() == ".parquet":
+            cls._reject_ambiguous_parquet_positions(parquet_path)
 
         geometry = RegularGeometry.from_parquet(filepath=parquet_path,
                                                 axis_azimuth=axis_azimuth,
@@ -1088,14 +1139,12 @@ class ParquetBlockModel:
         )
         writer.write(columns=columns, chunk_size=chunk_size)
         
-        pbm = cls(
+        return cls(
             blockmodel_path=new_filepath,
             geometry=geometry,
             schema=loaded_schema,
             engine_initializer=engine_initializer,
         )
-        pbm._refresh_path_bound_state()
-        return pbm
 
     @classmethod
     def from_dataframe(
@@ -1284,20 +1333,9 @@ class ParquetBlockModel:
             for example ``shape`` or ``block_size``. This allows tests and
             examples to control the logical grid used for the demo model.
         """
-        from parq_blockmodel.utils.demo_block_model import create_demo_blockmodel as _create_demo_df
-
-        # Write the demo DataFrame to the requested Parquet file.
-        df = _create_demo_blockmodel(parquet_filepath=filename, **demo_kwargs)
-        if isinstance(df, Path):
-            # The helper already wrote the Parquet file and returned the path.
-            parquet_path = df
-        else:
-            # Defensive: if the helper returned a DataFrame, persist it now.
-            parquet_path = filename
-            df.to_parquet(parquet_path)
-
-        # Promote the raw parquet into a canonical .pbm ParquetBlockModel.
-        return cls.from_parquet(parquet_path)
+        df = create_demo_blockmodel(**demo_kwargs).reset_index()
+        df.drop(columns=["block_id", "i", "j", "k"], errors="ignore").to_parquet(filename, index=False)
+        return cls.from_parquet(filename)
 
     @classmethod
     def create_toy_blockmodel(cls, filename: Path,
@@ -1553,16 +1591,11 @@ class ParquetBlockModel:
                 self.name = new_pbm_filepath.stem
             return self
 
-        # Release file-backed handles before rename (important on Windows).
-        self.pf = None
-        self.data = None
-
         self.blockmodel_path.rename(new_pbm_filepath)
 
         # Refresh path-dependent state.
         self.blockmodel_path = new_pbm_filepath
         self._refresh_path_bound_state()
-        self._extract_column_dtypes()
 
         if rename_to_new_pbm_stem:
             self.name = self.blockmodel_path.stem
@@ -1606,12 +1639,13 @@ class ParquetBlockModel:
         
         logging.basicConfig(level=logging.DEBUG)
         
-        effective_columns_per_batch, memory_budget_bytes = resolve_report_columns_per_batch(
-            parquet_file=self.pf,
-            columns=selected_columns,
-            columns_per_batch=columns_per_batch,
-            memory_budget=memory_budget,
-        )
+        with pq.ParquetFile(self.blockmodel_path) as parquet_file:
+            effective_columns_per_batch, memory_budget_bytes = resolve_report_columns_per_batch(
+                parquet_file=parquet_file,
+                columns=selected_columns,
+                columns_per_batch=columns_per_batch,
+                memory_budget=memory_budget,
+            )
         resolved_output_path = Path(report_path) if report_path is not None else self.blockmodel_path.with_suffix('.html')
 
         from parq_blockmodel.reporting import BlockModelReport
@@ -2192,9 +2226,6 @@ class ParquetBlockModel:
         if batch_size <= 0:
             raise ValueError("batch_size must be > 0")
 
-        # Windows cannot atomically replace files while parquet readers are alive.
-        self.pf = None  # type: ignore[assignment]
-        self.data = None  # type: ignore[assignment]
         active_compression = schema_utils.resolve_active_compression_policy(compression)
 
         if merge:
@@ -2227,12 +2258,10 @@ class ParquetBlockModel:
                 },
             )
         else:
-            with pq.ParquetFile(self.blockmodel_path) as pf:
-                num_rows = int(pf.metadata.num_rows)
-            if len(dataframe) != num_rows:
+            if len(dataframe) != self._num_rows:
                 raise ValueError(
                     f"DataFrame row count ({len(dataframe)}) does not match "
-                    f"block model rows ({num_rows})."
+                    f"block model rows ({self._num_rows})."
                 )
             missing_columns = [col for col in self.columns if col not in dataframe.columns]
             if missing_columns:
@@ -2267,12 +2296,7 @@ class ParquetBlockModel:
                 **schema_utils.build_parquet_compression_kwargs(table.column_names, active_compression),
             )
 
-        self.pf = ParquetFile(self.blockmodel_path)
-        self.data = LazyParquetDF(self.blockmodel_path)
-        self.columns = pq.read_schema(self.blockmodel_path).names
-        self.attributes = [col for col in self.columns if col not in self.POSITION_COLUMNS]
-        self._centroid_index = None
-        self._extract_column_dtypes()
+        self._refresh_path_bound_state()
         self.compression = active_compression
 
         return self
@@ -2291,9 +2315,6 @@ class ParquetBlockModel:
             level=level,
             policy=policy,
         )
-
-        self.pf = None  # type: ignore[assignment]
-        self.data = None  # type: ignore[assignment]
 
         with atomic_output_file(self.blockmodel_path) as tmp_path:
             with pq.ParquetFile(self.blockmodel_path) as parquet_file:
@@ -2315,12 +2336,7 @@ class ParquetBlockModel:
                 finally:
                     writer.close()
 
-        self.pf = ParquetFile(self.blockmodel_path)
-        self.data = LazyParquetDF(self.blockmodel_path)
-        self.columns = pq.read_schema(self.blockmodel_path).names
-        self.attributes = [col for col in self.columns if col not in self.POSITION_COLUMNS]
-        self._centroid_index = None
-        self._extract_column_dtypes()
+        self._refresh_path_bound_state()
         self.compression = archive_policy
         return self
 
