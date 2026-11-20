@@ -86,6 +86,30 @@ Engine before evaluating. Two APIs are provided:
 **Option 2: Post-load registration** (lazy)
    Register resolvers after loading the PBM, via ``configure_engine()``.
 
+Pipeline functions are also evaluated lazily when requested. A ``.pbm`` stores
+only the names of registered pipeline functions, never their Python code or
+module paths. Pass the same trusted initializer when reopening the file so the
+engine can match those names to the schema's calculated columns:
+
+.. code-block:: python
+
+    def calculate_metal_pct(data):
+        return data["contained_metal"] / data["tonnes"] * 100
+
+    def setup_engine(engine):
+        engine.register_pipeline_function("metal_pct", calculate_metal_pct)
+        return engine
+
+    pbm = ParquetBlockModel(
+        Path("model.pbm"),
+        engine_initializer=setup_engine,
+    )
+    result = pbm.read(columns=["metal_pct"], index="ijk")
+
+Pipeline-function outputs are not stored as physical columns. If a recorded
+function is not registered, the file still opens and a warning is emitted;
+those calculated columns are omitted from ``pbm.calculated_attributes``.
+
 Example: DictResolver-based lookup in calculated column
 ---------------------------------------------------------
 

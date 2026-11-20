@@ -223,7 +223,25 @@ class ParquetBlockModel:
             >>> result = pbm.read(columns=["rock_name", "converted_value"])
         """
         self._engine_initializer = initializer
+        self._refresh_pipeline_function_registry()
         self._schema_service = None  # Invalidate cached service
+
+    @staticmethod
+    def _registered_pipeline_function_names(
+        engine_initializer: Optional[typing.Callable],
+    ) -> set[str]:
+        """Return names explicitly registered by the caller's engine initializer."""
+        if engine_initializer is None:
+            return set()
+        try:
+            from df_eval import Engine
+        except ImportError as exc:  # pragma: no cover
+            raise ImportError(
+                "Pipeline function support requires 'df-eval'. Install it with: "
+                "pip install 'parq-blockmodel[schema]'"
+            ) from exc
+        engine = engine_initializer(Engine())
+        return set(engine.pipeline_functions)
 
     @property
     def schema_service(self) -> SchemaService:
@@ -294,6 +312,30 @@ class ParquetBlockModel:
         self.columns = pq.read_schema(self.blockmodel_path).names
         self.attributes = [col for col in self.columns if col not in self.POSITION_COLUMNS]
         self._centroid_index = None
+        self._pipeline_function_metadata_names = schema_utils.load_embedded_pipeline_functions(
+            self.blockmodel_path
+        )
+        self._refresh_pipeline_function_registry()
+
+    def _refresh_pipeline_function_registry(self) -> None:
+        """Cross-reference file-declared names with caller-registered functions."""
+        registered_names = self._registered_pipeline_function_names(self._engine_initializer)
+        metadata_names = set(getattr(self, "_pipeline_function_metadata_names", []))
+        missing_names = sorted(metadata_names - registered_names)
+        if missing_names:
+            if self._engine_initializer is None:
+                logger.warning(
+                    "This .pbm records pipeline functions %s but no engine_initializer "
+                    "was supplied; those calculated columns are unavailable.",
+                    missing_names,
+                )
+            else:
+                logger.warning(
+                    "This .pbm records pipeline functions %s that are not registered by "
+                    "the supplied engine_initializer; those calculated columns are unavailable.",
+                    missing_names,
+                )
+        self._available_pipeline_function_names = metadata_names & registered_names
 
     @property
     def column_categorical_ordered(self) -> dict[str, bool]:
@@ -454,6 +496,7 @@ class ParquetBlockModel:
         schema: Optional["DataFrameSchema"],
         base_metadata: Optional[dict[bytes, bytes]] = None,
         compression: Optional[dict[str, typing.Any]] = None,
+        pipeline_functions: Optional[typing.Iterable[str]] = None,
     ) -> dict[bytes, bytes]:
         """Build schema metadata dict.
         
@@ -464,6 +507,7 @@ class ParquetBlockModel:
             schema,
             base_metadata,
             compression=compression,
+            pipeline_functions=pipeline_functions,
         )
 
     @classmethod
@@ -486,7 +530,14 @@ class ParquetBlockModel:
         
         Delegates to schema_service.
         """
-        return self.schema_service.available_df_eval_operations()
+        operations = self.schema_service.available_df_eval_operations()
+        return {
+            name: operation
+            for name, operation in operations.items()
+            if operation.get("kind") != "function"
+            or (operation.get("function") or {}).get("name")
+            in self._available_pipeline_function_names
+        }
 
     def _schema_column_attribute_flags(self) -> dict[str, bool]:
        """Get attribute classification flags from schema.

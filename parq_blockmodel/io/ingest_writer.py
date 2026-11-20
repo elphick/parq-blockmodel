@@ -100,6 +100,24 @@ class IngestWriter:
         if self.input_path is not None and not self.input_path.exists():
             raise ValueError(f"Input file does not exist: {self.input_path}")
 
+    @staticmethod
+    def _pipeline_output_columns(schema: Optional["DataFrameSchema"]) -> set[str]:
+        """Return outputs of schema operations backed by pipeline functions."""
+        if schema is None:
+            return set()
+        from parq_blockmodel.blockmodel import ParquetBlockModel
+
+        outputs: set[str] = set()
+        operations = ParquetBlockModel._df_eval_operations_from_schema(schema)
+        for name, operation in operations.items():
+            if operation.get("kind") != "function":
+                continue
+            outputs.add(name)
+            declared_outputs = (operation.get("function") or {}).get("outputs")
+            if isinstance(declared_outputs, list):
+                outputs.update(output for output in declared_outputs if isinstance(output, str))
+        return outputs
+
     def write(
         self,
         columns: Optional[list[str]] = None,
@@ -139,6 +157,11 @@ class IngestWriter:
         """
         # Lazy import to avoid circular dependencies
         from parq_blockmodel.blockmodel import ParquetBlockModel
+
+        pipeline_function_names = ParquetBlockModel._registered_pipeline_function_names(
+            self.engine_initializer
+        )
+        pipeline_output_columns = self._pipeline_output_columns(self.schema)
 
         with pq.ParquetFile(self.input_path) as pf:
             src_cols = pf.schema.names
@@ -260,6 +283,8 @@ class IngestWriter:
 
             read_cols = list(dict.fromkeys(src_cols + [c for c in ParquetBlockModel.SPECIAL_COLUMN_ORDER if c in src_cols]))
 
+        output_cols = [c for c in output_cols if c not in pipeline_output_columns]
+
         # Stream data through batches
         with pq.ParquetFile(self.input_path) as pf:
             with atomic_output_file(self.output_path) as tmp_path:
@@ -369,6 +394,7 @@ class IngestWriter:
                             schema=self.schema,
                             base_metadata=dict(table.schema.metadata or {}),
                             compression=compression_policy,
+                            pipeline_functions=pipeline_function_names,
                         )
                         table = table.replace_schema_metadata(meta)
 
@@ -423,6 +449,13 @@ class IngestWriter:
 
         df_work = dataframe.copy()
         src_cols = list(df_work.columns)
+        pipeline_function_names = ParquetBlockModel._registered_pipeline_function_names(
+            self.engine_initializer
+        )
+        pipeline_output_columns = self._pipeline_output_columns(self.schema)
+        schema_ops: dict[str, dict[str, typing.Any]] = {}
+        if self.schema is not None:
+            schema_ops = dict(ParquetBlockModel._df_eval_operations_from_schema(self.schema))
 
         # Determine output columns
         if columns is None:
@@ -524,7 +557,6 @@ class IngestWriter:
         # Apply schema validation and df-eval operations if schema provided
         if self.schema is not None:
             required_cols = ParquetBlockModel._extract_required_columns_from_schema(self.schema)
-            schema_ops = dict(ParquetBlockModel._df_eval_operations_from_schema(self.schema))
             schema_columns = getattr(self.schema, "columns", {})
             schema_column_names = list(schema_columns.keys()) if isinstance(schema_columns, dict) else []
             strict_filter = schema_utils.schema_uses_strict_filter(self.schema)
@@ -586,6 +618,7 @@ class IngestWriter:
                 output_cols = list(df_work.columns)
 
         # Select output columns, guarding against any cols absent from df_work
+        output_cols = [c for c in output_cols if c not in pipeline_output_columns]
         ordered = ParquetBlockModel._ordered_columns(output_cols)
         ordered = [c for c in ordered if c in df_work.columns]
         write_df = df_work[ordered]
@@ -598,6 +631,7 @@ class IngestWriter:
             schema=self.schema,
             base_metadata=dict(table.schema.metadata or {}),
             compression=compression_policy,
+            pipeline_functions=pipeline_function_names,
         )
         table = table.replace_schema_metadata(meta)
         pq.write_table(
