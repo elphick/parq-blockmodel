@@ -722,6 +722,167 @@ def test_read_without_engine_initializer_works(tmp_path):
     np.testing.assert_allclose(result["tonnes"].to_numpy(), np.full(len(result), 2.5))
 
 
+def test_pipeline_function_is_lazy_after_cold_open(tmp_path, caplog):
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    from df_eval import Engine
+
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = np.arange(len(df), dtype=float) + 1
+    schema = DataFrameSchema(
+        columns={
+            "density": Column(float, required=True),
+            "pipeline_result": Column(
+                float,
+                required=False,
+                metadata={
+                    "df-eval": {
+                        "function": {
+                            "name": "double_density",
+                            "inputs": ["density"],
+                            "outputs": ["pipeline_result"],
+                        }
+                    }
+                },
+            ),
+        },
+        strict=False,
+    )
+
+    def setup_engine(engine: Engine):
+        engine.register_pipeline_function(
+            "double_density", lambda data: data["density"] * 2
+        )
+        return engine
+
+    created = ParquetBlockModel.from_dataframe(
+        df[["density"]],
+        filename=tmp_path / "pipeline_calc.parquet",
+        schema=schema,
+        engine_initializer=setup_engine,
+    )
+    assert "pipeline_result" not in created.persisted_columns
+    assert "pipeline_result" in created.calculated_attributes
+
+    metadata = pq.read_metadata(created.blockmodel_path).metadata
+    assert metadata[b"parq-blockmodel.pipeline_functions"] == b'["double_density"]'
+
+    cold_open = ParquetBlockModel(
+        created.blockmodel_path,
+        engine_initializer=setup_engine,
+    )
+    assert "pipeline_result" in cold_open.calculated_attributes
+    result = cold_open.read(columns=["pipeline_result"], index="ijk")
+    persisted = cold_open.read(columns=["density"], index="ijk")
+    np.testing.assert_allclose(result["pipeline_result"], persisted["density"] * 2)
+
+    with caplog.at_level("WARNING"):
+        unavailable = ParquetBlockModel(created.blockmodel_path)
+    assert "no engine_initializer was supplied" in caplog.text
+    assert "pipeline_result" not in unavailable.calculated_attributes
+
+
+def test_pipeline_function_without_matching_registration_warns_and_skips(tmp_path, caplog):
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    from df_eval import Engine
+
+    df = create_demo_blockmodel(shape=(2, 2, 2)).set_index(["x", "y", "z"])
+    df["density"] = 2.5
+    schema = DataFrameSchema(
+        columns={
+            "density": Column(float, required=True),
+            "pipeline_result": Column(
+                float,
+                required=False,
+                metadata={
+                    "df-eval": {
+                        "function": {
+                            "name": "double_density",
+                            "inputs": ["density"],
+                            "outputs": ["pipeline_result"],
+                        }
+                    }
+                },
+            ),
+        },
+        strict=False,
+    )
+
+    def setup_engine(engine: Engine):
+        engine.register_pipeline_function(
+            "double_density", lambda data: data["density"] * 2
+        )
+        return engine
+
+    created = ParquetBlockModel.from_dataframe(
+        df[["density"]],
+        filename=tmp_path / "pipeline_missing_registration.parquet",
+        schema=schema,
+        engine_initializer=setup_engine,
+    )
+
+    def setup_other_engine(engine: Engine):
+        engine.register_pipeline_function("another_function", lambda data: data)
+        return engine
+
+    with caplog.at_level("WARNING"):
+        opened = ParquetBlockModel(
+            created.blockmodel_path,
+            engine_initializer=setup_other_engine,
+        )
+
+    assert "not registered by the supplied engine_initializer" in caplog.text
+    assert "pipeline_result" not in opened.calculated_attributes
+
+
+def test_pipeline_function_from_parquet_is_lazy_after_cold_open(tmp_path):
+    pytest.importorskip("df_eval", reason="df-eval not installed")
+    from df_eval import Engine
+
+    df = create_demo_blockmodel(shape=(2, 2, 2)).reset_index()
+    df["density"] = 3.0
+    source_path = tmp_path / "pipeline_source.parquet"
+    df.to_parquet(source_path)
+    schema = DataFrameSchema(
+        columns={
+            "density": Column(float, required=True),
+            "pipeline_result": Column(
+                float,
+                required=False,
+                metadata={
+                    "df-eval": {
+                        "function": {
+                            "name": "double_density",
+                            "inputs": ["density"],
+                            "outputs": ["pipeline_result"],
+                        }
+                    }
+                },
+            ),
+        },
+        strict=False,
+    )
+
+    def setup_engine(engine: Engine):
+        engine.register_pipeline_function(
+            "double_density", lambda data: data["density"] * 2
+        )
+        return engine
+
+    created = ParquetBlockModel.from_parquet(
+        source_path,
+        schema=schema,
+        engine_initializer=setup_engine,
+    )
+    assert "pipeline_result" not in created.persisted_columns
+
+    cold_open = ParquetBlockModel(
+        created.blockmodel_path,
+        engine_initializer=setup_engine,
+    )
+    result = cold_open.read(columns=["pipeline_result"], index="ijk")
+    np.testing.assert_allclose(result["pipeline_result"], 6.0)
+
+
 # ---------------------------------------------------------------------------
 # Phase 1 & 2: Extract Required Columns & Persist Calculated Columns
 # ---------------------------------------------------------------------------

@@ -17,6 +17,7 @@ if typing.TYPE_CHECKING:
 
 
 PBM_METADATA_KEY = b"parq-blockmodel"
+PIPELINE_FUNCTIONS_METADATA_KEY = b"parq-blockmodel.pipeline_functions"
 POSITION_COLUMNS = {"block_id", "world_id", "i", "j", "k", "x", "y", "z"}
 
 
@@ -404,6 +405,7 @@ def build_schema_metadata(
     schema: Optional["DataFrameSchema"],
     base_metadata: Optional[dict[bytes, bytes]] = None,
     compression: Optional[dict[str, typing.Any]] = None,
+    pipeline_functions: Optional[typing.Iterable[str]] = None,
 ) -> dict[bytes, bytes]:
     """Build combined metadata dict for Parquet schema (geometry + schema YAML + compression).
 
@@ -417,6 +419,9 @@ def build_schema_metadata(
         Existing metadata to preserve.
     compression : dict[str, Any], optional
         Compression policy metadata to persist alongside geometry and schema.
+    pipeline_functions : Iterable[str], optional
+        Names of registered pipeline functions. Callable objects and import
+        paths are never serialized.
 
     Returns
     -------
@@ -443,7 +448,24 @@ def build_schema_metadata(
     else:
         payload["compression"] = compression
     metadata[PBM_METADATA_KEY] = json.dumps(payload).encode("utf-8")
+    if pipeline_functions is not None:
+        names = list(pipeline_functions)
+        if not all(isinstance(name, str) for name in names):
+            raise TypeError("Pipeline function metadata must contain only names.")
+        metadata[PIPELINE_FUNCTIONS_METADATA_KEY] = json.dumps(sorted(set(names))).encode("utf-8")
     return metadata
+
+
+def load_embedded_pipeline_functions(parquet_path: Path) -> list[str]:
+    """Load pipeline function names recorded in Parquet metadata."""
+    metadata = pq.read_metadata(parquet_path).metadata or {}
+    payload = metadata.get(PIPELINE_FUNCTIONS_METADATA_KEY)
+    if payload is None:
+        return []
+    names = json.loads(payload.decode("utf-8"))
+    if not isinstance(names, list) or not all(isinstance(name, str) for name in names):
+        raise ValueError("Embedded pipeline function metadata must be a list of names.")
+    return names
 
 
 def df_eval_operations_from_schema(schema: "DataFrameSchema") -> dict[str, dict[str, typing.Any]]:
