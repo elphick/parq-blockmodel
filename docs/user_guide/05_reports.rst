@@ -38,6 +38,44 @@ The returned report object exposes the rendered HTML and can be written again:
     html = report.to_html()
     report.save(Path("reports/orebody_profile.html"))
 
+Include calculated columns
+--------------------------
+
+By default, reports use the persisted columns in the block model. To include
+available calculated columns as well, opt in:
+
+.. code-block:: python
+
+    report = pbm.create_report(include_calculated=True)
+
+With this option and no explicit ``columns`` list, the report includes
+persisted and calculated columns, including the built-in ``volume``, but
+excludes positional and identity columns (``block_id``, ``world_id``, ``i``,
+``j``, ``k``, ``x``, ``y``, and ``z``). Pass ``include_special=True`` to
+include those columns too. An explicit ``columns`` list controls the selection
+and can include special columns regardless of ``include_special``:
+
+.. code-block:: python
+
+    report = pbm.create_report(
+        columns=["block_id", "volume"],
+        include_calculated=True,
+    )
+
+Descriptions of materialised calculated columns are prefixed with ``(𝑓𝑥)``.
+Persisted columns are not marked, even if a calculation with the same name is
+defined. Schema expressions, lookups, and functions use the model's configured
+engine, just as they do for ``read()``.
+
+.. warning::
+
+   When calculated columns are needed, the model is loaded into memory and the
+   selected columns are written to a temporary Parquet file for profiling.
+   The temporary file is removed after report creation, including on failure.
+   ``memory_budget`` affects profiling batches, not this full-memory
+   materialisation. When no calculated columns are needed, the report uses the
+   backing file directly.
+
 Run the full report without column chunking
 -------------------------------------------
 
@@ -155,6 +193,9 @@ Summary of the reporting API
 ``ParquetBlockModel.create_report`` accepts these main arguments:
 
 * ``columns``: restrict profiling to selected columns,
+* ``include_calculated``: include available calculated columns (default ``False``),
+* ``include_special``: include positional and identity columns in the automatic
+  selection when ``include_calculated=True`` (default ``False``),
 * ``columns_per_batch``: explicit column chunk size, or ``None`` for no chunking,
 * ``memory_budget``: derive a chunk size automatically,
 * ``report_path``: choose where the initial HTML file is written,
