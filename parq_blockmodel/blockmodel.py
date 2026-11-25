@@ -29,8 +29,10 @@ the ijk‑first representation.
 """
 import logging
 import math
+import tempfile
 import typing
 import warnings
+from contextlib import ExitStack
 from pathlib import Path
 from typing import Union, Optional, Iterator
 import json
@@ -1609,6 +1611,8 @@ class ParquetBlockModel:
                       report_path: Optional[Union[str, Path]] = None,
                       write_html: bool = True,
                       memory_budget: Optional[Union[int, float, str]] = None,
+                      include_calculated: bool = False,
+                      include_special: bool = False,
                       ) -> "BlockModelReport":
         """
         Create a fg-data-profiling report for the block model.
@@ -1616,7 +1620,8 @@ class ParquetBlockModel:
         ``.html`` suffix, and the returned report object can be re-saved later.
 
         Args:
-            columns: List of column names to include in the profile. If None, all columns are used.
+            columns: List of column names to include in the profile. If None, all
+                persisted columns are used unless ``include_calculated`` is True.
             columns_per_batch: Number of columns to process in each profiling batch.
                 Use None to profile all requested columns in one pass.
             show_progress: bool: If True, displays a progress bar during profiling.
@@ -1627,50 +1632,87 @@ class ParquetBlockModel:
                 as a string such as ``"512MB"`` or ``"2GiB"``. When provided,
                 the method derives ``columns_per_batch`` automatically from Parquet
                 column-chunk metadata. If the full selected column set fits within
-                the budget estimate, profiling runs without column chunking.
+                the budget estimate, profiling runs without column chunking. This
+                does not limit memory used to materialise calculated columns.
+            include_calculated: If True, include available calculated columns
+                when ``columns`` is None, and materialise requested calculated
+                columns before profiling. Materialisation loads the model into
+                memory and writes a temporary Parquet file. Calculated column
+                descriptions are prefixed with ``(𝑓𝑥)``.
+            include_special: When ``include_calculated`` is True and ``columns``
+                is None, include positional and identity columns. Explicit
+                ``columns`` always takes precedence. Otherwise this has no effect.
 
         Returns
             BlockModelReport: The generated report wrapper. Use
             :meth:`BlockModelReport.save` to write it again.
 
         """
-        selected_columns = list(columns) if columns is not None else list(self.columns)
+        if columns is not None:
+            selected_columns = list(columns)
+        elif include_calculated:
+            selected_columns = [
+                column for column in self.available_columns
+                if include_special or column not in self.POSITION_COLUMNS
+            ]
+        else:
+            selected_columns = list(self.columns)
+
+        calculated_needed = (
+            [column for column in selected_columns if column not in self.columns]
+            if include_calculated else []
+        )
         column_descriptions, dataset_metadata = self._report_schema_metadata(selected_columns)
+        if calculated_needed:
+            column_descriptions = dict(column_descriptions or {})
+            for column in calculated_needed:
+                description = column_descriptions.get(column)
+                column_descriptions[column] = f"(𝑓𝑥) {description}" if description else "(𝑓𝑥)"
         
         logging.basicConfig(level=logging.DEBUG)
-        
-        with pq.ParquetFile(self.blockmodel_path) as parquet_file:
-            effective_columns_per_batch, memory_budget_bytes = resolve_report_columns_per_batch(
-                parquet_file=parquet_file,
+
+        with ExitStack() as stack:
+            profile_path = self.blockmodel_path
+            if calculated_needed:
+                temp_dir = Path(stack.enter_context(tempfile.TemporaryDirectory()))
+                profile_path = temp_dir / "report.parquet"
+                # TODO: use the chunked Parquet writer when it becomes available.
+                df = self.read(columns=selected_columns, index=None, include_calculated=True)
+                df.to_parquet(profile_path, index=False, compression="snappy")
+                del df
+
+            with pq.ParquetFile(profile_path) as parquet_file:
+                effective_columns_per_batch, memory_budget_bytes = resolve_report_columns_per_batch(
+                    parquet_file=parquet_file,
+                    columns=selected_columns,
+                    columns_per_batch=columns_per_batch,
+                    memory_budget=memory_budget,
+                )
+            resolved_output_path = Path(report_path) if report_path is not None else self.blockmodel_path.with_suffix('.html')
+
+            from parq_blockmodel.reporting import BlockModelReport
+
+            raw_report: ParquetProfileReport = ParquetProfileReport(
+                profile_path,
                 columns=selected_columns,
-                columns_per_batch=columns_per_batch,
-                memory_budget=memory_budget,
+                batch_size=effective_columns_per_batch,
+                show_progress=show_progress,
+                title=f"{self.name} Profile Report",
+                dataset_metadata=dataset_metadata,
+                column_descriptions=column_descriptions,
+            ).profile()
+            report = BlockModelReport(
+                report=raw_report,
+                output_path=resolved_output_path,
+                columns=selected_columns,
+                columns_per_batch=effective_columns_per_batch,
+                memory_budget_bytes=memory_budget_bytes,
             )
-        resolved_output_path = Path(report_path) if report_path is not None else self.blockmodel_path.with_suffix('.html')
 
-        from parq_blockmodel.reporting import BlockModelReport
-
-        raw_report: ParquetProfileReport = ParquetProfileReport(
-            self.blockmodel_path,
-            columns=selected_columns,
-            batch_size=effective_columns_per_batch,
-            show_progress=show_progress,
-            title=f"{self.name} Profile Report",
-            dataset_metadata=dataset_metadata,
-            column_descriptions=column_descriptions,
-        ).profile()
-        report = BlockModelReport(
-            report=raw_report,
-            output_path=resolved_output_path,
-            columns=selected_columns,
-            columns_per_batch=effective_columns_per_batch,
-            memory_budget_bytes=memory_budget_bytes,
-        )
-
-        if write_html:
-            report.save()
-        if open_in_browser:
-            report.show(notebook=False)
+            if write_html:
+                report.save()
+            if open_in_browser:
+                report.show(notebook=False)
         self.report_path = report.output_path
         return report
 

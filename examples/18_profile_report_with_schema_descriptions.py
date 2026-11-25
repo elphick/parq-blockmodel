@@ -4,7 +4,8 @@ Profile Reports with Schema Descriptions
 
 This example demonstrates how Pandera schema column ``title`` and
 ``description`` metadata improve the variable descriptions shown in
-``create_report`` output.
+``create_report`` output. It also opts in to profiling a calculated column,
+whose report description is marked with ``(𝑓𝑥)``.
 """
 
 import os
@@ -35,6 +36,12 @@ schema = DataFrameSchema(
             checks=[Check.greater_than_or_equal_to(0), Check.less_than_or_equal_to(100)],
             nullable=True,
         ),
+        "cu_fraction": Column(
+            float,
+            nullable=True,
+            required=False,
+            metadata={"df-eval": {"expr": "cu_pct / 100"}},
+        ),
     },
     strict=False,
 )
@@ -42,6 +49,8 @@ schema.columns["depth"].title = "Depth"
 schema.columns["depth"].description = "Vertical distance below the model top surface."
 schema.columns["cu_pct"].title = "Copper grade (%)"
 schema.columns["cu_pct"].description = "Synthetic copper grade for demonstration."
+schema.columns["cu_fraction"].title = "Copper grade (fraction)"
+schema.columns["cu_fraction"].description = "Copper grade expressed as a fraction."
 schema.name = "demo_profile_model"
 schema.title = "Demo Profile Model"
 schema.description = "Synthetic dataset used to demonstrate schema-enriched profiling reports."
@@ -56,10 +65,14 @@ pbm = ParquetBlockModel.from_dataframe(
 # %%
 # Generate the report
 # -------------------
+# Opt in to materialising the calculated ``cu_fraction`` alongside the
+# persisted columns. Its description in the report is prefixed with ``(𝑓𝑥)``.
 # Use ``columns_per_batch=None`` to profile all selected columns in one pass.
+# Materialisation loads the model into memory before profiling.
 
 report = pbm.create_report(
-    columns=["depth", "cu_pct"],
+    columns=["depth", "cu_pct", "cu_fraction"],
+    include_calculated=True,
     columns_per_batch=None,
     show_progress=True,
 )
