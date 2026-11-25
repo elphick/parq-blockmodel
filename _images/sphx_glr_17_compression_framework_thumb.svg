@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg"
+     viewBox="0 0 180 140"
+     aria-label="parq-blockmodel placeholder">
+
+  <!-- subtle background -->
+<!--  <rect x="0" y="0" width="180" height="140" fill="#f5f7f8"/>-->
+
+  <!-- centered + scaled + lowered -->
+  <g transform="translate(0,30) scale(0.8)" opacity="0.28">
+
+    <!-- MAIN SOLID -->
+    <polygon points="60,20 108,0 152,20 100,40" fill="#5f6e79"/>
+    <polygon points="60,20 100,40 100,70 60,50" fill="#5f6e79"/>
+
+    <!-- Highlight block -->
+    <polygon points="105,20 80,30 100,40 126,30" fill="#E6C97A"/>
+    <polygon points="80,30 100,40 100,70 80,60" fill="#E6C97A"/>
+    <polygon points="100,40 126,30 126,60 100,70" fill="#E6C97A"/>
+
+    <!-- Missing block -->
+    <polygon points="105,20 130,10 152,20 126,30" fill="#ffffff"/>
+    <polygon points="152,20 126,30 126,60 152,50" fill="#ffffff"/>
+
+    <!-- Background edges -->
+    <line x1="130" y1="10" x2="130" y2="40"
+          stroke="#9aa6af" stroke-width="2"/>
+    <line x1="130" y1="40" x2="152" y2="50"
+          stroke="#9aa6af" stroke-width="2"/>
+    <line x1="130" y1="40" x2="126" y2="42"
+          stroke="#9aa6af" stroke-width="2"/>
+
+    <!-- Subdivisions -->
+    <line x1="84"  y1="10" x2="126" y2="30"
+          stroke="#6b7a86" stroke-width="2"/>
+    <line x1="130" y1="10" x2="80"  y2="30"
+          stroke="#6b7a86" stroke-width="2"/>
+    <line x1="80"  y1="30" x2="80"  y2="60"
+          stroke="#6b7a86" stroke-width="2"/>
+    <line x1="126" y1="30" x2="126" y2="60"
+          stroke="#6b7a86" stroke-width="2"/>
+
+    <!-- Outline -->
+    <g fill="none"
+       stroke="#6b7a86"
+       stroke-width="2"
+       stroke-linejoin="round">
+      <polygon points="60,20 108,0 152,20 100,40"/>
+      <polygon points="60,20 100,40 100,70 60,50"/>
+      <polygon points="152,20 100,40 100,70 152,50"/>
+    </g>
+
+  </g>
+</svg>
